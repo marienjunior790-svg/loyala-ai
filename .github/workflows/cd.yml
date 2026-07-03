@@ -1,0 +1,46 @@
+name: CD
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: cd-production
+  cancel-in-progress: false
+
+jobs:
+  smoke-production:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Smoke web health
+        run: |
+          if [ -z "$PRODUCTION_WEB_URL" ]; then
+            echo "PRODUCTION_WEB_URL not set — skip (add GitHub secret after first deploy)"
+            exit 0
+          fi
+          code=$(curl -s -o /dev/null -w "%{http_code}" "$PRODUCTION_WEB_URL/api/health")
+          echo "Web health HTTP $code"
+          test "$code" = "200" -o "$code" = "503"
+
+      - name: Smoke worker health
+        run: |
+          if [ -z "$PRODUCTION_WORKER_URL" ]; then
+            echo "PRODUCTION_WORKER_URL not set — skip"
+            exit 0
+          fi
+          code=$(curl -s -o /dev/null -w "%{http_code}" "$PRODUCTION_WORKER_URL/health")
+          echo "Worker health HTTP $code"
+          test "$code" = "200"
+        env:
+          PRODUCTION_WORKER_URL: ${{ secrets.PRODUCTION_WORKER_URL }}
+    env:
+      PRODUCTION_WEB_URL: ${{ secrets.PRODUCTION_WEB_URL }}
+
+  notify-failure:
+    needs: smoke-production
+    runs-on: ubuntu-latest
+    if: failure()
+    steps:
+      - run: echo "::error::Production smoke test failed — verify Vercel/Railway deployments"
