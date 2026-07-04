@@ -10,7 +10,7 @@
 
 | Service | URL | Statut | Notes |
 |---------|-----|--------|-------|
-| Loyala Web (Vercel) | | ☐ ✅ ☐ ❌ | Next.js — `/api/health` |
+| Loyala Web (Vercel) | `https://loyala-ai-web.vercel.app` | ⚠️ 503 | Deployed, but `/api/health` reports `checks.supabase = error` |
 | backend-api (Railway) | `.../api/v1/health` | ✅ 200 | `db: connected` — 2026-07-03 |
 | backend-api (Vercel) | nine-wine.vercel.app | ⚠️ | Crash reflect-metadata — ignorer |
 | Supabase | | ☐ ✅ ☐ ❌ | |
@@ -37,7 +37,7 @@ Commande : `DATABASE_URL=... pnpm db:migrate`
 | Endpoint | HTTP | Attendu | Statut |
 |----------|------|---------|--------|
 | `GET /api/v1/health` (Railway backend-api) | 200 | `db: connected` | ✅ |
-| `GET /api/health` (Vercel loyala web) | 200 | `status: ok` | ☐ |
+| `GET /api/health` (Vercel loyala web) | 200 | `status: ok` | ⚠️ 503 `supabase:error` |
 | `GET /api/metrics/ai` (auth) | 200 | métriques JSON | ☐ |
 | `POST /ai/inbox/classify` (worker + secret) | 200 | classification | ☐ |
 | `GET/POST /api/inngest` | 200 | handler Inngest | ☐ |

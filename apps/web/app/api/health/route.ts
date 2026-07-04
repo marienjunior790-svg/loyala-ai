@@ -11,11 +11,11 @@ export async function GET() {
 
   if (supabaseUrl && supabaseKey) {
     try {
-      const res = await fetch(`${supabaseUrl}/rest/v1/`, {
-        headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` },
+      const res = await fetch(`${supabaseUrl}/auth/v1/settings`, {
+        headers: { apikey: supabaseKey },
         signal: AbortSignal.timeout(5000),
       });
-      checks.supabase = res.ok || res.status === 404 ? 'ok' : 'error';
+      checks.supabase = res.ok ? 'ok' : 'error';
     } catch {
       checks.supabase = 'error';
     }
