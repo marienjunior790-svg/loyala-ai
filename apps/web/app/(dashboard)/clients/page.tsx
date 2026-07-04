@@ -32,8 +32,8 @@ export default async function ClientsPage() {
             <p className="font-medium">Erreur chargement CRM</p>
             <p className="mt-1 font-mono text-xs">{loadError}</p>
             <p className="mt-2 text-muted-foreground">
-              Vérifiez que <code className="text-xs">auth.user_org_ids()</code> existe et que la
-              table <code className="text-xs">clients</code> inclut <code className="text-xs">deleted_at</code>.
+              Exécutez <code className="text-xs">scripts/fix-clients-rls-inline.sql</code> si le
+              message mentionne <code className="text-xs">user_org_ids</code> ou permission denied.
             </p>
           </CardContent>
         </Card>
