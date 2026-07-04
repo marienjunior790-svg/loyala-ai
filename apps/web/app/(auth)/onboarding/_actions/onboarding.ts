@@ -50,14 +50,24 @@ export async function completeOnboardingAction(
     redirect('/dashboard');
   }
 
-  const { data: ownerRole } = await supabase
+  const { data: ownerRole, error: ownerRoleError } = await supabase
     .from('roles')
     .select('id')
     .eq('scope', 'organization')
     .eq('code', 'org_owner')
     .single();
 
-  if (!ownerRole) return { error: 'Configuration rôles manquante' };
+  if (ownerRoleError) {
+    console.error('[onboarding] owner role lookup failed', ownerRoleError);
+    return {
+      error:
+        ownerRoleError.code === '42501'
+          ? 'Permissions rôles manquantes. Appliquez la migration 006.'
+          : ownerRoleError.message,
+    };
+  }
+
+  if (!ownerRole) return { error: 'Configuration rôles manquante. Appliquez la migration 006.' };
 
   const slug = slugify(parsed.data.organizationName);
 

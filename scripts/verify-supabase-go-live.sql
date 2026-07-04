@@ -43,6 +43,14 @@ FROM pg_policies
 WHERE schemaname = 'public'
 ORDER BY tablename, policyname;
 
+-- ─── 5b. Grants nécessaires onboarding ────────────────────────────────────
+SELECT grantee, table_name, privilege_type
+FROM information_schema.role_table_grants
+WHERE table_schema = 'public'
+  AND grantee = 'authenticated'
+  AND table_name IN ('roles', 'organizations', 'organization_members', 'domain_events')
+ORDER BY table_name, privilege_type;
+
 -- ─── 6. Audit — derniers événements ───────────────────────────────────────
 SELECT event_type, organization_id, created_at
 FROM domain_events
