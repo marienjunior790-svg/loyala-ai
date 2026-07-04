@@ -49,7 +49,9 @@ export interface AuthContext {
 }
 
 export function hasPermission(ctx: AuthContext, permission: Permission): boolean {
-  return ROLE_PERMISSIONS[ctx.role].includes(permission);
+  const permissions = ROLE_PERMISSIONS[ctx.role];
+  if (!permissions) return false;
+  return permissions.includes(permission);
 }
 
 export function requirePermission(ctx: AuthContext, permission: Permission): void {

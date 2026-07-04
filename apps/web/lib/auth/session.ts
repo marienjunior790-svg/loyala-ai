@@ -1,6 +1,6 @@
 import { createClient } from '../supabase/server';
 import { createAdminClient } from '@loyala/db';
-import { ORG_COOKIE_NAME, type AuthContext, type OrgRole } from '@loyala/core-iam';
+import { ORG_COOKIE_NAME, ORG_ROLES, type AuthContext, type OrgRole } from '@loyala/core-iam';
 import { cookies } from 'next/headers';
 import { getSupabaseEnv, getServiceRoleKey } from '../supabase/env';
 import { getActiveMembership } from './membership';
@@ -27,24 +27,34 @@ export async function getAuthContext(): Promise<AuthContext | null> {
     organizationId = active.organization_id;
   }
 
-  const { data: member } = await supabase
+  const { data: member, error: memberError } = await supabase
     .from('organization_members')
-    .select('organization_id, roles(code)')
+    .select('organization_id, role_id')
     .eq('user_id', user.id)
     .eq('organization_id', organizationId)
     .eq('status', 'active')
-    .single();
+    .maybeSingle();
 
-  if (!member) return null;
+  if (memberError || !member) return null;
 
-  const rolesData = member.roles as { code: string } | { code: string }[] | null;
-  const roleCode = Array.isArray(rolesData) ? rolesData[0]?.code : rolesData?.code;
-  const resolvedOrgId = member.organization_id;
+  let role: OrgRole = 'org_viewer';
+
+  if (member.role_id) {
+    const { data: roleRow } = await supabase
+      .from('roles')
+      .select('code')
+      .eq('id', member.role_id)
+      .maybeSingle();
+
+    if (roleRow?.code && (ORG_ROLES as readonly string[]).includes(roleRow.code)) {
+      role = roleRow.code as OrgRole;
+    }
+  }
 
   return {
     userId: user.id,
-    organizationId: resolvedOrgId,
-    role: (roleCode ?? 'org_viewer') as OrgRole,
+    organizationId: member.organization_id,
+    role,
   };
 }
 
