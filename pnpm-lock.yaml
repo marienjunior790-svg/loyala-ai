@@ -23,9 +23,6 @@ importers:
 
   apps/web:
     dependencies:
-      '@loyala/core-ai':
-        specifier: workspace:*
-        version: link:../../packages/core-ai
       '@loyala/core-iam':
         specifier: workspace:*
         version: link:../../packages/core-iam
