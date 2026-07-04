@@ -1,9 +1,10 @@
 import { createClient } from '../supabase/server';
 import { createAdminClient } from '@loyala/db';
-import { ORG_COOKIE_NAME, ORG_ROLES, type AuthContext, type OrgRole } from '@loyala/core-iam';
+import { ORG_COOKIE_NAME, type AuthContext, type OrgRole } from '@loyala/core-iam';
 import { cookies } from 'next/headers';
 import { getSupabaseEnv, getServiceRoleKey } from '../supabase/env';
 import { getActiveMembership } from './membership';
+import { resolveOrgRole } from './role-map';
 
 export async function getSession() {
   const supabase = await createClient();
@@ -46,9 +47,7 @@ export async function getAuthContext(): Promise<AuthContext | null> {
       .eq('id', member.role_id)
       .maybeSingle();
 
-    if (roleRow?.code && (ORG_ROLES as readonly string[]).includes(roleRow.code)) {
-      role = roleRow.code as OrgRole;
-    }
+    role = resolveOrgRole(roleRow?.code);
   }
 
   return {

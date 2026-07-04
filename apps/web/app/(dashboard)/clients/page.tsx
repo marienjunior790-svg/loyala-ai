@@ -13,10 +13,31 @@ export default async function ClientsPage() {
   const canWrite = hasPermission(ctx, 'clients:write');
 
   const supabase = await createClient();
-  const clients = await listClients(supabase, ctx.organizationId);
+
+  let clients: Awaited<ReturnType<typeof listClients>> = [];
+  let loadError: string | null = null;
+
+  try {
+    clients = await listClients(supabase, ctx.organizationId);
+  } catch (error) {
+    loadError = error instanceof Error ? error.message : 'Impossible de charger les clients';
+    console.error('[clients] listClients failed', { organizationId: ctx.organizationId, loadError });
+  }
 
   return (
     <div className="space-y-6 animate-fade-in">
+      {loadError && (
+        <Card className="border-destructive/40 bg-destructive/5">
+          <CardContent className="p-4 text-sm text-destructive">
+            <p className="font-medium">Erreur chargement CRM</p>
+            <p className="mt-1 font-mono text-xs">{loadError}</p>
+            <p className="mt-2 text-muted-foreground">
+              Vérifiez que <code className="text-xs">auth.user_org_ids()</code> existe et que la
+              table <code className="text-xs">clients</code> inclut <code className="text-xs">deleted_at</code>.
+            </p>
+          </CardContent>
+        </Card>
+      )}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-semibold tracking-tight">Clients</h2>
