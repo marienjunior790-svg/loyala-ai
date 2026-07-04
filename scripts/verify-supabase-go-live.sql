@@ -59,3 +59,25 @@ LIMIT 10;
 
 -- ─── 7. Utilisateur test (après signup manuel) ────────────────────────────
 -- SELECT id, email FROM auth.users ORDER BY created_at DESC LIMIT 5;
+
+-- ─── 8. Colonne status (middleware + RLS) ─────────────────────────────────
+SELECT column_name, data_type, column_default
+FROM information_schema.columns
+WHERE table_schema = 'public'
+  AND table_name = 'organization_members'
+  AND column_name = 'status';
+-- Attendu : 1 ligne, default 'active'
+
+-- ─── 9. Membership actif (remplace onboarding_completed) ──────────────────
+-- SELECT om.user_id, om.organization_id, om.status, r.code AS role_code
+-- FROM organization_members om
+-- JOIN roles r ON r.id = om.role_id
+-- WHERE om.status = 'active'
+-- ORDER BY om.created_at DESC
+-- LIMIT 5;
+
+-- ─── 10. RPC get_my_active_membership (middleware) ────────────────────────
+SELECT proname, prosecdef AS security_definer
+FROM pg_proc
+WHERE proname = 'get_my_active_membership';
+-- Attendu : 1 ligne, security_definer = true

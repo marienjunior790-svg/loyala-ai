@@ -3,6 +3,7 @@ import { createAdminClient } from '@loyala/db';
 import { ORG_COOKIE_NAME, type AuthContext, type OrgRole } from '@loyala/core-iam';
 import { cookies } from 'next/headers';
 import { getSupabaseEnv, getServiceRoleKey } from '../supabase/env';
+import { getActiveMembership } from './membership';
 
 export async function getSession() {
   const supabase = await createClient();
@@ -21,16 +22,9 @@ export async function getAuthContext(): Promise<AuthContext | null> {
   const supabase = await createClient();
 
   if (!organizationId) {
-    const { data: member } = await supabase
-      .from('organization_members')
-      .select('organization_id, roles(code)')
-      .eq('user_id', user.id)
-      .eq('status', 'active')
-      .limit(1)
-      .single();
-
-    if (!member) return null;
-    organizationId = member.organization_id;
+    const active = await getActiveMembership(supabase);
+    if (!active) return null;
+    organizationId = active.organization_id;
   }
 
   const { data: member } = await supabase

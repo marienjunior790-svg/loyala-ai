@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
 import { getSession } from '@/lib/auth/session';
+import { getActiveMembership } from '@/lib/auth/membership';
 import { onboardingSchema } from '@loyala/validation';
 import { ORG_COOKIE_NAME } from '@loyala/core-iam';
 
@@ -29,13 +30,15 @@ export async function completeOnboardingAction(
 
   const supabase = await createClient();
 
-  const { data: existing } = await supabase
-    .from('organization_members')
-    .select('id')
-    .eq('user_id', user.id)
-    .limit(1);
-
-  if (existing?.length) {
+  const existing = await getActiveMembership(supabase);
+  if (existing?.organization_id) {
+    const cookieStore = await cookies();
+    cookieStore.set(ORG_COOKIE_NAME, existing.organization_id, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+    });
     redirect('/dashboard');
   }
 

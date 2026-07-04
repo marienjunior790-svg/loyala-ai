@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 import { ORG_COOKIE_NAME } from '@loyala/core-iam';
+import { getActiveMembership } from '@/lib/auth/membership';
 
 type CookieToSet = {
   name: string;
@@ -55,33 +56,42 @@ export async function updateSession(request: NextRequest) {
   if (user && isGuestOnly) {
     const dest = request.nextUrl.clone();
     dest.pathname = ONBOARDING_PATH;
-    const { data: memberships } = await supabase
-      .from('organization_members')
-      .select('id')
-      .eq('user_id', user.id)
-      .eq('status', 'active')
-      .limit(1);
-    if (memberships?.length) dest.pathname = '/dashboard';
+    const membership = await getActiveMembership(supabase);
+    if (membership) dest.pathname = '/dashboard';
     return NextResponse.redirect(dest);
   }
 
-  if (user && !isGuestOnly && !isOnboarding && !isCallback && !isRecovery) {
-    const { data: memberships } = await supabase
-      .from('organization_members')
-      .select('organization_id')
-      .eq('user_id', user.id)
-      .eq('status', 'active')
-      .limit(1);
+  if (user && isOnboarding) {
+    const membership = await getActiveMembership(supabase);
+    if (membership) {
+      const dashboardUrl = request.nextUrl.clone();
+      dashboardUrl.pathname = '/dashboard';
+      const response = NextResponse.redirect(dashboardUrl);
+      const orgCookie = request.cookies.get(ORG_COOKIE_NAME)?.value;
+      if (!orgCookie) {
+        response.cookies.set(ORG_COOKIE_NAME, membership.organization_id, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'lax',
+          path: '/',
+        });
+      }
+      return response;
+    }
+  }
 
-    if (!memberships?.length) {
+  if (user && !isGuestOnly && !isOnboarding && !isCallback && !isRecovery) {
+    const membership = await getActiveMembership(supabase);
+
+    if (!membership) {
       const onboardingUrl = request.nextUrl.clone();
       onboardingUrl.pathname = ONBOARDING_PATH;
       return NextResponse.redirect(onboardingUrl);
     }
 
     const orgCookie = request.cookies.get(ORG_COOKIE_NAME)?.value;
-    if (!orgCookie && memberships[0]) {
-      supabaseResponse.cookies.set(ORG_COOKIE_NAME, memberships[0].organization_id, {
+    if (!orgCookie) {
+      supabaseResponse.cookies.set(ORG_COOKIE_NAME, membership.organization_id, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',

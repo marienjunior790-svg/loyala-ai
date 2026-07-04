@@ -31,7 +31,7 @@
 | # | Test | Attendu | Statut |
 |---|------|---------|--------|
 | 2.1 | `GET /api/v1/health` (Railway `backend-api`) | **200**, `db: connected` | ✅ |
-| 2.2 | `GET /api/health` (Vercel **loyala web**) | **200** JSON `status: ok` | ⚠️ `503`, `checks.supabase = error` |
+| 2.2 | `GET /api/health` (Vercel **loyala web**) | **200** JSON `status: ok`, `checks.supabase = ok` | ✅ |
 | 2.3 | Authentification | Login / JWT Supabase | ☐ |
 | 2.4 | Création organisation | API ou onboarding web | ☐ |
 | 2.5 | CRUD CRM | Create / Read / Update / Delete client | ☐ |
@@ -47,7 +47,7 @@ curl -s https://backend-api-production-222b.up.railway.app/api/v1/health
 curl -s https://loyala-ai-web.vercel.app/api/health
 ```
 
-Résultat actuel : frontend déployé, mais healthcheck `503 degraded` car le ping Supabase échoue. Vérifier `NEXT_PUBLIC_SUPABASE_URL` et `NEXT_PUBLIC_SUPABASE_ANON_KEY` dans Vercel, puis redeployer.
+Résultat validé : frontend déployé, commit `a057d46`, healthcheck `200 ok`, `checks.supabase = ok`.
 
 > ⚠️ `backend-api-nine-wine.vercel.app` (Express) ≠ backend prod. Prod API = **Railway**.  
 > Crash Vercel Express (`reflect-metadata` / tsyringe) = problème préexistant, non bloquant si Railway est la cible.
@@ -147,6 +147,5 @@ Ne commencer **qu'après** signature Sprint 1 :
 
 | Item | Impact |
 |------|--------|
-| `GET /api/health` Vercel | §2.2 — actuellement `503 degraded`, `checks.supabase = error` |
 | Upload document | §2.6 — hors scope Loyala web actuel |
 | Invitations | Sprint 2 #1 |
