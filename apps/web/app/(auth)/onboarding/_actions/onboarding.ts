@@ -6,17 +6,6 @@ import { createClient } from '@/lib/supabase/server';
 import { getSession } from '@/lib/auth/session';
 import { onboardingSchema } from '@loyala/validation';
 import { ORG_COOKIE_NAME } from '@loyala/core-iam';
-import { recordDomainEvent } from '@/lib/audit/record-domain-event';
-
-function slugify(name: string): string {
-  return name
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '')
-    .slice(0, 48) + '-' + Math.random().toString(36).slice(2, 7);
-}
 
 export type OnboardingState = { error?: string };
 
@@ -50,70 +39,28 @@ export async function completeOnboardingAction(
     redirect('/dashboard');
   }
 
-  const { data: ownerRole, error: ownerRoleError } = await supabase
-    .from('roles')
-    .select('id')
-    .eq('scope', 'organization')
-    .eq('code', 'org_owner')
-    .single();
+  const { data: onboardingRows, error: onboardingError } = await supabase.rpc('complete_onboarding', {
+    p_organization_name: parsed.data.organizationName,
+    p_country_code: parsed.data.countryCode,
+    p_timezone: parsed.data.timezone,
+    p_currency: parsed.data.currency,
+  });
 
-  if (ownerRoleError) {
-    console.error('[onboarding] owner role lookup failed', ownerRoleError);
-    return {
-      error:
-        ownerRoleError.code === '42501'
-          ? 'Permissions rôles manquantes. Appliquez la migration 006.'
-          : ownerRoleError.message,
-    };
+  if (onboardingError) {
+    console.error('[onboarding] complete_onboarding failed', onboardingError);
+    return { error: onboardingError.message };
   }
 
-  if (!ownerRole) return { error: 'Configuration rôles manquante. Appliquez la migration 006.' };
+  const onboardingResult = Array.isArray(onboardingRows)
+    ? onboardingRows[0]
+    : onboardingRows;
 
-  const slug = slugify(parsed.data.organizationName);
-
-  const { data: org, error: orgError } = await supabase
-    .from('organizations')
-    .insert({
-      name: parsed.data.organizationName,
-      slug,
-      country_code: parsed.data.countryCode,
-      timezone: parsed.data.timezone,
-      currency: parsed.data.currency,
-    })
-    .select()
-    .single();
-
-  if (orgError || !org) return { error: orgError?.message ?? 'Erreur création organisation' };
-
-  const { error: memberError } = await supabase.from('organization_members').insert({
-    organization_id: org.id,
-    user_id: user.id,
-    role_id: ownerRole.id,
-    status: 'active',
-  });
-
-  if (memberError) return { error: memberError.message };
-
-  await recordDomainEvent(supabase, {
-    organizationId: org.id,
-    eventType: 'organization.created',
-    aggregateType: 'organization',
-    aggregateId: org.id,
-    actorId: user.id,
-    payload: { name: org.name, slug: org.slug, countryCode: parsed.data.countryCode },
-  });
-
-  await recordDomainEvent(supabase, {
-    organizationId: org.id,
-    eventType: 'member.joined',
-    aggregateType: 'organization_member',
-    aggregateId: org.id,
-    actorId: user.id,
-    payload: { userId: user.id, role: 'org_owner' },
-  });
+  if (!onboardingResult?.organization_id) {
+    return { error: 'Erreur création organisation. Appliquez la migration 007.' };
+  }
 
   const cookieStore = await cookies();
-  cookieStore.set(ORG_COOKIE_NAME, org.id, {
+  cookieStore.set(ORG_COOKIE_NAME, onboardingResult.organization_id, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
