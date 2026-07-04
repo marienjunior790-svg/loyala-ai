@@ -15,6 +15,11 @@ export function SignupForm() {
       {state.error && (
         <p className="rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-400">{state.error}</p>
       )}
+      {state.success && (
+        <p className="rounded-lg bg-emerald-500/10 px-3 py-2 text-sm text-emerald-400">
+          {state.success}
+        </p>
+      )}
       <div>
         <label className="text-sm text-neutral-400">Email</label>
         <input

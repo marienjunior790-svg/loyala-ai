@@ -7,6 +7,24 @@ import { loginSchema, signupSchema, forgotPasswordSchema, resetPasswordSchema } 
 
 export type AuthActionState = { error?: string; success?: string };
 
+function getAuthErrorMessage(error: { message?: string; status?: number }): string {
+  const message = error.message?.toLowerCase() ?? '';
+
+  if (message.includes('email not confirmed')) {
+    return 'Email non confirmé. Vérifiez votre boîte mail puis réessayez.';
+  }
+
+  if (message.includes('invalid login credentials')) {
+    return 'Email ou mot de passe incorrect';
+  }
+
+  if (message.includes('email rate limit')) {
+    return 'Trop de tentatives. Réessayez dans quelques minutes.';
+  }
+
+  return error.message ?? 'Connexion impossible pour le moment';
+}
+
 export async function loginAction(
   _prev: AuthActionState,
   formData: FormData
@@ -23,7 +41,13 @@ export async function loginAction(
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword(parsed.data);
 
-  if (error) return { error: 'Email ou mot de passe incorrect' };
+  if (error) {
+    console.warn('[auth] signInWithPassword failed', {
+      status: error.status,
+      message: error.message,
+    });
+    return { error: getAuthErrorMessage(error) };
+  }
 
   redirect('/dashboard');
 }
@@ -42,9 +66,22 @@ export async function signupAction(
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.auth.signUp(parsed.data);
+  const origin = await getSiteOrigin();
+  const { data, error } = await supabase.auth.signUp({
+    email: parsed.data.email,
+    password: parsed.data.password,
+    options: {
+      emailRedirectTo: `${origin}/auth/callback?next=/onboarding`,
+    },
+  });
 
   if (error) return { error: error.message };
+
+  if (!data.session) {
+    return {
+      success: 'Compte créé. Vérifiez votre email pour confirmer votre inscription.',
+    };
+  }
 
   redirect('/onboarding');
 }
