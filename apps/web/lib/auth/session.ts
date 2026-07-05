@@ -1,3 +1,4 @@
+import { cache } from 'react';
 import { createClient } from '../supabase/server';
 import { createAdminClient } from '@loyala/db';
 import { ORG_COOKIE_NAME, type AuthContext, type OrgRole } from '@loyala/core-iam';
@@ -5,27 +6,60 @@ import { cookies } from 'next/headers';
 import { getSupabaseEnv, getServiceRoleKey } from '../supabase/env';
 import { getActiveMembership } from './membership';
 import { resolveOrgRole } from './role-map';
+import { authDebug } from './debug';
 
-export async function getSession() {
+export const getSession = cache(async () => {
   const supabase = await createClient();
-  const { data: { user }, error } = await supabase.auth.getUser();
+  const cookieStore = await cookies();
+  const authCookies = cookieStore.getAll().filter((c) => c.name.includes('auth'));
+
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser();
+
+  authDebug('getSession', {
+    hasUser: Boolean(user),
+    authCookieCount: authCookies.length,
+    error: error?.message ?? null,
+  });
+
   if (error || !user) return null;
   return user;
-}
+});
 
-export async function getAuthContext(): Promise<AuthContext | null> {
+/**
+ * Resolves tenant context for the current request.
+ * Returns null only when the user has no active membership — not when unauthenticated.
+ * Call getSession() separately to distinguish login vs onboarding redirects.
+ */
+export const getAuthContext = cache(async (): Promise<AuthContext | null> => {
   const user = await getSession();
   if (!user) return null;
 
   const cookieStore = await cookies();
-  let organizationId = cookieStore.get(ORG_COOKIE_NAME)?.value;
+  const orgCookie = cookieStore.get(ORG_COOKIE_NAME)?.value;
 
   const supabase = await createClient();
+  const active = await getActiveMembership(supabase);
+  if (!active) {
+    authDebug('getAuthContext', {
+      userId: user.id,
+      orgCookie,
+      reason: 'no_active_membership',
+    });
+    return null;
+  }
 
-  if (!organizationId) {
-    const active = await getActiveMembership(supabase);
-    if (!active) return null;
-    organizationId = active.organization_id;
+  const organizationId = active.organization_id;
+
+  if (orgCookie && orgCookie !== organizationId) {
+    authDebug('getAuthContext', {
+      userId: user.id,
+      orgCookie,
+      resolvedOrg: organizationId,
+      reason: 'stale_org_cookie',
+    });
   }
 
   const { data: member, error: memberError } = await supabase
@@ -36,7 +70,15 @@ export async function getAuthContext(): Promise<AuthContext | null> {
     .eq('status', 'active')
     .maybeSingle();
 
-  if (memberError || !member) return null;
+  if (memberError || !member) {
+    authDebug('getAuthContext', {
+      userId: user.id,
+      organizationId,
+      reason: 'member_lookup_failed',
+      error: memberError?.message ?? 'no_row',
+    });
+    return null;
+  }
 
   let role: OrgRole = 'org_viewer';
 
@@ -50,12 +92,19 @@ export async function getAuthContext(): Promise<AuthContext | null> {
     role = resolveOrgRole(roleRow?.code);
   }
 
+  authDebug('getAuthContext', {
+    userId: user.id,
+    organizationId: member.organization_id,
+    role,
+    ok: true,
+  });
+
   return {
     userId: user.id,
     organizationId: member.organization_id,
     role,
   };
-}
+});
 
 /** Admin client — onboarding & tests only */
 export function getAdminClient() {

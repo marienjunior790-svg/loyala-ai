@@ -2,6 +2,7 @@ import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 import { ORG_COOKIE_NAME } from '@loyala/core-iam';
 import { getActiveMembership } from '@/lib/auth/membership';
+import { authDebug } from '@/lib/auth/debug';
 
 type CookieToSet = {
   name: string;
@@ -68,7 +69,7 @@ export async function updateSession(request: NextRequest) {
       dashboardUrl.pathname = '/dashboard';
       const response = NextResponse.redirect(dashboardUrl);
       const orgCookie = request.cookies.get(ORG_COOKIE_NAME)?.value;
-      if (!orgCookie) {
+      if (!orgCookie || orgCookie !== membership.organization_id) {
         response.cookies.set(ORG_COOKIE_NAME, membership.organization_id, {
           httpOnly: true,
           secure: process.env.NODE_ENV === 'production',
@@ -90,7 +91,13 @@ export async function updateSession(request: NextRequest) {
     }
 
     const orgCookie = request.cookies.get(ORG_COOKIE_NAME)?.value;
-    if (!orgCookie) {
+    if (!orgCookie || orgCookie !== membership.organization_id) {
+      authDebug('middleware', {
+        action: 'resync_org_cookie',
+        path: pathname,
+        previous: orgCookie ?? null,
+        organizationId: membership.organization_id,
+      });
       supabaseResponse.cookies.set(ORG_COOKIE_NAME, membership.organization_id, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
