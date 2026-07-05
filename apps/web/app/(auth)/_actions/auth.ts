@@ -3,6 +3,7 @@
 import { redirect } from 'next/navigation';
 import { headers } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
+import { authDebug } from '@/lib/auth/debug';
 import { loginSchema, signupSchema, forgotPasswordSchema, resetPasswordSchema } from '@loyala/validation';
 
 export type AuthActionState = { error?: string; success?: string };
@@ -62,11 +63,15 @@ export async function signupAction(
   });
 
   if (!parsed.success) {
+    authDebug('signup', { step: 'validation_failed', errors: parsed.error.errors.length });
     return { error: parsed.error.errors[0]?.message ?? 'Données invalides' };
   }
 
   const supabase = await createClient();
   const origin = await getSiteOrigin();
+
+  authDebug('signup', { step: 'attempt', origin, email: parsed.data.email });
+
   const { data, error } = await supabase.auth.signUp({
     email: parsed.data.email,
     password: parsed.data.password,
@@ -75,7 +80,24 @@ export async function signupAction(
     },
   });
 
-  if (error) return { error: error.message };
+  authDebug('signup', {
+    step: 'supabase_response',
+    hasError: Boolean(error),
+    hasSession: Boolean(data?.session),
+    userId: data?.user?.id ?? null,
+    errorMessage: error?.message ?? null,
+    errorStatus: error?.status ?? null,
+    errorCode: (error as { code?: string } | null)?.code ?? null,
+  });
+
+  if (error) {
+    console.warn('[auth] signUp failed', {
+      status: error.status,
+      message: error.message,
+      code: (error as { code?: string }).code,
+    });
+    return { error: getAuthErrorMessage(error) };
+  }
 
   if (!data.session) {
     return {
