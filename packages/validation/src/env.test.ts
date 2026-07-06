@@ -24,6 +24,28 @@ describe('env validation', () => {
     ).toThrow(/OPENAI_API_KEY/);
   });
 
+  it('requires worker URL and secret in production', () => {
+    expect(() =>
+      parseWebEnv({
+        NODE_ENV: 'production',
+        NEXT_PUBLIC_SUPABASE_URL: 'https://example.supabase.co',
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: 'anon',
+        AI_ALLOW_MOCK: 'true',
+      })
+    ).toThrow(/WORKER_URL/);
+  });
+
+  it('parses optional worker vars in development', () => {
+    const env = parseWebEnv({
+      NODE_ENV: 'development',
+      NEXT_PUBLIC_SUPABASE_URL: 'https://example.supabase.co',
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: 'anon',
+      WORKER_URL: 'http://localhost:3001',
+      WORKER_API_SECRET: 'dev-secret-min-16-ch',
+    });
+    expect(env.WORKER_URL).toBe('http://localhost:3001');
+  });
+
   it('allows mock provider in test', () => {
     const env = parseWorkerEnv({
       NODE_ENV: 'test',

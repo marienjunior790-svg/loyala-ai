@@ -24,6 +24,8 @@ export const webEnvSchema = sharedEnvSchema.extend({
   NEXT_PUBLIC_SUPABASE_URL: z.string().url(),
   NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1),
   NEXT_PUBLIC_APP_URL: z.string().url().optional(),
+  WORKER_URL: z.string().url().optional(),
+  WORKER_API_SECRET: z.string().min(16).optional(),
 });
 
 export const workerEnvSchema = sharedEnvSchema.extend({
@@ -75,6 +77,12 @@ export function parseWebEnv(source: Record<string, string | undefined>): WebEnv 
   const env = webEnvSchema.parse(source);
   if (env.NODE_ENV === 'production') {
     assertAIKeys(env, 'web');
+    if (!env.WORKER_URL) {
+      throw new Error('[web] WORKER_URL required in production');
+    }
+    if (!env.WORKER_API_SECRET) {
+      throw new Error('[web] WORKER_API_SECRET required in production (min 16 chars)');
+    }
   }
   return env;
 }

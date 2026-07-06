@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server';
+import { getWorkerHealth } from '@/lib/worker/client';
 
 export async function GET() {
   const started = Date.now();
   const checks: Record<string, 'ok' | 'error' | 'skipped'> = {
     supabase: 'skipped',
+    worker: 'skipped',
   };
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -21,6 +23,13 @@ export async function GET() {
     }
   }
 
+  const workerHealth = await getWorkerHealth();
+  if (!workerHealth.configured) {
+    checks.worker = 'skipped';
+  } else {
+    checks.worker = workerHealth.reachable ? 'ok' : 'error';
+  }
+
   const healthy = Object.values(checks).every((c) => c !== 'error');
   const status = healthy ? 200 : 503;
 
@@ -31,6 +40,14 @@ export async function GET() {
       version: process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ?? 'local',
       environment: process.env.VERCEL_ENV ?? process.env.NODE_ENV ?? 'development',
       checks,
+      worker: workerHealth.configured
+        ? {
+            reachable: workerHealth.reachable,
+            service: workerHealth.service,
+            inngest: workerHealth.inngest,
+            latencyMs: workerHealth.latencyMs,
+          }
+        : null,
       latencyMs: Date.now() - started,
     },
     { status }
