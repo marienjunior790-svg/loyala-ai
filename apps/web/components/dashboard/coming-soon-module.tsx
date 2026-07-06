@@ -31,12 +31,17 @@ export function ComingSoonModule({ title, description, features }: ComingSoonMod
             Relancez vos clients un par un via WhatsApp depuis la liste Clients — message
             personnalisé, prêt à envoyer en 1 clic.
           </p>
-          <Button asChild>
-            <Link href="/clients">
-              Relancer mes clients
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-          </Button>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Button asChild>
+              <Link href="/clients/ajouter">
+                Ajouter un client
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            </Button>
+            <Button variant="outline" asChild>
+              <Link href="/clients">Voir mes clients</Link>
+            </Button>
+          </div>
         </CardContent>
       </Card>
 

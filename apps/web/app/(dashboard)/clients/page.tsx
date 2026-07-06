@@ -45,7 +45,7 @@ export default async function ClientsPage() {
         </div>
         {canWrite && (
           <Button asChild>
-            <Link href="/clients/new">
+            <Link href="/clients/ajouter">
               <Plus className="h-4 w-4" />
               Ajouter un client
             </Link>

@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import { ArrowLeft, Pencil } from 'lucide-react';
 import { requireAuthPermission } from '@/lib/auth/guard';
 import { hasPermission } from '@loyala/core-iam';
@@ -17,6 +17,11 @@ export default async function ClientDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+
+  if (id === 'new' || id === 'create' || id === 'ajouter') {
+    redirect('/clients/ajouter');
+  }
+
   const ctx = await requireAuthPermission('clients:read');
   const canWrite = hasPermission(ctx, 'clients:write');
   const canDelete = hasPermission(ctx, 'clients:delete');

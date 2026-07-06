@@ -2,6 +2,7 @@ import { Suspense } from 'react';
 import Link from 'next/link';
 import { ArrowUpRight, Sparkles } from 'lucide-react';
 import { requireAuth } from '@/lib/auth/guard';
+import { hasPermission } from '@loyala/core-iam';
 import { getDashboardMetrics } from '@/lib/dashboard/metrics';
 import { KpiGrid } from '@/components/dashboard/kpi-card';
 import { AnalyticsPanel } from '@/components/dashboard/analytics-panel';
@@ -13,6 +14,7 @@ import { Badge } from '@/components/ui/badge';
 
 async function OverviewContent() {
   const ctx = await requireAuth();
+  const canWrite = hasPermission(ctx, 'clients:write');
   const metrics = await getDashboardMetrics(ctx.organizationId);
 
   return (
@@ -28,15 +30,17 @@ async function OverviewContent() {
               Vue d&apos;ensemble de votre relation client et de vos relances WhatsApp.
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-col-reverse gap-2 sm:flex-row">
+            {canWrite && (
+              <Button asChild>
+                <Link href="/clients/ajouter">
+                  Ajouter un client
+                  <ArrowUpRight className="h-4 w-4" />
+                </Link>
+              </Button>
+            )}
             <Button variant="outline" asChild>
               <Link href="/clients">Voir les clients</Link>
-            </Button>
-            <Button asChild>
-              <Link href="/clients/new">
-                Ajouter un client
-                <ArrowUpRight className="h-4 w-4" />
-              </Link>
             </Button>
           </div>
         </div>
