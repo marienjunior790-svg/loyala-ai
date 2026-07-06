@@ -19,7 +19,7 @@ export default async function ClientDetailPage({
   const { id } = await params;
 
   if (id === 'new' || id === 'create' || id === 'ajouter') {
-    redirect('/clients/ajouter');
+    redirect('/clients?nouveau=1');
   }
 
   const ctx = await requireAuthPermission('clients:read');

@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 
-/** Legacy URL — redirect to /clients/ajouter */
+/** Legacy URL */
 export default function ClientsNewRedirect() {
-  redirect('/clients/ajouter');
+  redirect('/clients?nouveau=1');
 }

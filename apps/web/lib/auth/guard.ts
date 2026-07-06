@@ -1,7 +1,6 @@
 import { redirect } from 'next/navigation';
 import { getAuthContext, getSession } from './session';
-import { hasPermission, type AuthContext, type Permission } from '@loyala/core-iam';
-import { normalizeOrgRole } from './role-map';
+import { hasPermission, type AuthContext, type Permission } from '@loyala/core-iam';import { normalizeOrgRole } from './role-map';
 import { authDebug } from './debug';
 
 function withSafeContext(ctx: AuthContext): AuthContext {
@@ -51,12 +50,19 @@ export async function requireAuth(): Promise<AuthContext> {
   redirect('/onboarding');
 }
 
+/** MVP: tout membre actif d'une org peut gérer les clients (aligné sur clientsWriteGranted). */
+export function canManageClients(ctx: AuthContext): boolean {
+  return Boolean(ctx.organizationId && ctx.userId);
+}
+
 export async function requireAuthPermission(permission: Permission): Promise<AuthContext> {
   const ctx = await requireAuth();
   const hasMembership = Boolean(ctx.organizationId);
   const roleGranted = hasPermission(ctx, permission);
   const clientsReadGranted =
     permission === 'clients:read' && hasMembership && ctx.userId;
+  const clientsWriteGranted =
+    permission === 'clients:write' && hasMembership && ctx.userId;
 
   authDebug('requireAuthPermission', {
     userId: ctx.userId,
@@ -64,11 +70,11 @@ export async function requireAuthPermission(permission: Permission): Promise<Aut
     role: ctx.role,
     hasMembership,
     permission,
-    hasClientsAccess: roleGranted || clientsReadGranted,
-    decision: roleGranted || clientsReadGranted ? 'allow' : 'deny',
+    hasClientsAccess: roleGranted || clientsReadGranted || clientsWriteGranted,
+    decision: roleGranted || clientsReadGranted || clientsWriteGranted ? 'allow' : 'deny',
   });
 
-  if (roleGranted || clientsReadGranted) {
+  if (roleGranted || clientsReadGranted || clientsWriteGranted) {
     return ctx;
   }
 

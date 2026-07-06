@@ -86,7 +86,7 @@ export function ClientsList({ clients, canWrite }: ClientsListProps) {
             </p>
             {clients.length === 0 && canWrite && (
               <Button className="mt-4" asChild>
-                <Link href="/clients/ajouter">
+                <Link href="/clients?nouveau=1">
                   <Plus className="h-4 w-4" />
                   Ajouter votre premier client
                 </Link>
