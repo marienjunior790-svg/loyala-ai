@@ -86,10 +86,10 @@ export async function requireAuthPermission(permission: Permission): Promise<Aut
   }
 
   authDebug('requireAuthPermission', {
-    decision: 'redirect_onboarding',
+    decision: 'redirect_dashboard',
     reason: 'permission_denied',
     permission,
-    redirect: '/onboarding',
+    redirect: '/dashboard',
   });
-  redirect('/onboarding');
+  redirect('/dashboard');
 }

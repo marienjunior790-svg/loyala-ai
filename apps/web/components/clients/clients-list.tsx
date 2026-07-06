@@ -14,21 +14,33 @@ import { cn } from '@/lib/utils';
 
 type Filter = 'all' | 'active' | 'inactive';
 
+const VALID_SEGMENTS = new Set(['new', 'regular', 'vip', 'inactive', 'at_risk']);
+
 interface ClientsListProps {
   clients: Client[];
   canWrite: boolean;
+  initialSegment?: string | null;
 }
 
-export function ClientsList({ clients, canWrite }: ClientsListProps) {
+export function ClientsList({ clients, canWrite, initialSegment }: ClientsListProps) {
+  const segmentFilter =
+    initialSegment && VALID_SEGMENTS.has(initialSegment) ? initialSegment : null;
   const [query, setQuery] = useState('');
-  const [filter, setFilter] = useState<Filter>('all');
+  const [filter, setFilter] = useState<Filter>(
+    segmentFilter === 'inactive' || segmentFilter === 'at_risk' ? 'inactive' : 'all'
+  );
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return clients.filter((c) => {
+      const segment = computeClientSegment(c);
+      if (segmentFilter && segment !== segmentFilter) return false;
+
       const isInactive = isClientInactive(c);
-      if (filter === 'active' && isInactive) return false;
-      if (filter === 'inactive' && !isInactive) return false;
+      if (!segmentFilter) {
+        if (filter === 'active' && isInactive) return false;
+        if (filter === 'inactive' && !isInactive) return false;
+      }
       if (!q) return true;
       return (
         c.full_name.toLowerCase().includes(q) ||
@@ -36,7 +48,7 @@ export function ClientsList({ clients, canWrite }: ClientsListProps) {
         (c.email?.toLowerCase().includes(q) ?? false)
       );
     });
-  }, [clients, query, filter]);
+  }, [clients, query, filter, segmentFilter]);
 
   const filters: { id: Filter; label: string }[] = [
     { id: 'all', label: 'Tous' },
@@ -46,6 +58,15 @@ export function ClientsList({ clients, canWrite }: ClientsListProps) {
 
   return (
     <div className="space-y-4">
+      {segmentFilter && (
+        <p className="text-sm text-muted-foreground">
+          Filtre segment : <span className="font-medium capitalize">{segmentFilter.replace('_', ' ')}</span>
+          {' · '}
+          <Link href="/clients" className="text-primary underline">
+            Tous les clients
+          </Link>
+        </p>
+      )}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -62,6 +83,7 @@ export function ClientsList({ clients, canWrite }: ClientsListProps) {
               key={f.id}
               type="button"
               onClick={() => setFilter(f.id)}
+              disabled={Boolean(segmentFilter)}
               className={cn(
                 'rounded-md px-3 py-1.5 text-xs font-medium transition',
                 filter === f.id

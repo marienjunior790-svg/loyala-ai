@@ -1,7 +1,7 @@
 'use client';
 
-import { useActionState } from 'react';
-import { Star } from 'lucide-react';
+import { useActionState, useState, useTransition } from 'react';
+import { Star, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import {
   createReviewAction,
   respondReviewAction,
+  suggestReviewResponseAction,
   type ReviewActionState,
 } from '@/app/(dashboard)/reviews/_actions/reviews';
 import type { Review } from '@loyala/domain-crm';
@@ -48,7 +49,7 @@ export function ReviewsPageClient({ reviews, summary }: ReviewsPageClientProps) 
 
       <Card>
         <CardHeader>
-          <CardTitle>Ajouter un avis (manuel / Google)</CardTitle>
+          <CardTitle>Ajouter un avis</CardTitle>
         </CardHeader>
         <CardContent>
           <form action={createAction} className="grid gap-3 sm:grid-cols-2">
@@ -83,6 +84,22 @@ function ReviewCard({ review }: { review: Review }) {
     respondReviewAction.bind(null, review.id),
     initial
   );
+  const [draft, setDraft] = useState('');
+  const [aiPending, startAi] = useTransition();
+  const [aiError, setAiError] = useState<string | null>(null);
+
+  function handleSuggestAi() {
+    setAiError(null);
+    startAi(async () => {
+      const result = await suggestReviewResponseAction(
+        review.rating,
+        review.content,
+        review.author_name
+      );
+      if (result.error) setAiError(result.error);
+      else if (result.text) setDraft(result.text);
+    });
+  }
 
   return (
     <Card>
@@ -92,7 +109,9 @@ function ReviewCard({ review }: { review: Review }) {
           <div className="flex items-center gap-1">
             <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
             <span>{review.rating}/5</span>
-            <Badge variant="outline" className="ml-2">{review.source}</Badge>
+            <Badge variant="outline" className="ml-2">
+              {review.source}
+            </Badge>
           </div>
         </div>
         <p className="text-sm text-muted-foreground">{review.content}</p>
@@ -102,13 +121,24 @@ function ReviewCard({ review }: { review: Review }) {
           <form action={action} className="space-y-2">
             <textarea
               name="responseText"
-              defaultValue={`Merci ${review.author_name} pour votre avis !`}
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              placeholder="Votre réponse au client..."
               className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
               rows={3}
+              required
+              minLength={3}
             />
-            <Button type="submit" size="sm" disabled={pending}>
-              Publier la réponse
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" size="sm" variant="outline" disabled={aiPending} onClick={handleSuggestAi}>
+                <Sparkles className="mr-1 h-3 w-3" />
+                {aiPending ? 'IA...' : 'Suggérer avec IA'}
+              </Button>
+              <Button type="submit" size="sm" disabled={pending}>
+                Publier la réponse
+              </Button>
+            </div>
+            {aiError && <p className="text-xs text-destructive">{aiError}</p>}
             {state.error && <p className="text-xs text-destructive">{state.error}</p>}
           </form>
         )}

@@ -3,7 +3,11 @@ import type { AIProviderId, OrchestratorConfig } from './types/index';
 export function loadAIConfig(): OrchestratorConfig & {
   openaiApiKey?: string;
   anthropicApiKey?: string;
+  allowMock: boolean;
 } {
+  const allowMock =
+    process.env.AI_ALLOW_MOCK === 'true' || process.env.NODE_ENV === 'test';
+
   return {
     primaryProvider: (process.env.AI_PRIMARY_PROVIDER as AIProviderId) ?? 'openai',
     fallbackProvider: (process.env.AI_FALLBACK_PROVIDER as AIProviderId) ?? 'anthropic',
@@ -12,5 +16,6 @@ export function loadAIConfig(): OrchestratorConfig & {
     maxCostUsdPerRequest: Number(process.env.AI_MAX_COST_USD ?? 0.05),
     openaiApiKey: process.env.OPENAI_API_KEY,
     anthropicApiKey: process.env.ANTHROPIC_API_KEY,
+    allowMock,
   };
 }

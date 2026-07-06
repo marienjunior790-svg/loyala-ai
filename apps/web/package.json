@@ -14,6 +14,7 @@
     "@loyala/db": "workspace:*",
     "@loyala/domain-crm": "workspace:*",
     "@loyala/events": "workspace:*",
+    "@loyala/integrations": "workspace:*",
     "@loyala/ui": "workspace:*",
     "@loyala/validation": "workspace:*",
     "@radix-ui/react-avatar": "^1.2.1",

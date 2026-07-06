@@ -14,7 +14,7 @@ export function SettingsForm({ org }: { org: Organization }) {
   const whatsappPhone = String((org.settings as Record<string, unknown>)?.whatsapp_phone ?? '');
 
   return (
-    <form action={action} className="space-y-6">
+    <form action={action} className="space-y-6" encType="multipart/form-data">
       <Card>
         <CardHeader>
           <CardTitle>Restaurant</CardTitle>
@@ -32,6 +32,10 @@ export function SettingsForm({ org }: { org: Organization }) {
               placeholder="065719922"
               className="mt-1"
             />
+          </div>
+          <div>
+            <label className="text-sm text-muted-foreground">Logo (Supabase Storage)</label>
+            <Input name="logo" type="file" accept="image/*" className="mt-1" />
           </div>
           <Button type="submit" disabled={pending}>
             {pending ? 'Enregistrement...' : 'Enregistrer'}

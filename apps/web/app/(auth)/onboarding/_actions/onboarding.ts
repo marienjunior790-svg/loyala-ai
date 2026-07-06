@@ -65,10 +65,28 @@ export async function completeOnboardingAction(
 
   const whatsappPhone = String(formData.get('whatsappPhone') ?? '').trim();
   if (whatsappPhone) {
-    await supabase
+    const { data: orgRow } = await supabase
       .from('organizations')
-      .update({ settings: { whatsapp_phone: whatsappPhone } })
+      .select('settings')
+      .eq('id', onboardingResult.organization_id)
+      .maybeSingle();
+
+    const settings = {
+      ...(orgRow?.settings as Record<string, unknown> ?? {}),
+      whatsapp_phone: whatsappPhone,
+    };
+
+    const { error: settingsError } = await supabase
+      .from('organizations')
+      .update({ settings })
       .eq('id', onboardingResult.organization_id);
+
+    if (settingsError) {
+      console.error('[onboarding] whatsapp settings update failed', settingsError);
+      return {
+        error: `Restaurant créé mais numéro WhatsApp non enregistré : ${settingsError.message}`,
+      };
+    }
   }
 
   const cookieStore = await cookies();

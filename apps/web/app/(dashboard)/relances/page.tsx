@@ -6,6 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ModuleError } from '@/components/dashboard/module-error';
+import { MarkRelanceSentButton } from '@/components/relances/mark-sent-button';
 
 export const dynamic = 'force-dynamic';
 
@@ -55,6 +56,7 @@ export default async function RelancesPage() {
                   </div>
                   <div className="flex items-center gap-2">
                     <Badge variant={s.status === 'sent' ? 'success' : 'warning'}>{s.status}</Badge>
+                    {s.status !== 'sent' && <MarkRelanceSentButton sendId={s.id} />}
                     {s.whatsapp_url && (
                       <Button size="sm" asChild>
                         <a href={s.whatsapp_url} target="_blank" rel="noopener noreferrer">

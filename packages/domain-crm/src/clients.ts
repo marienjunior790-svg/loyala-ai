@@ -12,6 +12,7 @@ export interface Client {
   total_spent: number;
   loyalty_points: number;
   last_visit_at: string | null;
+  date_of_birth: string | null;
   opt_in_whatsapp: boolean;
   notes: string | null;
   created_at: string;

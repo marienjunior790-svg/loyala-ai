@@ -9,10 +9,12 @@ export default defineConfig({
       'packages/**/*.test.ts',
       'packages/**/tests/**/*.test.ts',
       'apps/web/lib/**/*.test.ts',
+      'apps/web/tests/**/*.test.ts',
     ],
   },
   resolve: {
     alias: {
+      '@': resolve(__dirname, 'apps/web'),
       '@loyala/core-iam': resolve(__dirname, 'packages/core-iam/src'),
       '@loyala/db': resolve(__dirname, 'packages/db/src'),
       '@loyala/domain-crm': resolve(__dirname, 'packages/domain-crm/src'),

@@ -13,7 +13,9 @@
   "dependencies": {
     "@loyala/core-ai": "workspace:*",
     "@loyala/db": "workspace:*",
+    "@loyala/domain-crm": "workspace:*",
     "@loyala/events": "workspace:*",
+    "@loyala/integrations": "workspace:*",
     "@loyala/validation": "workspace:*",
     "inngest": "^3.32.5"
   },

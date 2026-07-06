@@ -9,16 +9,26 @@ import { DashboardOverviewSkeleton } from '@/components/dashboard/dashboard-skel
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import Link from 'next/link';
 
+import { ModuleError } from '@/components/dashboard/module-error';
+
 async function AnalyticsContent() {
   const ctx = await requireAuth();
   const supabase = await createClient();
-  const [metrics, segments] = await Promise.all([
-    getDashboardMetrics(ctx.organizationId),
-    getSegmentBreakdown(supabase, ctx.organizationId),
-  ]);
+
+  let segmentError: string | null = null;
+  let segments: Awaited<ReturnType<typeof getSegmentBreakdown>> = [];
+
+  const metrics = await getDashboardMetrics(ctx.organizationId);
+
+  try {
+    segments = await getSegmentBreakdown(supabase, ctx.organizationId);
+  } catch (e) {
+    segmentError = e instanceof Error ? e.message : 'Segments indisponibles';
+  }
 
   return (
     <div className="space-y-8">
+      {segmentError && <ModuleError message={segmentError} />}
       <KpiGrid metrics={metrics.kpis} />
 
       <div className="grid gap-4 lg:grid-cols-2">

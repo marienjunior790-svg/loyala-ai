@@ -3,7 +3,8 @@
 import { revalidatePath } from 'next/cache';
 import { requireAuth } from '@/lib/auth/guard';
 import { createClient } from '@/lib/supabase/server';
-import { createReview, respondToReview, createNotification } from '@loyala/domain-crm';
+import { createReview, respondToReview, createNotification, getOrganization } from '@loyala/domain-crm';
+import { proxyToWorker } from '@/lib/worker/client';
 
 export type ReviewActionState = { error?: string; success?: string };
 
@@ -57,21 +58,34 @@ export async function respondReviewAction(
   }
 }
 
-function suggestReviewResponse(rating: number, content: string): string {
-  if (rating >= 4) {
-    return `Merci beaucoup pour votre avis ${rating}/5 ! Nous sommes ravis que vous ayez apprécié votre expérience. Au plaisir de vous revoir très bientôt.`;
-  }
-  if (rating === 3) {
-    return `Merci pour votre retour. Nous prenons note de vos remarques pour améliorer votre prochaine visite. N'hésitez pas à nous contacter directement.`;
-  }
-  return `Nous sommes désolés que votre expérience n'ait pas été à la hauteur. Contactez-nous pour que nous puissions corriger cela : ${content.slice(0, 80)}…`;
-}
-
 export async function suggestReviewResponseAction(
-  reviewId: string,
   rating: number,
-  content: string
+  content: string,
+  authorName: string
 ): Promise<{ text?: string; error?: string }> {
-  await requireAuth();
-  return { text: suggestReviewResponse(rating, content) };
+  const ctx = await requireAuth();
+  const supabase = await createClient();
+  const org = await getOrganization(supabase, ctx.organizationId);
+
+  const workerResult = await proxyToWorker<{ reply?: string; needsHumanReview?: boolean }>(
+    'inbox/reply',
+    {
+      method: 'POST',
+      organizationId: ctx.organizationId,
+      body: {
+        message: `Avis client ${rating}/5 de ${authorName}: "${content}". Rédige une réponse professionnelle pour le restaurant.`,
+        clientName: authorName,
+        restaurantName: org?.name ?? 'Restaurant',
+        context: 'review_response',
+      },
+    }
+  );
+
+  if (!workerResult.ok) {
+    return { error: workerResult.error ?? 'IA indisponible' };
+  }
+
+  const reply = workerResult.data.reply;
+  if (!reply) return { error: 'Réponse IA vide' };
+  return { text: reply };
 }

@@ -22,7 +22,9 @@ export function getRegisteredProviders(): string[] {
 export function bootstrapProviders(): void {
   const config = loadAIConfig();
 
-  registerProvider(createMockProvider());
+  if (config.allowMock) {
+    registerProvider(createMockProvider());
+  }
 
   if (config.openaiApiKey) {
     registerProvider(createOpenAIProvider(config.openaiApiKey));
@@ -35,6 +37,9 @@ export function bootstrapProviders(): void {
 
 export function resolveProviderChain(): string[] {
   const config = loadAIConfig();
-  const chain = [config.primaryProvider, config.fallbackProvider, 'mock'];
+  const chain = [config.primaryProvider, config.fallbackProvider];
+  if (config.allowMock) {
+    chain.push('mock');
+  }
   return [...new Set(chain)].filter((id) => providers.has(id));
 }

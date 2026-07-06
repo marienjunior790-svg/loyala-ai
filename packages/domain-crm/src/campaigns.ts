@@ -50,7 +50,7 @@ export async function createCampaign(
     messagePreview?: string;
     targetCount?: number;
     metadata?: Record<string, unknown>;
-    createdBy: string;
+    createdBy?: string | null;
   }
 ): Promise<Campaign> {
   const { data, error } = await supabase
@@ -63,7 +63,7 @@ export async function createCampaign(
       message_preview: input.messagePreview ?? null,
       target_count: input.targetCount ?? 0,
       metadata: input.metadata ?? {},
-      created_by: input.createdBy,
+      created_by: input.createdBy ?? null,
     })
     .select()
     .single();

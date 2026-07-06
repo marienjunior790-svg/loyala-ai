@@ -1,6 +1,7 @@
 import './load-env.js';
 import { createServer, type IncomingMessage } from 'node:http';
 import { P0_EVENT_TYPES } from '@loyala/events';
+import { logStructured, pingHeartbeat } from '@loyala/integrations';
 import { bootstrapWorkerAI, handleAIRoute } from './ai-routes.js';
 import { validateWorkerEnvAtBoot } from './env.js';
 import { inngestHandler } from './inngest/serve.js';
@@ -96,5 +97,11 @@ const server = createServer(async (req, res) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`[worker] :${PORT} — /health, /api/inngest, AI routes`);
+  logStructured({
+    level: 'info',
+    service: 'loyala-worker',
+    message: 'Worker started',
+    context: { port: PORT, inngest: isInngestConfigured() },
+  });
+  void pingHeartbeat('loyala-worker');
 });

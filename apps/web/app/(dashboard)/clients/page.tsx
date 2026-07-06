@@ -10,9 +10,14 @@ import { ClientsList } from '@/components/clients/clients-list';
 
 export const dynamic = 'force-dynamic';
 
-export default async function ClientsPage() {
+export default async function ClientsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ segment?: string }>;
+}) {
   const ctx = await requireAuthPermission('clients:read');
   const canWrite = canWriteClients(ctx);
+  const { segment: initialSegment } = await searchParams;
 
   const supabase = await createClient();
 
@@ -60,7 +65,7 @@ export default async function ClientsPage() {
         )}
       </div>
 
-      <ClientsList clients={clients} canWrite={canWrite} />
+      <ClientsList clients={clients} canWrite={canWrite} initialSegment={initialSegment ?? null} />
     </div>
   );
 }

@@ -5,6 +5,7 @@ import { requireAuth } from '@/lib/auth/guard';
 import { hasPermission } from '@loyala/core-iam';
 import { createClient } from '@/lib/supabase/server';
 import { updateOrganization } from '@loyala/domain-crm';
+import { uploadOrgLogo } from '@loyala/integrations';
 
 export type SettingsActionState = { error?: string; success?: string };
 
@@ -19,6 +20,7 @@ export async function updateOrganizationSettingsAction(
 
   const name = String(formData.get('name') ?? '').trim();
   const whatsappPhone = String(formData.get('whatsappPhone') ?? '').trim();
+  const logoFile = formData.get('logo') as File | null;
 
   if (name.length < 2) return { error: 'Nom requis' };
 
@@ -29,7 +31,19 @@ export async function updateOrganizationSettingsAction(
     .eq('id', ctx.organizationId)
     .single();
 
-  const settings = { ...(org?.settings as Record<string, unknown> ?? {}), whatsapp_phone: whatsappPhone };
+  const settings: Record<string, unknown> = {
+    ...(org?.settings as Record<string, unknown> ?? {}),
+    whatsapp_phone: whatsappPhone,
+  };
+
+  if (logoFile && logoFile.size > 0) {
+    try {
+      const logoUrl = await uploadOrgLogo(supabase, ctx.organizationId, logoFile);
+      settings.logo_url = logoUrl;
+    } catch (e) {
+      return { error: e instanceof Error ? e.message : 'Erreur upload logo' };
+    }
+  }
 
   try {
     await updateOrganization(supabase, ctx.organizationId, { name, settings });

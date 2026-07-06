@@ -35,6 +35,9 @@ importers:
       '@loyala/events':
         specifier: workspace:*
         version: link:../../packages/events
+      '@loyala/integrations':
+        specifier: workspace:*
+        version: link:../../packages/integrations
       '@loyala/ui':
         specifier: workspace:*
         version: link:../../packages/ui
@@ -108,9 +111,15 @@ importers:
       '@loyala/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@loyala/domain-crm':
+        specifier: workspace:*
+        version: link:../../packages/domain-crm
       '@loyala/events':
         specifier: workspace:*
         version: link:../../packages/events
+      '@loyala/integrations':
+        specifier: workspace:*
+        version: link:../../packages/integrations
       '@loyala/validation':
         specifier: workspace:*
         version: link:../../packages/validation
@@ -184,6 +193,19 @@ importers:
       zod:
         specifier: ^3.24.1
         version: 3.25.76
+    devDependencies:
+      '@types/node':
+        specifier: ^22.10.5
+        version: 22.20.0
+      typescript:
+        specifier: ^5.7.2
+        version: 5.9.3
+
+  packages/integrations:
+    dependencies:
+      '@supabase/supabase-js':
+        specifier: ^2.49.1
+        version: 2.110.0
     devDependencies:
       '@types/node':
         specifier: ^22.10.5
