@@ -49,9 +49,14 @@ export interface AuthContext {
 }
 
 export function hasPermission(ctx: AuthContext, permission: Permission): boolean {
-  const permissions = ROLE_PERMISSIONS[ctx.role];
+  const role: OrgRole = isOrgRole(ctx.role) ? ctx.role : 'org_viewer';
+  const permissions = ROLE_PERMISSIONS[role];
   if (!permissions) return false;
   return permissions.includes(permission);
+}
+
+function isOrgRole(value: unknown): value is OrgRole {
+  return typeof value === 'string' && (ORG_ROLES as readonly string[]).includes(value);
 }
 
 export function requirePermission(ctx: AuthContext, permission: Permission): void {

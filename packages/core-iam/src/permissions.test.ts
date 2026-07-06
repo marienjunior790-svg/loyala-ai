@@ -22,4 +22,9 @@ describe('@loyala/core-iam permissions', () => {
     expect(hasPermission(viewer, 'clients:read')).toBe(true);
     expect(hasPermission(viewer, 'clients:write')).toBe(false);
   });
+
+  it('undefined role falls back to org_viewer with clients:read', () => {
+    const broken = { userId: 'u4', organizationId: 'o1', role: undefined as unknown as 'org_owner' };
+    expect(hasPermission(broken, 'clients:read')).toBe(true);
+  });
 });

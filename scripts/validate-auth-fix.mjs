@@ -43,11 +43,17 @@ else fail('session.ts cache', 'getSession not wrapped in cache()');
 if (/export const getAuthContext = cache\(/.test(session)) pass('session.ts getAuthContext cached');
 else fail('session.ts cache', 'getAuthContext not wrapped in cache()');
 
-// Fix 3: guard differentiates login vs onboarding
-if (/redirect\('\/onboarding'\)/.test(guard) && /reason: 'no_membership'/.test(guard)) {
+// Fix 3: guard differentiates login vs onboarding, never redirects to /dashboard
+if (/redirect\('\/onboarding'\)/.test(guard) && /redirect_onboarding|no_membership|hasMembership: false/.test(guard)) {
   pass('guard.ts onboarding redirect for authenticated user without org');
 } else {
   fail('guard.ts redirects', 'Missing /onboarding redirect for no-membership case');
+}
+
+if (/redirect\('\/dashboard'\)/.test(guard)) {
+  fail('guard.ts dashboard redirect', 'guard.ts must not redirect to /dashboard');
+} else {
+  pass('guard.ts no redirect to /dashboard');
 }
 
 if (/if \(!ctx\) redirect\('\/login'\)/.test(guard)) {

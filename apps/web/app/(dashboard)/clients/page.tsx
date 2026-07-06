@@ -8,6 +8,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 
+export const dynamic = 'force-dynamic';
+
 export default async function ClientsPage() {
   const ctx = await requireAuthPermission('clients:read');
   const canWrite = hasPermission(ctx, 'clients:write');

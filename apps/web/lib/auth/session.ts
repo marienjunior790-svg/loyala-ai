@@ -5,7 +5,7 @@ import { ORG_COOKIE_NAME, type AuthContext, type OrgRole } from '@loyala/core-ia
 import { cookies } from 'next/headers';
 import { getSupabaseEnv, getServiceRoleKey } from '../supabase/env';
 import { getActiveMembership } from './membership';
-import { resolveOrgRole } from './role-map';
+import { resolveOrgRole, normalizeOrgRole } from './role-map';
 import { authDebug } from './debug';
 
 export const getSession = cache(async () => {
@@ -74,35 +74,49 @@ export const getAuthContext = cache(async (): Promise<AuthContext | null> => {
     authDebug('getAuthContext', {
       userId: user.id,
       organizationId,
-      reason: 'member_lookup_failed',
+      reason: 'member_lookup_failed_rpc_fallback',
       error: memberError?.message ?? 'no_row',
     });
-    return null;
+    // RPC get_my_active_membership already confirmed membership — do not treat as no org
+    return {
+      userId: user.id,
+      organizationId,
+      role: 'org_viewer',
+    };
   }
 
   let role: OrgRole = 'org_viewer';
 
   if (member.role_id) {
-    const { data: roleRow } = await supabase
+    const { data: roleRow, error: roleError } = await supabase
       .from('roles')
       .select('code')
       .eq('id', member.role_id)
       .maybeSingle();
 
-    role = resolveOrgRole(roleRow?.code);
+    if (roleError) {
+      authDebug('getAuthContext', {
+        userId: user.id,
+        reason: 'role_lookup_failed',
+        error: roleError.message,
+      });
+    }
+
+    role = normalizeOrgRole(resolveOrgRole(roleRow?.code));
   }
 
   authDebug('getAuthContext', {
     userId: user.id,
     organizationId: member.organization_id,
     role,
+    roleId: member.role_id,
     ok: true,
   });
 
   return {
     userId: user.id,
     organizationId: member.organization_id,
-    role,
+    role: normalizeOrgRole(role),
   };
 });
 
