@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { listClients, syncClientSegments, isClientInactive } from '@loyala/domain-crm';
-import type { KpiMetric } from './metrics';
+import type { KpiMetric } from './types';
 
 export async function getCrmKpis(
   supabase: SupabaseClient,

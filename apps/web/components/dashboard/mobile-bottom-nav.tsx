@@ -3,11 +3,11 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { mainNav, isNavActive } from '@/lib/dashboard/navigation';
+import { mainNav, mobileNav, isNavActive } from '@/lib/dashboard/navigation';
 
 export function MobileBottomNav() {
   const pathname = usePathname();
-  const items = mainNav.slice(0, 5);
+  const items = mobileNav.slice(0, 5);
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-background/95 backdrop-blur-md lg:hidden">

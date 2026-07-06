@@ -5,10 +5,10 @@ import { redirect } from 'next/navigation';
 import { requireAuthPermission } from '@/lib/auth/guard';
 import { canDeleteClients } from '@/lib/auth/clients-access';
 import { createClient as createDbClient } from '@/lib/supabase/server';
-import {
-  createClient as createCrmClient,
+import { createClient as createCrmClient,
   updateClient,
   softDeleteClient,
+  createNotification,
 } from '@loyala/domain-crm';
 import { createClientSchema, updateClientSchema } from '@loyala/validation';
 import { recordDomainEvent } from '@/lib/audit/record-domain-event';
@@ -52,6 +52,15 @@ export async function createClientAction(
       actorId: ctx.userId,
       payload: { clientId: client.id, fullName: client.full_name },
     });
+
+    await createNotification(supabase, {
+      organizationId: ctx.organizationId,
+      userId: ctx.userId,
+      title: 'Client ajouté',
+      body: `${client.full_name} a été ajouté au CRM`,
+      type: 'client',
+      link: `/clients/${client.id}`,
+    }).catch(() => undefined);
 
     revalidatePath('/clients');
     return {

@@ -9,7 +9,6 @@ import { RecentActivity } from '@/components/dashboard/recent-activity';
 import { DashboardOverviewSkeleton } from '@/components/dashboard/dashboard-skeleton';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 
 async function OverviewContent() {
   const ctx = await requireAuth();
@@ -22,7 +21,6 @@ async function OverviewContent() {
           <div>
             <div className="flex items-center gap-2">
               <h2 className="text-2xl font-semibold tracking-tight">Bonjour 👋</h2>
-              <Badge variant="success">Live</Badge>
             </div>
             <p className="mt-1 text-sm text-muted-foreground">
               Vue d&apos;ensemble de votre relation client et de vos relances WhatsApp.
@@ -73,8 +71,13 @@ async function OverviewContent() {
               {metrics.kpis.find((k) => k.id === 'crm-inactive')?.value ?? '0'} clients à relancer.
               Une campagne WhatsApp ciblée peut remplir vos tables cette semaine.
             </p>
+            {metrics.ai && metrics.ai.requests > 0 && (
+              <p className="mt-3 text-xs text-muted-foreground">
+                {metrics.ai.requests} requêtes IA · ${metrics.ai.costUsd.toFixed(2)} ce mois
+              </p>
+            )}
             <Button className="mt-6 w-full" asChild>
-              <Link href="/clients/ajouter">Ajouter un client</Link>
+              <Link href="/campaigns">Lancer une campagne</Link>
             </Button>
             <Button className="mt-2 w-full" variant="secondary" asChild>
               <Link href="/clients">Relancer mes clients</Link>

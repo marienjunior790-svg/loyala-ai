@@ -27,6 +27,7 @@ export const onboardingSchema = z.object({
   countryCode: z.string().length(2).default('SN'),
   timezone: z.string().min(1).default('Africa/Dakar'),
   currency: z.enum(['XOF', 'XAF', 'MAD', 'NGN']).default('XOF'),
+  whatsappPhone: z.string().optional(),
 });
 
 export type LoginInput = z.infer<typeof loginSchema>;

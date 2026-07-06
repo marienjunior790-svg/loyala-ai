@@ -1,18 +1,34 @@
-import { ComingSoonModule } from '@/components/dashboard/coming-soon-module';
+import { requireAuth } from '@/lib/auth/guard';
+import { createClient } from '@/lib/supabase/server';
+import { getLoyaltySummary, listClients } from '@loyala/domain-crm';
+import { LoyaltyPageClient } from '@/components/loyalty/loyalty-page-client';
+import { ModuleError } from '@/components/dashboard/module-error';
 
-const upcomingFeatures = [
-  'Programme points & récompenses',
-  'Paliers VIP automatiques',
-  'Notifications WhatsApp fidélité',
-  'Tableau de bord rétention',
-];
+export const dynamic = 'force-dynamic';
 
-export default function LoyaltyPage() {
-  return (
-    <ComingSoonModule
-      title="Programme fidélité"
-      description="Gérez points, paliers et récompenses pour maximiser la rétention de vos clients."
-      features={upcomingFeatures}
-    />
-  );
+export default async function LoyaltyPage() {
+  const ctx = await requireAuth();
+  const supabase = await createClient();
+
+  try {
+    const [summary, clients] = await Promise.all([
+      getLoyaltySummary(supabase, ctx.organizationId),
+      listClients(supabase, ctx.organizationId),
+    ]);
+
+    return (
+      <LoyaltyPageClient
+        summary={summary}
+        clients={clients.map((c) => ({
+          id: c.id,
+          full_name: c.full_name,
+          loyalty_points: c.loyalty_points,
+        }))}
+      />
+    );
+  } catch (e) {
+    return (
+      <ModuleError message={e instanceof Error ? e.message : 'Erreur chargement fidélité'} />
+    );
+  }
 }

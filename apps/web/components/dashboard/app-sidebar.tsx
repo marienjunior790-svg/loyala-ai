@@ -54,12 +54,12 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
           <p className="mt-1 text-[11px] text-muted-foreground">
             Débloquez campagnes avancées et analytics prédictifs.
           </p>
-          <button
-            type="button"
-            className="mt-3 w-full rounded-md bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary transition hover:bg-primary/20"
+          <Link
+            href="/billing"
+            className="mt-3 block w-full rounded-md bg-primary/10 px-3 py-1.5 text-center text-xs font-medium text-primary transition hover:bg-primary/20"
           >
             Upgrader
-          </button>
+          </Link>
         </div>
       </div>
     </aside>

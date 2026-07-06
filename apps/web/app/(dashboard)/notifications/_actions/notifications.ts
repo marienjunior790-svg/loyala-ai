@@ -1,0 +1,20 @@
+'use server';
+
+import { revalidatePath } from 'next/cache';
+import { requireAuth } from '@/lib/auth/guard';
+import { createClient } from '@/lib/supabase/server';
+import { markNotificationRead, markAllNotificationsRead } from '@loyala/domain-crm';
+
+export async function markNotificationReadAction(notificationId: string): Promise<void> {
+  const ctx = await requireAuth();
+  const supabase = await createClient();
+  await markNotificationRead(supabase, ctx.userId, notificationId);
+  revalidatePath('/notifications');
+}
+
+export async function markAllNotificationsReadAction(): Promise<void> {
+  const ctx = await requireAuth();
+  const supabase = await createClient();
+  await markAllNotificationsRead(supabase, ctx.userId);
+  revalidatePath('/notifications');
+}

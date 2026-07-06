@@ -13,9 +13,16 @@ interface DashboardShellProps {
   title: string;
   subtitle?: string;
   role?: string;
+  unreadNotifications?: number;
 }
 
-export function DashboardShell({ children, title, subtitle, role }: DashboardShellProps) {
+export function DashboardShell({
+  children,
+  title,
+  subtitle,
+  role,
+  unreadNotifications = 0,
+}: DashboardShellProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
@@ -55,6 +62,7 @@ export function DashboardShell({ children, title, subtitle, role }: DashboardShe
           title={title}
           subtitle={subtitle}
           role={role}
+          unreadNotifications={unreadNotifications}
           onMenuClick={() => setMobileOpen(true)}
         />
         <main className={cn('flex-1 overflow-auto pb-20 lg:pb-6')}>

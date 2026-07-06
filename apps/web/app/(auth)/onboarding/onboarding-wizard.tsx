@@ -37,6 +37,7 @@ export function OnboardingWizard() {
     fd.set('countryCode', form.countryCode);
     fd.set('timezone', form.timezone);
     fd.set('currency', form.currency);
+    if (form.whatsappPhone) fd.set('whatsappPhone', form.whatsappPhone);
 
     const result = await completeOnboardingAction(initial, fd);
     if (result?.error) {

@@ -22,6 +22,7 @@ export async function completeOnboardingAction(
     countryCode: formData.get('countryCode') || 'SN',
     timezone: formData.get('timezone') || 'Africa/Dakar',
     currency: formData.get('currency') || 'XOF',
+    whatsappPhone: formData.get('whatsappPhone') || undefined,
   });
 
   if (!parsed.success) {
@@ -60,6 +61,14 @@ export async function completeOnboardingAction(
 
   if (!onboardingResult?.organization_id) {
     return { error: 'Impossible de créer votre restaurant. Réessayez ou contactez le support.' };
+  }
+
+  const whatsappPhone = String(formData.get('whatsappPhone') ?? '').trim();
+  if (whatsappPhone) {
+    await supabase
+      .from('organizations')
+      .update({ settings: { whatsapp_phone: whatsappPhone } })
+      .eq('id', onboardingResult.organization_id);
   }
 
   const cookieStore = await cookies();

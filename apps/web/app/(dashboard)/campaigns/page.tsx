@@ -1,29 +1,31 @@
 import { requireAuth } from '@/lib/auth/guard';
+import { createClient } from '@/lib/supabase/server';
+import { listCampaigns } from '@loyala/domain-crm';
 import { getWorkerHealth } from '@/lib/worker/client';
-import { WorkerIntegrationStatus } from '@/components/worker/worker-integration-status';
-import { ComingSoonModule } from '@/components/dashboard/coming-soon-module';
+import { CampaignsPageClient } from '@/components/campaigns/campaigns-page-client';
 
 export const dynamic = 'force-dynamic';
 
-const upcomingFeatures = [
-  'Templates WhatsApp pré-approuvés',
-  'Segmentation automatique IA',
-  'Planification & récurrence',
-  'Suivi des relances envoyées',
-];
-
 export default async function CampaignsPage() {
   const ctx = await requireAuth();
+  const supabase = await createClient();
   const workerHealth = await getWorkerHealth();
 
+  let campaigns: Awaited<ReturnType<typeof listCampaigns>> = [];
+  let error: string | null = null;
+
+  try {
+    campaigns = await listCampaigns(supabase, ctx.organizationId);
+  } catch (e) {
+    error = e instanceof Error ? e.message : 'Chargement impossible';
+  }
+
   return (
-    <div className="space-y-6 animate-fade-in">
-      <WorkerIntegrationStatus health={workerHealth} organizationId={ctx.organizationId} />
-      <ComingSoonModule
-        title="Campagnes WhatsApp"
-        description="Envoyez des messages ciblés à vos clients pour booster les visites et la fidélité."
-        features={upcomingFeatures}
-      />
-    </div>
+    <CampaignsPageClient
+      campaigns={campaigns}
+      workerHealth={workerHealth}
+      organizationId={ctx.organizationId}
+      error={error}
+    />
   );
 }
