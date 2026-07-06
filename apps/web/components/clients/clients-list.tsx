@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { Plus, Search, ChevronRight } from 'lucide-react';
 import type { Client } from '@loyala/domain-crm';
+import { computeClientSegment, isClientInactive } from '@loyala/domain-crm';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -12,8 +13,6 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 type Filter = 'all' | 'active' | 'inactive';
-
-const INACTIVE = new Set(['inactive', 'at_risk']);
 
 interface ClientsListProps {
   clients: Client[];
@@ -27,7 +26,7 @@ export function ClientsList({ clients, canWrite }: ClientsListProps) {
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return clients.filter((c) => {
-      const isInactive = INACTIVE.has(c.segment);
+      const isInactive = isClientInactive(c);
       if (filter === 'active' && isInactive) return false;
       if (filter === 'inactive' && !isInactive) return false;
       if (!q) return true;
@@ -84,7 +83,7 @@ export function ClientsList({ clients, canWrite }: ClientsListProps) {
                 ? 'Aucun client pour le moment.'
                 : 'Aucun client ne correspond à votre recherche.'}
             </p>
-            {clients.length === 0 && (
+            {clients.length === 0 && canWrite && (
               <Button className="mt-4" asChild>
                 <Link href="/clients/ajouter">
                   <Plus className="h-4 w-4" />
@@ -97,7 +96,8 @@ export function ClientsList({ clients, canWrite }: ClientsListProps) {
       ) : (
         <div className="grid gap-2">
           {filtered.map((client) => {
-            const isInactive = INACTIVE.has(client.segment);
+            const isInactive = isClientInactive(client);
+            const segmentLabel = computeClientSegment(client);
             return (
               <Card
                 key={client.id}
@@ -113,7 +113,7 @@ export function ClientsList({ clients, canWrite }: ClientsListProps) {
                       variant={isInactive ? 'warning' : 'secondary'}
                       className="capitalize"
                     >
-                      {isInactive ? 'à relancer' : client.segment}
+                      {isInactive ? 'à relancer' : segmentLabel}
                     </Badge>
                     <Button variant="ghost" size="sm" asChild>
                       <Link href={`/clients/${client.id}`}>

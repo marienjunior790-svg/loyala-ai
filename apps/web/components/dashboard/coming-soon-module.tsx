@@ -33,7 +33,7 @@ export function ComingSoonModule({ title, description, features }: ComingSoonMod
           </p>
           <div className="flex flex-col gap-2 sm:flex-row">
             <Button asChild>
-              <Link href="/clients?nouveau=1">
+              <Link href="/clients/ajouter">
                 Ajouter un client
                 <ArrowRight className="h-4 w-4" />
               </Link>

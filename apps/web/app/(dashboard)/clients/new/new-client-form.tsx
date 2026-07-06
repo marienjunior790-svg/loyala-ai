@@ -57,7 +57,7 @@ export function NewClientForm() {
             <input
               name="phone"
               required
-              placeholder="+242 06..."
+              placeholder="+221..."
               className="mt-1 w-full rounded-lg border border-input bg-background px-4 py-2.5 text-sm outline-none ring-offset-background focus:ring-2 focus:ring-ring"
             />
           </div>

@@ -1,19 +1,29 @@
 'use client';
 
-import { usePathname, useSearchParams } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { DashboardShell } from './dashboard-shell';
 import { mainNav, isNavActive } from '@/lib/dashboard/navigation';
 
-function resolvePageMeta(pathname: string, nouveau: boolean) {
-  if (pathname === '/clients' && nouveau) {
-    return { title: 'Nouveau client', subtitle: 'Ajoutez un contact à votre CRM' };
-  }
+const PAGE_TITLES: Record<string, { title: string; subtitle?: string }> = {
+  '/clients/ajouter': {
+    title: 'Nouveau client',
+    subtitle: 'Ajoutez un contact à votre CRM',
+  },
+  '/clients/new': {
+    title: 'Nouveau client',
+    subtitle: 'Ajoutez un contact à votre CRM',
+  },
+};
+
+function resolvePageMeta(pathname: string) {
+  const exact = PAGE_TITLES[pathname];
+  if (exact) return exact;
 
   if (pathname.match(/^\/clients\/[^/]+\/edit$/)) {
     return { title: 'Modifier le client', subtitle: 'Mettez à jour les informations' };
   }
 
-  if (pathname.match(/^\/clients\/[^/]+$/)) {
+  if (pathname.match(/^\/clients\/[^/]+$/) && pathname !== '/clients/ajouter') {
     return { title: 'Fiche client', subtitle: 'Détails et relance WhatsApp' };
   }
 
@@ -28,9 +38,7 @@ interface DashboardLayoutClientProps {
 
 export function DashboardLayoutClient({ children, role }: DashboardLayoutClientProps) {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const nouveau = searchParams.get('nouveau') === '1';
-  const { title, subtitle } = resolvePageMeta(pathname, nouveau);
+  const { title, subtitle } = resolvePageMeta(pathname);
 
   return (
     <DashboardShell title={title} subtitle={subtitle} role={role}>

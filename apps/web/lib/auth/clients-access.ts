@@ -6,3 +6,8 @@ export function canWriteClients(ctx: AuthContext): boolean {
   if (hasPermission(ctx, 'clients:write')) return true;
   return Boolean(ctx.userId && ctx.organizationId);
 }
+
+/** Suppression réservée aux rôles avec clients:delete (pas de bypass MVP). */
+export function canDeleteClients(ctx: AuthContext): boolean {
+  return hasPermission(ctx, 'clients:delete');
+}

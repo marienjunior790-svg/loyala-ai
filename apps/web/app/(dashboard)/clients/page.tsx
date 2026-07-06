@@ -3,7 +3,7 @@ import { Plus } from 'lucide-react';
 import { requireAuthPermission } from '@/lib/auth/guard';
 import { canWriteClients } from '@/lib/auth/clients-access';
 import { createClient } from '@/lib/supabase/server';
-import { listClients } from '@loyala/domain-crm';
+import { listClients, syncClientSegments } from '@loyala/domain-crm';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { ClientsList } from '@/components/clients/clients-list';
@@ -20,6 +20,8 @@ export default async function ClientsPage() {
   let loadError: string | null = null;
 
   try {
+    clients = await listClients(supabase, ctx.organizationId);
+    await syncClientSegments(supabase, ctx.organizationId, clients);
     clients = await listClients(supabase, ctx.organizationId);
   } catch (error) {
     loadError = error instanceof Error ? error.message : 'Impossible de charger les clients';
@@ -43,12 +45,19 @@ export default async function ClientsPage() {
             Relancez vos clients inactifs en 1 clic via WhatsApp
           </p>
         </div>
-        <Button asChild className="shrink-0">
-          <Link href="/clients/ajouter">
+        {canWrite ? (
+          <Button asChild className="shrink-0">
+            <Link href="/clients/ajouter">
+              <Plus className="h-4 w-4" />
+              Ajouter un client
+            </Link>
+          </Button>
+        ) : (
+          <Button className="shrink-0" disabled>
             <Plus className="h-4 w-4" />
             Ajouter un client
-          </Link>
-        </Button>
+          </Button>
+        )}
       </div>
 
       <ClientsList clients={clients} canWrite={canWrite} />

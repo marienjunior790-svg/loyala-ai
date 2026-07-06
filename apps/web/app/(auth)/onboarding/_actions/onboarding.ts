@@ -39,7 +39,7 @@ export async function completeOnboardingAction(
       sameSite: 'lax',
       path: '/',
     });
-    redirect('/clients?nouveau=1&welcome=1');
+    redirect('/clients/ajouter?welcome=1');
   }
 
   const { data: onboardingRows, error: onboardingError } = await supabase.rpc('complete_onboarding', {
@@ -70,5 +70,5 @@ export async function completeOnboardingAction(
     path: '/',
   });
 
-  redirect('/clients?nouveau=1&welcome=1');
+  redirect('/clients/ajouter?welcome=1');
 }

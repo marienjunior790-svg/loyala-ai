@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 import { ArrowLeft, Pencil } from 'lucide-react';
 import { requireAuthPermission } from '@/lib/auth/guard';
-import { hasPermission } from '@loyala/core-iam';
+import { canWriteClients, canDeleteClients } from '@/lib/auth/clients-access';
 import { createClient } from '@/lib/supabase/server';
 import { getClient } from '@loyala/domain-crm';
 import { DeleteClientButton } from './delete-client-button';
@@ -19,12 +19,12 @@ export default async function ClientDetailPage({
   const { id } = await params;
 
   if (id === 'new' || id === 'create' || id === 'ajouter') {
-    redirect('/clients?nouveau=1');
+    redirect('/clients/ajouter');
   }
 
   const ctx = await requireAuthPermission('clients:read');
-  const canWrite = hasPermission(ctx, 'clients:write');
-  const canDelete = hasPermission(ctx, 'clients:delete');
+  const canWrite = canWriteClients(ctx);
+  const canDelete = canDeleteClients(ctx);
 
   const supabase = await createClient();
   const client = await getClient(supabase, ctx.organizationId, id);

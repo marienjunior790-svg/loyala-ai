@@ -77,11 +77,11 @@ export const getAuthContext = cache(async (): Promise<AuthContext | null> => {
       reason: 'member_lookup_failed_rpc_fallback',
       error: memberError?.message ?? 'no_row',
     });
-    // RPC get_my_active_membership already confirmed membership — do not treat as no org
+    // RPC confirmed membership — default staff (write CRM, no delete escalation)
     return {
       userId: user.id,
       organizationId,
-      role: 'org_viewer',
+      role: 'org_staff',
     };
   }
 

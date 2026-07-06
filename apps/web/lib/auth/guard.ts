@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import { getAuthContext, getSession } from './session';
-import { hasPermission, type AuthContext, type Permission } from '@loyala/core-iam';import { normalizeOrgRole } from './role-map';
+import { hasPermission, type AuthContext, type Permission } from '@loyala/core-iam';
+import { normalizeOrgRole } from './role-map';
 import { authDebug } from './debug';
 
 function withSafeContext(ctx: AuthContext): AuthContext {
@@ -48,11 +49,6 @@ export async function requireAuth(): Promise<AuthContext> {
     redirect: '/onboarding',
   });
   redirect('/onboarding');
-}
-
-/** MVP: tout membre actif d'une org peut gérer les clients (aligné sur clientsWriteGranted). */
-export function canManageClients(ctx: AuthContext): boolean {
-  return Boolean(ctx.organizationId && ctx.userId);
 }
 
 export async function requireAuthPermission(permission: Permission): Promise<AuthContext> {

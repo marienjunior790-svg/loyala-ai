@@ -1,8 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { listClients } from '@loyala/domain-crm';
+import { listClients, syncClientSegments, isClientInactive } from '@loyala/domain-crm';
 import type { KpiMetric } from './metrics';
-
-const INACTIVE_SEGMENTS = new Set(['inactive', 'at_risk']);
 
 export async function getCrmKpis(
   supabase: SupabaseClient,
@@ -12,13 +10,15 @@ export async function getCrmKpis(
 
   try {
     clients = await listClients(supabase, organizationId);
+    await syncClientSegments(supabase, organizationId, clients);
+    clients = await listClients(supabase, organizationId);
   } catch {
     return fallbackKpis();
   }
 
   const total = clients.length;
-  const active = clients.filter((c) => !INACTIVE_SEGMENTS.has(c.segment)).length;
-  const inactive = total - active;
+  const inactive = clients.filter((c) => isClientInactive(c)).length;
+  const active = total - inactive;
   const estimatedRevenue = clients.reduce((sum, c) => sum + Number(c.total_spent ?? 0), 0);
 
   return [
