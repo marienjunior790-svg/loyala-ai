@@ -1,7 +1,12 @@
+import type { Metadata } from 'next';
 import { getAuthContext } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
 import { countUnreadNotifications } from '@loyala/domain-crm';
 import { DashboardLayoutClient } from '@/components/dashboard/dashboard-layout-client';
+
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+};
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const ctx = await getAuthContext();

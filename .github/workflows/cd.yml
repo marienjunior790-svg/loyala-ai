@@ -16,13 +16,12 @@ jobs:
     steps:
       - name: Smoke web health
         run: |
-          if [ -z "$PRODUCTION_WEB_URL" ]; then
-            echo "PRODUCTION_WEB_URL not set — skip (add GitHub secret after first deploy)"
-            exit 0
-          fi
-          code=$(curl -s -o /dev/null -w "%{http_code}" "$PRODUCTION_WEB_URL/api/health")
-          echo "Web health HTTP $code"
-          test "$code" = "200" -o "$code" = "503"
+          URL="${PRODUCTION_WEB_URL:-https://loyala-ai-web.vercel.app}"
+          body=$(curl -sf "$URL/api/health")
+          echo "$body"
+          status=$(echo "$body" | grep -o '"status":"[^"]*"' | head -1)
+          echo "Status: $status"
+          echo "$body" | grep -qE '"status":"(ok|degraded)"' || exit 1
 
       - name: Smoke worker health
         run: |

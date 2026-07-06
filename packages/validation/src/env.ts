@@ -22,7 +22,9 @@ export const sharedEnvSchema = z.object({
   RESEND_FROM_EMAIL: z.string().min(1).optional(),
   BETTERSTACK_HEARTBEAT_URL: z.string().url().optional(),
   STRIPE_SECRET_KEY: z.string().min(1).optional(),
-  STRIPE_WEBHOOK_SECRET: z.string().min(1).optional(),
+  UPSTASH_REDIS_REST_URL: z.string().url().optional(),
+  UPSTASH_REDIS_REST_TOKEN: z.string().min(1).optional(),
+  SENTRY_DSN: z.string().url().optional(),
 });
 
 export const webEnvSchema = sharedEnvSchema.extend({
@@ -87,6 +89,14 @@ export function parseWebEnv(source: Record<string, string | undefined>): WebEnv 
     }
     if (!env.WORKER_API_SECRET) {
       throw new Error('[web] WORKER_API_SECRET required in production (min 16 chars)');
+    }
+    if (!env.NEXT_PUBLIC_APP_URL) {
+      throw new Error('[web] NEXT_PUBLIC_APP_URL required in production (SEO + canonical URLs)');
+    }
+    if (!source.UPSTASH_REDIS_REST_URL || !source.UPSTASH_REDIS_REST_TOKEN) {
+      console.warn(
+        '[web] UPSTASH_REDIS_REST_URL/TOKEN not set — rate limiting uses in-memory fallback (not safe multi-replica)'
+      );
     }
   }
   return env;

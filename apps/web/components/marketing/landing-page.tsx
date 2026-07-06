@@ -10,7 +10,7 @@ export function LandingPage() {
   return (
     <div className="min-h-screen bg-background">
       <MarketingNav />
-      <main>
+      <main id="main-content">
         <HeroSection />
         <ProblemSolutionSection />
         <BenefitsSection />

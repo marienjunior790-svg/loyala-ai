@@ -71,17 +71,19 @@ export function ClientsList({ clients, canWrite, initialSegment }: ClientsListPr
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
+            aria-label="Rechercher un client"
             placeholder="Rechercher un client..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             className="pl-10"
           />
         </div>
-        <div className="flex gap-1 rounded-lg border border-border p-1">
+        <div className="flex gap-1 rounded-lg border border-border p-1" role="group" aria-label="Filtrer les clients">
           {filters.map((f) => (
             <button
               key={f.id}
               type="button"
+              aria-pressed={filter === f.id}
               onClick={() => setFilter(f.id)}
               disabled={Boolean(segmentFilter)}
               className={cn(

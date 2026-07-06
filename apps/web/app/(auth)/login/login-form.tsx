@@ -16,21 +16,29 @@ export function LoginForm() {
         <p className="rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-400">{state.error}</p>
       )}
       <div>
-        <label className="text-sm text-neutral-400">Email</label>
+        <label htmlFor="login-email" className="text-sm text-neutral-400">
+          Email
+        </label>
         <input
+          id="login-email"
           name="email"
           type="email"
           required
+          autoComplete="email"
           className="mt-1 w-full rounded-lg border border-neutral-700 bg-neutral-900 px-4 py-3"
           placeholder="contact@restaurant.sn"
         />
       </div>
       <div>
-        <label className="text-sm text-neutral-400">Mot de passe</label>
+        <label htmlFor="login-password" className="text-sm text-neutral-400">
+          Mot de passe
+        </label>
         <input
+          id="login-password"
           name="password"
           type="password"
           required
+          autoComplete="current-password"
           className="mt-1 w-full rounded-lg border border-neutral-700 bg-neutral-900 px-4 py-3"
         />
         <Link href="/forgot-password" className="mt-1 block text-right text-xs text-loyala-green">

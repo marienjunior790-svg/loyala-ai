@@ -26,7 +26,7 @@ jobs:
       - name: Typecheck
         run: pnpm typecheck
 
-      - name: Unit tests + RLS static
+      - name: Unit tests + journey smoke + RLS static
         run: pnpm test
 
       - name: RLS cross-tenant integration
@@ -48,9 +48,24 @@ jobs:
         env:
           NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
           NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-key
+          NEXT_PUBLIC_APP_URL: https://loyala-ai-web.vercel.app
           WORKER_URL: https://placeholder.example.com
           WORKER_API_SECRET: placeholder-secret-min-16-chars
           AI_ALLOW_MOCK: 'true'
 
       - name: Build worker
         run: pnpm --filter worker build
+
+  production-smoke:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    needs: quality
+    steps:
+      - name: Smoke web health (degraded OK)
+        run: |
+          URL="${PRODUCTION_WEB_URL:-https://loyala-ai-web.vercel.app}"
+          body=$(curl -sf "$URL/api/health" || echo '{}')
+          echo "$body"
+          echo "$body" | grep -q '"status"' || (echo "Invalid health response" && exit 1)
+        env:
+          PRODUCTION_WEB_URL: ${{ secrets.PRODUCTION_WEB_URL }}

@@ -6,6 +6,7 @@ import { AppSidebar } from './app-sidebar';
 import { TopNavbar } from './top-navbar';
 import { MobileBottomNav } from './mobile-bottom-nav';
 import { Button } from '@/components/ui/button';
+import { SkipLink } from '@/components/ui/skip-link';
 import { cn } from '@/lib/utils';
 
 interface DashboardShellProps {
@@ -27,6 +28,7 @@ export function DashboardShell({
 
   return (
     <div className="flex min-h-screen bg-background">
+      <SkipLink />
       <div className="hidden w-64 shrink-0 lg:block">
         <div className="fixed inset-y-0 w-64">
           <AppSidebar />
@@ -65,7 +67,7 @@ export function DashboardShell({
           unreadNotifications={unreadNotifications}
           onMenuClick={() => setMobileOpen(true)}
         />
-        <main className={cn('flex-1 overflow-auto pb-20 lg:pb-6')}>
+        <main id="main-content" className={cn('flex-1 overflow-auto pb-20 lg:pb-6')}>
           <div className="mx-auto max-w-7xl p-4 md:p-6 lg:p-8">{children}</div>
         </main>
       </div>
