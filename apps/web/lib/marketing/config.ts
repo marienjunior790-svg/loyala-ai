@@ -1,5 +1,16 @@
-export const DEMO_WHATSAPP =
-  process.env.NEXT_PUBLIC_DEMO_WHATSAPP?.replace(/\D/g, '') ?? '221771234567';
+/** Normalise un numéro local (ex. 065719922) vers format wa.me international */
+function normalizeWhatsAppDigits(raw: string): string {
+  const digits = raw.replace(/\D/g, '');
+  // Maroc : 06/07xxxxxxxx → 2126/7xxxxxxxx
+  if (/^0[67]\d{8}$/.test(digits)) {
+    return `212${digits.slice(1)}`;
+  }
+  return digits;
+}
+
+export const DEMO_WHATSAPP = normalizeWhatsAppDigits(
+  process.env.NEXT_PUBLIC_DEMO_WHATSAPP ?? '065719922'
+);
 
 export const PRICING_PLANS = [
   {
