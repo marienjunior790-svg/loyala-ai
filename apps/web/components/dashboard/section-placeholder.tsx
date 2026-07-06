@@ -32,7 +32,7 @@ export function SectionPlaceholder({
         <Card className="border-dashed">
           <CardContent className="flex min-h-[280px] flex-col items-center justify-center p-8 text-center">
             <p className="text-sm text-muted-foreground">
-              Module en cours d&apos;intégration — Sprint 2 du Blueprint v2.1
+              Module en cours de développement — disponible prochainement.
             </p>
           </CardContent>
         </Card>

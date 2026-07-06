@@ -4,6 +4,7 @@ import { useActionState } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { WhatsAppRelaunchButton } from '@/components/clients/whatsapp-relaunch-button';
 import { createClientAction, type ClientActionState } from '../_actions/clients';
 
 const initial: ClientActionState = {};
@@ -14,10 +15,20 @@ export function NewClientForm() {
   if (state.success) {
     return (
       <Card className="border-primary/30 bg-primary/5">
-        <CardContent className="p-6 text-center">
-          <p className="font-semibold text-primary">Client créé avec succès</p>
-          <Button className="mt-4" variant="outline" asChild>
-            <Link href="/clients">Retour à la liste</Link>
+        <CardContent className="space-y-4 p-6 text-center">
+          <p className="font-semibold text-primary">Client créé avec succès 🎉</p>
+          <p className="text-sm text-muted-foreground">
+            Relancez-le maintenant sur WhatsApp pour voir la valeur immédiatement.
+          </p>
+          {state.optInWhatsapp && state.clientPhone && state.clientName && (
+            <WhatsAppRelaunchButton
+              phone={state.clientPhone}
+              clientName={state.clientName}
+              size="default"
+            />
+          )}
+          <Button className="mt-2" variant="outline" asChild>
+            <Link href="/clients">Voir tous mes clients</Link>
           </Button>
         </CardContent>
       </Card>

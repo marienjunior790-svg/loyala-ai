@@ -1,7 +1,7 @@
 import { Suspense } from 'react';
 import Link from 'next/link';
 import { ArrowUpRight, Sparkles } from 'lucide-react';
-import { getAuthContext } from '@/lib/auth/session';
+import { requireAuth } from '@/lib/auth/guard';
 import { getDashboardMetrics } from '@/lib/dashboard/metrics';
 import { KpiGrid } from '@/components/dashboard/kpi-card';
 import { AnalyticsPanel } from '@/components/dashboard/analytics-panel';
@@ -12,8 +12,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 
 async function OverviewContent() {
-  const ctx = await getAuthContext();
-  const metrics = await getDashboardMetrics(ctx?.organizationId);
+  const ctx = await requireAuth();
+  const metrics = await getDashboardMetrics(ctx.organizationId);
 
   return (
     <div className="space-y-8">
@@ -21,13 +21,11 @@ async function OverviewContent() {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-2xl font-semibold tracking-tight">
-                Bonjour{ctx ? `, ${ctx.role.replace('org_', '')}` : ''} 👋
-              </h2>
+              <h2 className="text-2xl font-semibold tracking-tight">Bonjour 👋</h2>
               <Badge variant="success">Live</Badge>
             </div>
             <p className="mt-1 text-sm text-muted-foreground">
-              Vue d&apos;ensemble de votre performance fidélité & relation client.
+              Vue d&apos;ensemble de votre relation client et de vos relances WhatsApp.
             </p>
           </div>
           <div className="flex gap-2">
@@ -53,13 +51,11 @@ async function OverviewContent() {
           title="Revenus fidélité"
           description="7 derniers jours — en milliers XOF"
           data={metrics.revenueChart}
-          footer="Pic le samedi : +18 % vs vendredi"
         />
         <AnalyticsPanel
           title="Visites clients"
           description="Par semaine — mois en cours"
           data={metrics.visitsChart}
-          footer="Tendance haussière sur 4 semaines"
         />
       </section>
 

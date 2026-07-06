@@ -38,6 +38,8 @@ interface AnalyticsPanelProps {
 }
 
 export function AnalyticsPanel({ title, description, data, footer }: AnalyticsPanelProps) {
+  const hasData = data.length > 0 && data.some((d) => d.value > 0);
+
   return (
     <Card className="animate-fade-in">
       <CardHeader className="pb-2">
@@ -45,8 +47,19 @@ export function AnalyticsPanel({ title, description, data, footer }: AnalyticsPa
         <CardDescription>{description}</CardDescription>
       </CardHeader>
       <CardContent>
-        <MiniBarChart data={data} />
-        {footer && <p className="mt-4 text-xs text-muted-foreground">{footer}</p>}
+        {hasData ? (
+          <>
+            <MiniBarChart data={data} />
+            {footer && <p className="mt-4 text-xs text-muted-foreground">{footer}</p>}
+          </>
+        ) : (
+          <div className="flex h-40 flex-col items-center justify-center rounded-lg border border-dashed border-border/60 text-center">
+            <p className="text-sm text-muted-foreground">Données insuffisantes</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Les graphiques apparaîtront après vos premières visites clients.
+            </p>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

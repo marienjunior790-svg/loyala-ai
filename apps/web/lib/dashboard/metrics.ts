@@ -28,11 +28,23 @@ export interface DashboardMetrics {
   ai?: import('@/lib/ai/metrics').AIMetricsSummary | null;
 }
 
+const EMPTY_CHARTS: ChartPoint[] = [];
+const EMPTY_ACTIVITY: ActivityItem[] = [];
+
+/** Real tenant metrics — no fabricated charts or activity */
+function getRealDashboardMetrics(kpis: KpiMetric[]): DashboardMetrics {
+  return {
+    kpis,
+    revenueChart: EMPTY_CHARTS,
+    visitsChart: EMPTY_CHARTS,
+    recentActivity: EMPTY_ACTIVITY,
+    ai: null,
+  };
+}
+
 /** Demo CRM metrics — merges real client KPIs when organizationId provided */
 export async function getDashboardMetrics(organizationId?: string): Promise<DashboardMetrics> {
-  const base = getDemoDashboardMetrics();
-
-  if (!organizationId) return base;
+  if (!organizationId) return getDemoDashboardMetrics();
 
   try {
     const { createClient } = await import('@/lib/supabase/server');
@@ -43,13 +55,17 @@ export async function getDashboardMetrics(organizationId?: string): Promise<Dash
       getCrmKpis(supabase, organizationId),
       fetchAIMetricsForTenant(supabase, organizationId).catch(() => null),
     ]);
-    return {
-      ...base,
-      kpis: crmKpis,
-      ai,
-    };
+    return { ...getRealDashboardMetrics(crmKpis), ai };
   } catch {
-    return { ...base, ai: null };
+    const { getCrmKpis } = await import('./crm-metrics');
+    const { createClient } = await import('@/lib/supabase/server');
+    try {
+      const supabase = await createClient();
+      const crmKpis = await getCrmKpis(supabase, organizationId);
+      return getRealDashboardMetrics(crmKpis);
+    } catch {
+      return getRealDashboardMetrics([]);
+    }
   }
 }
 

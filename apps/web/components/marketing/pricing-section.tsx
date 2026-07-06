@@ -3,7 +3,11 @@ import { Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { PRICING_PLANS } from '@/lib/marketing/config';
+import { buildDemoBookingMessage, buildWhatsAppUrl } from '@/lib/whatsapp';
+import { DEMO_WHATSAPP } from '@/lib/marketing/config';
 import { cn } from '@/lib/utils';
+
+const demoUrl = buildWhatsAppUrl(DEMO_WHATSAPP, buildDemoBookingMessage());
 
 export function PricingSection() {
   return (
@@ -49,7 +53,13 @@ export function PricingSection() {
                   variant={plan.highlighted ? 'default' : 'outline'}
                   asChild
                 >
-                  <Link href={plan.href}>{plan.cta}</Link>
+                  {plan.ctaType === 'demo' ? (
+                    <a href={demoUrl} target="_blank" rel="noopener noreferrer">
+                      {plan.cta}
+                    </a>
+                  ) : (
+                    <Link href={plan.href}>{plan.cta}</Link>
+                  )}
                 </Button>
               </CardContent>
             </Card>

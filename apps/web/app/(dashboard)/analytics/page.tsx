@@ -1,11 +1,11 @@
 import { AnalyticsPanel } from '@/components/dashboard/analytics-panel';
-import { getAuthContext } from '@/lib/auth/session';
+import { requireAuth } from '@/lib/auth/guard';
 import { getDashboardMetrics } from '@/lib/dashboard/metrics';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 export default async function AnalyticsPage() {
-  const ctx = await getAuthContext();
-  const metrics = await getDashboardMetrics(ctx?.organizationId);
+  const ctx = await requireAuth();
+  const metrics = await getDashboardMetrics(ctx.organizationId);
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -33,20 +33,15 @@ export default async function AnalyticsPage() {
         <CardHeader>
           <CardTitle>Segments clients</CardTitle>
         </CardHeader>
-        <CardContent className="grid gap-3 sm:grid-cols-3">
-          {[
-            { label: 'VIP', value: '12 %', color: 'text-violet-400' },
-            { label: 'Réguliers', value: '48 %', color: 'text-emerald-400' },
-            { label: 'À risque', value: '7 %', color: 'text-amber-400' },
-          ].map((segment) => (
-            <div
-              key={segment.label}
-              className="rounded-lg border border-border bg-card/50 p-4 text-center"
-            >
-              <p className={`text-2xl font-semibold ${segment.color}`}>{segment.value}</p>
-              <p className="mt-1 text-sm text-muted-foreground">{segment.label}</p>
-            </div>
-          ))}
+        <CardContent>
+          <div className="flex min-h-[120px] flex-col items-center justify-center rounded-lg border border-dashed border-border/60 p-8 text-center">
+            <p className="text-sm text-muted-foreground">
+              Segmentation avancée disponible prochainement.
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              En attendant, filtrez vos clients actifs et inactifs depuis la liste Clients.
+            </p>
+          </div>
         </CardContent>
       </Card>
     </div>

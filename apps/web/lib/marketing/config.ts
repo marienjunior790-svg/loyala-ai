@@ -11,6 +11,7 @@ export const PRICING_PLANS = [
     features: ['Clients illimités', '1 restaurant', 'Support WhatsApp'],
     cta: 'Démarrer gratuitement',
     href: '/signup',
+    ctaType: 'signup' as const,
     highlighted: false,
   },
   {
@@ -27,6 +28,7 @@ export const PRICING_PLANS = [
     ],
     cta: 'Réserver une démo',
     href: '/signup',
+    ctaType: 'demo' as const,
     highlighted: true,
   },
   {
@@ -38,6 +40,7 @@ export const PRICING_PLANS = [
     features: ['Messages illimités', '2 numéros WhatsApp', 'Analytics avancés', 'Support prioritaire'],
     cta: 'Parler à un expert',
     href: '/signup',
+    ctaType: 'demo' as const,
     highlighted: false,
   },
 ] as const;

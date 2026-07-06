@@ -1,11 +1,9 @@
-import Link from 'next/link';
+import { requireAuth } from '@/lib/auth/guard';
 import { SectionPlaceholder } from '@/components/dashboard/section-placeholder';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { getAuthContext } from '@/lib/auth/session';
 
 export default async function SettingsPage() {
-  const ctx = await getAuthContext();
+  const ctx = await requireAuth();
 
   return (
     <SectionPlaceholder
@@ -19,11 +17,8 @@ export default async function SettingsPage() {
             <CardTitle>Organisation</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2 text-sm text-muted-foreground">
-            <p>ID : {ctx?.organizationId ?? '—'}</p>
-            <p>Rôle : {ctx?.role ?? '—'}</p>
-            <Button variant="outline" size="sm" className="mt-4" asChild>
-              <Link href="/onboarding">Reconfigurer</Link>
-            </Button>
+            <p>Votre espace restaurant est actif.</p>
+            <p className="text-xs">Rôle : {ctx.role.replace('org_', '')}</p>
           </CardContent>
         </Card>
         <Card>
@@ -31,11 +26,8 @@ export default async function SettingsPage() {
             <CardTitle>Intégrations</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 text-sm text-muted-foreground">
-            <p>WhatsApp Business — non connecté</p>
-            <p>Google Business — non connecté</p>
-            <Button variant="secondary" size="sm" disabled>
-              Connecter (Sprint 2)
-            </Button>
+            <p>WhatsApp — relances via lien direct (wa.me)</p>
+            <p className="text-xs">Connexion WhatsApp Business API — bientôt disponible</p>
           </CardContent>
         </Card>
       </div>

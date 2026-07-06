@@ -14,11 +14,9 @@ export default function ClientsError({
   return (
     <Card className="border-destructive/40">
       <CardContent className="space-y-4 p-6">
-        <h2 className="text-lg font-semibold text-destructive">Erreur page Clients</h2>
-        <p className="font-mono text-xs text-muted-foreground">{error.message}</p>
+        <h2 className="text-lg font-semibold text-destructive">Impossible de charger vos clients</h2>
         <p className="text-sm text-muted-foreground">
-          Si le message mentionne <code className="text-xs">user_org_ids</code>, exécutez{' '}
-          <code className="text-xs">scripts/fix-clients-rls-inline.sql</code> dans Supabase.
+          Un problème temporaire est survenu. Réessayez dans quelques instants.
         </p>
         <div className="flex gap-2">
           <Button type="button" variant="outline" onClick={() => reset()}>

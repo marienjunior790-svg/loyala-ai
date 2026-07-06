@@ -6,6 +6,7 @@ import { hasPermission } from '@loyala/core-iam';
 import { createClient } from '@/lib/supabase/server';
 import { getClient } from '@loyala/domain-crm';
 import { DeleteClientButton } from './delete-client-button';
+import { WhatsAppRelaunchButton } from '@/components/clients/whatsapp-relaunch-button';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -45,12 +46,20 @@ export default async function ClientDetailPage({
           <p className="mt-1 text-sm text-muted-foreground">{client.phone}</p>
         </div>
         {canWrite && (
-          <Button variant="outline" asChild>
-            <Link href={`/clients/${client.id}/edit`}>
-              <Pencil className="h-4 w-4" />
-              Modifier
-            </Link>
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            {client.opt_in_whatsapp && (
+              <WhatsAppRelaunchButton
+                phone={client.phone}
+                clientName={client.full_name}
+              />
+            )}
+            <Button variant="outline" asChild>
+              <Link href={`/clients/${client.id}/edit`}>
+                <Pencil className="h-4 w-4" />
+                Modifier
+              </Link>
+            </Button>
+          </div>
         )}
       </div>
 

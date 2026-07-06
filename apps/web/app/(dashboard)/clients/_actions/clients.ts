@@ -13,7 +13,13 @@ import {
 import { createClientSchema, updateClientSchema } from '@loyala/validation';
 import { recordDomainEvent } from '@/lib/audit/record-domain-event';
 
-export type ClientActionState = { error?: string; success?: boolean };
+export type ClientActionState = {
+  error?: string;
+  success?: boolean;
+  clientName?: string;
+  clientPhone?: string;
+  optInWhatsapp?: boolean;
+};
 
 export async function createClientAction(
   _prev: ClientActionState,
@@ -48,7 +54,12 @@ export async function createClientAction(
     });
 
     revalidatePath('/clients');
-    return { success: true };
+    return {
+      success: true,
+      clientName: client.full_name,
+      clientPhone: client.phone,
+      optInWhatsapp: client.opt_in_whatsapp,
+    };
   } catch (e) {
     return { error: e instanceof Error ? e.message : 'Erreur création client' };
   }

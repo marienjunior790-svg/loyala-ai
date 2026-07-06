@@ -59,7 +59,7 @@ export async function completeOnboardingAction(
     : onboardingRows;
 
   if (!onboardingResult?.organization_id) {
-    return { error: 'Erreur création organisation. Appliquez la migration 007.' };
+    return { error: 'Impossible de créer votre restaurant. Réessayez ou contactez le support.' };
   }
 
   const cookieStore = await cookies();

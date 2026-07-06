@@ -107,7 +107,8 @@ export function OnboardingWizard() {
       {step === 2 && (
         <div className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            Connectez le WhatsApp de votre restaurant pour envoyer des relances en 1 clic.
+            Testez une relance WhatsApp depuis votre téléphone. Ce numéro sert uniquement au
+            test — la connexion API arrive bientôt.
           </p>
           <div>
             <label className="text-sm text-muted-foreground">Numéro WhatsApp du restaurant</label>

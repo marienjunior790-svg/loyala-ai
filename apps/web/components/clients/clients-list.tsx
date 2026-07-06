@@ -2,12 +2,13 @@
 
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Search } from 'lucide-react';
+import { Plus, Search } from 'lucide-react';
 import type { Client } from '@loyala/domain-crm';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { WhatsAppRelaunchButton } from './whatsapp-relaunch-button';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 type Filter = 'all' | 'active' | 'inactive';
@@ -77,10 +78,20 @@ export function ClientsList({ clients, canWrite }: ClientsListProps) {
 
       {filtered.length === 0 ? (
         <Card className="border-dashed">
-          <CardContent className="py-12 text-center text-sm text-muted-foreground">
-            {clients.length === 0
-              ? 'Aucun client pour le moment.'
-              : 'Aucun client ne correspond à votre recherche.'}
+          <CardContent className="py-12 text-center">
+            <p className="text-sm text-muted-foreground">
+              {clients.length === 0
+                ? 'Aucun client pour le moment.'
+                : 'Aucun client ne correspond à votre recherche.'}
+            </p>
+            {clients.length === 0 && canWrite && (
+              <Button className="mt-4" asChild>
+                <Link href="/clients/new">
+                  <Plus className="h-4 w-4" />
+                  Ajouter votre premier client
+                </Link>
+              </Button>
+            )}
           </CardContent>
         </Card>
       ) : (
@@ -104,7 +115,7 @@ export function ClientsList({ clients, canWrite }: ClientsListProps) {
                     >
                       {isInactive ? 'à relancer' : client.segment}
                     </Badge>
-                    {canWrite && (
+                    {canWrite && client.opt_in_whatsapp && (
                       <WhatsAppRelaunchButton
                         phone={client.phone}
                         clientName={client.full_name}
