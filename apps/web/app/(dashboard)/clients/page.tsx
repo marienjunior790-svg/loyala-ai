@@ -1,48 +1,18 @@
 import Link from 'next/link';
 import { Plus } from 'lucide-react';
-import { requireAuthPermission, canManageClients } from '@/lib/auth/guard';
+import { requireAuthPermission } from '@/lib/auth/guard';
+import { canWriteClients } from '@/lib/auth/clients-access';
 import { createClient } from '@/lib/supabase/server';
 import { listClients } from '@loyala/domain-crm';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { ClientsList } from '@/components/clients/clients-list';
-import { WelcomeBanner } from '@/components/clients/welcome-banner';
-import { NewClientForm } from './new/new-client-form';
 
 export const dynamic = 'force-dynamic';
 
-export default async function ClientsPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ nouveau?: string; welcome?: string }>;
-}) {
+export default async function ClientsPage() {
   const ctx = await requireAuthPermission('clients:read');
-  const canWrite = canManageClients(ctx);
-  const { nouveau, welcome } = await searchParams;
-  const showAddForm = nouveau === '1';
-
-  if (showAddForm) {
-    await requireAuthPermission('clients:write');
-    const showWelcome = welcome === '1';
-
-    return (
-      <div className="mx-auto max-w-lg space-y-6 animate-fade-in">
-        {showWelcome && <WelcomeBanner />}
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <h2 className="text-2xl font-semibold tracking-tight">Nouveau client</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Ajoutez un contact — puis relancez-le sur WhatsApp en 1 clic.
-            </p>
-          </div>
-          <Button variant="ghost" size="sm" asChild>
-            <Link href="/clients">Annuler</Link>
-          </Button>
-        </div>
-        <NewClientForm />
-      </div>
-    );
-  }
+  const canWrite = canWriteClients(ctx);
 
   const supabase = await createClient();
 
@@ -73,14 +43,12 @@ export default async function ClientsPage({
             Relancez vos clients inactifs en 1 clic via WhatsApp
           </p>
         </div>
-        {canWrite && (
-          <Button asChild>
-            <Link href="/clients?nouveau=1">
-              <Plus className="h-4 w-4" />
-              Ajouter un client
-            </Link>
-          </Button>
-        )}
+        <Button asChild className="shrink-0">
+          <Link href="/clients/ajouter">
+            <Plus className="h-4 w-4" />
+            Ajouter un client
+          </Link>
+        </Button>
       </div>
 
       <ClientsList clients={clients} canWrite={canWrite} />

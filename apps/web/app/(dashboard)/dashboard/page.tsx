@@ -1,7 +1,7 @@
 import { Suspense } from 'react';
 import Link from 'next/link';
 import { ArrowUpRight, Sparkles } from 'lucide-react';
-import { requireAuth, canManageClients } from '@/lib/auth/guard';
+import { requireAuth } from '@/lib/auth/guard';
 import { getDashboardMetrics } from '@/lib/dashboard/metrics';
 import { KpiGrid } from '@/components/dashboard/kpi-card';
 import { AnalyticsPanel } from '@/components/dashboard/analytics-panel';
@@ -13,7 +13,6 @@ import { Badge } from '@/components/ui/badge';
 
 async function OverviewContent() {
   const ctx = await requireAuth();
-  const canAddClient = canManageClients(ctx);
   const metrics = await getDashboardMetrics(ctx.organizationId);
 
   return (
@@ -30,14 +29,12 @@ async function OverviewContent() {
             </p>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row">
-            {canAddClient && (
-              <Button asChild>
-                <Link href="/clients?nouveau=1">
-                  Ajouter un client
-                  <ArrowUpRight className="h-4 w-4" />
-                </Link>
-              </Button>
-            )}
+            <Button asChild>
+              <Link href="/clients/ajouter">
+                Ajouter un client
+                <ArrowUpRight className="h-4 w-4" />
+              </Link>
+            </Button>
             <Button variant="outline" asChild>
               <Link href="/clients">Voir les clients</Link>
             </Button>
@@ -76,7 +73,10 @@ async function OverviewContent() {
               {metrics.kpis.find((k) => k.id === 'crm-inactive')?.value ?? '0'} clients à relancer.
               Une campagne WhatsApp ciblée peut remplir vos tables cette semaine.
             </p>
-            <Button className="mt-6 w-full" variant="secondary" asChild>
+            <Button className="mt-6 w-full" asChild>
+              <Link href="/clients/ajouter">Ajouter un client</Link>
+            </Button>
+            <Button className="mt-2 w-full" variant="secondary" asChild>
               <Link href="/clients">Relancer mes clients</Link>
             </Button>
           </CardContent>

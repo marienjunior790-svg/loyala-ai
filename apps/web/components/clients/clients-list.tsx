@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Plus, Search } from 'lucide-react';
+import { Plus, Search, ChevronRight } from 'lucide-react';
 import type { Client } from '@loyala/domain-crm';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
@@ -84,9 +84,9 @@ export function ClientsList({ clients, canWrite }: ClientsListProps) {
                 ? 'Aucun client pour le moment.'
                 : 'Aucun client ne correspond à votre recherche.'}
             </p>
-            {clients.length === 0 && canWrite && (
+            {clients.length === 0 && (
               <Button className="mt-4" asChild>
-                <Link href="/clients?nouveau=1">
+                <Link href="/clients/ajouter">
                   <Plus className="h-4 w-4" />
                   Ajouter votre premier client
                 </Link>
@@ -104,10 +104,10 @@ export function ClientsList({ clients, canWrite }: ClientsListProps) {
                 className="transition-all hover:border-primary/30 hover:shadow-glow"
               >
                 <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4">
-                  <Link href={`/clients/${client.id}`} className="min-w-0 flex-1">
+                  <div className="min-w-0 flex-1">
                     <p className="font-medium">{client.full_name}</p>
                     <p className="text-sm text-muted-foreground">{client.phone}</p>
-                  </Link>
+                  </div>
                   <div className="flex items-center gap-2">
                     <Badge
                       variant={isInactive ? 'warning' : 'secondary'}
@@ -115,6 +115,12 @@ export function ClientsList({ clients, canWrite }: ClientsListProps) {
                     >
                       {isInactive ? 'à relancer' : client.segment}
                     </Badge>
+                    <Button variant="ghost" size="sm" asChild>
+                      <Link href={`/clients/${client.id}`}>
+                        Voir
+                        <ChevronRight className="h-4 w-4" />
+                      </Link>
+                    </Button>
                     {canWrite && client.opt_in_whatsapp && (
                       <WhatsAppRelaunchButton
                         phone={client.phone}
