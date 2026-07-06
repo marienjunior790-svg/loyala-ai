@@ -52,60 +52,160 @@ export type SharedEnv = z.infer<typeof sharedEnvSchema>;
 export type WebEnv = z.infer<typeof webEnvSchema>;
 export type WorkerEnv = z.infer<typeof workerEnvSchema>;
 
-function assertAIKeys(env: SharedEnv, context: string): void {
-  if (env.AI_ALLOW_MOCK || env.NODE_ENV === 'test') return;
+export type EnvIssueSeverity = 'critical' | 'feature' | 'warning';
 
+export interface WebEnvIssue {
+  variable: string;
+  severity: EnvIssueSeverity;
+  message: string;
+}
+
+/** Normalize raw process.env — safe fallbacks for Vercel runtime. */
+export function normalizeWebEnvSource(
+  source: Record<string, string | undefined>
+): Record<string, string | undefined> {
+  return {
+    ...source,
+    NEXT_PUBLIC_APP_URL:
+      source.NEXT_PUBLIC_APP_URL ??
+      (source.VERCEL_URL ? `https://${source.VERCEL_URL}` : undefined),
+  };
+}
+
+function collectAIKeyIssues(env: SharedEnv, context: string): WebEnvIssue[] {
+  if (env.AI_ALLOW_MOCK || env.NODE_ENV === 'test') return [];
+
+  const issues: WebEnvIssue[] = [];
   const primary = env.AI_PRIMARY_PROVIDER;
   const fallback = env.AI_FALLBACK_PROVIDER;
-
   const hasOpenAI = Boolean(env.OPENAI_API_KEY);
   const hasAnthropic = Boolean(env.ANTHROPIC_API_KEY);
 
   if (primary === 'openai' && !hasOpenAI) {
-    throw new Error(`[${context}] Missing OPENAI_API_KEY (AI_PRIMARY_PROVIDER=openai)`);
+    issues.push({
+      variable: 'OPENAI_API_KEY',
+      severity: 'feature',
+      message: `[${context}] Missing OPENAI_API_KEY (AI_PRIMARY_PROVIDER=openai)`,
+    });
   }
   if (primary === 'anthropic' && !hasAnthropic) {
-    throw new Error(`[${context}] Missing ANTHROPIC_API_KEY (AI_PRIMARY_PROVIDER=anthropic)`);
+    issues.push({
+      variable: 'ANTHROPIC_API_KEY',
+      severity: 'feature',
+      message: `[${context}] Missing ANTHROPIC_API_KEY (AI_PRIMARY_PROVIDER=anthropic)`,
+    });
   }
   if (fallback === 'anthropic' && !hasAnthropic && !env.AI_ALLOW_MOCK) {
-    throw new Error(`[${context}] Missing ANTHROPIC_API_KEY (AI_FALLBACK_PROVIDER=anthropic)`);
+    issues.push({
+      variable: 'ANTHROPIC_API_KEY',
+      severity: 'feature',
+      message: `[${context}] Missing ANTHROPIC_API_KEY (AI_FALLBACK_PROVIDER=anthropic)`,
+    });
   }
   if (fallback === 'openai' && !hasOpenAI && !env.AI_ALLOW_MOCK) {
-    throw new Error(`[${context}] Missing OPENAI_API_KEY (AI_FALLBACK_PROVIDER=openai)`);
+    issues.push({
+      variable: 'OPENAI_API_KEY',
+      severity: 'feature',
+      message: `[${context}] Missing OPENAI_API_KEY (AI_FALLBACK_PROVIDER=openai)`,
+    });
   }
   if (!hasOpenAI && !hasAnthropic && !env.AI_ALLOW_MOCK) {
-    throw new Error(
-      `[${context}] At least one of OPENAI_API_KEY or ANTHROPIC_API_KEY is required in production`
-    );
+    issues.push({
+      variable: 'OPENAI_API_KEY',
+      severity: 'feature',
+      message: `[${context}] At least one of OPENAI_API_KEY or ANTHROPIC_API_KEY is required in production`,
+    });
   }
+  return issues;
 }
 
+/**
+ * Parse web env (Zod schema only). Never throws for missing optional integrations —
+ * use collectWebEnvIssues() for production readiness checks.
+ */
 export function parseWebEnv(source: Record<string, string | undefined>): WebEnv {
-  const env = webEnvSchema.parse(source);
-  if (env.NODE_ENV === 'production') {
-    assertAIKeys(env, 'web');
-    if (!env.WORKER_URL) {
-      throw new Error('[web] WORKER_URL required in production');
-    }
-    if (!env.WORKER_API_SECRET) {
-      throw new Error('[web] WORKER_API_SECRET required in production (min 16 chars)');
-    }
-    if (!env.NEXT_PUBLIC_APP_URL) {
-      throw new Error('[web] NEXT_PUBLIC_APP_URL required in production (SEO + canonical URLs)');
-    }
-    if (!source.UPSTASH_REDIS_REST_URL || !source.UPSTASH_REDIS_REST_TOKEN) {
-      console.warn(
-        '[web] UPSTASH_REDIS_REST_URL/TOKEN not set — rate limiting uses in-memory fallback (not safe multi-replica)'
-      );
-    }
+  return webEnvSchema.parse(normalizeWebEnvSource(source));
+}
+
+/**
+ * Non-throwing production readiness audit.
+ * Critical = app cannot serve auth/CRM. Feature = AI/worker degraded. Warning = optional.
+ */
+export function collectWebEnvIssues(
+  source: Record<string, string | undefined>
+): WebEnvIssue[] {
+  const normalized = normalizeWebEnvSource(source);
+  let env: WebEnv;
+
+  try {
+    env = webEnvSchema.parse(normalized);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return [
+      {
+        variable: 'WEB_ENV_SCHEMA',
+        severity: 'critical',
+        message: `[web] Invalid environment schema: ${message}`,
+      },
+    ];
   }
-  return env;
+
+  if (env.NODE_ENV !== 'production') return [];
+
+  const issues: WebEnvIssue[] = [...collectAIKeyIssues(env, 'web')];
+
+  if (!env.WORKER_URL) {
+    issues.push({
+      variable: 'WORKER_URL',
+      severity: 'feature',
+      message: '[web] WORKER_URL not set — AI proxy and campaigns unavailable',
+    });
+  }
+  if (env.WORKER_URL && !env.WORKER_API_SECRET) {
+    issues.push({
+      variable: 'WORKER_API_SECRET',
+      severity: 'feature',
+      message: '[web] WORKER_API_SECRET not set (min 16 chars) — worker auth disabled',
+    });
+  }
+  if (!env.NEXT_PUBLIC_APP_URL) {
+    issues.push({
+      variable: 'NEXT_PUBLIC_APP_URL',
+      severity: 'warning',
+      message:
+        '[web] NEXT_PUBLIC_APP_URL not set and VERCEL_URL unavailable — SEO canonical URLs degraded',
+    });
+  }
+  if (!source.RESEND_API_KEY) {
+    issues.push({
+      variable: 'RESEND_API_KEY',
+      severity: 'warning',
+      message: '[web] RESEND_API_KEY not set — transactional email disabled',
+    });
+  }
+  if (!source.UPSTASH_REDIS_REST_URL || !source.UPSTASH_REDIS_REST_TOKEN) {
+    issues.push({
+      variable: 'UPSTASH_REDIS_REST_URL',
+      severity: 'warning',
+      message:
+        '[web] UPSTASH_REDIS_REST_URL/TOKEN not set — rate limiting uses in-memory fallback',
+    });
+  }
+
+  return issues;
+}
+
+export function hasCriticalWebEnvIssues(issues: WebEnvIssue[]): boolean {
+  return issues.some((i) => i.severity === 'critical');
 }
 
 export function parseWorkerEnv(source: Record<string, string | undefined>): WorkerEnv {
   const env = workerEnvSchema.parse(source);
   if (env.NODE_ENV === 'production') {
-    assertAIKeys(env, 'worker');
+    const aiIssues = collectAIKeyIssues(env, 'worker');
+    if (aiIssues.length > 0) {
+      throw new Error(aiIssues[0]!.message);
+    }
     if (!env.INNGEST_EVENT_KEY || !env.INNGEST_SIGNING_KEY) {
       throw new Error(
         '[worker] INNGEST_EVENT_KEY and INNGEST_SIGNING_KEY required in production'

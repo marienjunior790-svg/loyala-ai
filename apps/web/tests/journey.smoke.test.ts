@@ -142,7 +142,11 @@ describe('Production health checks', () => {
   it('health API responds', async () => {
     const res = await fetch('https://loyala-ai-web.vercel.app/api/health');
     expect(res.status).toBeLessThan(500);
-    const data = (await res.json()) as { status?: string };
+    const data = (await res.json()) as {
+      status?: string;
+      configuration?: { missingVariables?: string[] };
+    };
     expect(data.status).toBeDefined();
+    expect(['ok', 'degraded', 'unhealthy']).toContain(data.status);
   });
 });
