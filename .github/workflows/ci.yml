@@ -48,6 +48,9 @@ jobs:
         env:
           NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
           NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-key
+          WORKER_URL: https://placeholder.example.com
+          WORKER_API_SECRET: placeholder-secret-min-16-chars
+          AI_ALLOW_MOCK: 'true'
 
       - name: Build worker
         run: pnpm --filter worker build

@@ -30,12 +30,16 @@ export async function GET() {
     checks.worker = workerHealth.reachable ? 'ok' : 'error';
   }
 
-  const healthy = Object.values(checks).every((c) => c !== 'error');
-  const status = healthy ? 200 : 503;
+  const webHealthy = checks.supabase !== 'error';
+  const status = webHealthy ? 200 : 503;
 
   return NextResponse.json(
     {
-      status: healthy ? 'ok' : 'degraded',
+      status: webHealthy
+        ? checks.worker === 'error'
+          ? 'degraded'
+          : 'ok'
+        : 'unhealthy',
       service: 'loyala-web',
       version: process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ?? 'local',
       environment: process.env.VERCEL_ENV ?? process.env.NODE_ENV ?? 'development',

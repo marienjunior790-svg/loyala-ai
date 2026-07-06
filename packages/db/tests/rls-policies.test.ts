@@ -32,4 +32,11 @@ describe('RLS policies (static)', () => {
   it('domain_events isolated per tenant', () => {
     expect(migration001).toContain('domain_events_select');
   });
+
+  it('organization_members RLS uses non-recursive policies (010)', () => {
+    const migration010 = readMigration('010_fix_organization_members_rls.sql');
+    expect(migration010).toContain('members_select');
+    expect(migration010).toContain('user_id = auth.uid()');
+    expect(migration010).toContain('get_my_active_membership');
+  });
 });

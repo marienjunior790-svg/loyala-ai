@@ -2,8 +2,8 @@
 
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
-import { requireAuth, requireAuthPermission } from '@/lib/auth/guard';
-import { requirePermission } from '@loyala/core-iam';
+import { requireAuthPermission } from '@/lib/auth/guard';
+import { canDeleteClients } from '@/lib/auth/clients-access';
 import { createClient as createDbClient } from '@/lib/supabase/server';
 import {
   createClient as createCrmClient,
@@ -70,12 +70,7 @@ export async function updateClientAction(
   _prev: ClientActionState,
   formData: FormData
 ): Promise<ClientActionState> {
-  const ctx = await requireAuth();
-  try {
-    requirePermission(ctx, 'clients:write');
-  } catch {
-    return { error: 'Permission refusée' };
-  }
+  const ctx = await requireAuthPermission('clients:write');
 
   const parsed = updateClientSchema.safeParse({
     fullName: formData.get('fullName') || undefined,
@@ -112,10 +107,8 @@ export async function updateClientAction(
 }
 
 export async function deleteClientAction(clientId: string): Promise<ClientActionState> {
-  const ctx = await requireAuth();
-  try {
-    requirePermission(ctx, 'clients:delete');
-  } catch {
+  const ctx = await requireAuthPermission('clients:read');
+  if (!canDeleteClients(ctx)) {
     return { error: 'Permission refusée' };
   }
 

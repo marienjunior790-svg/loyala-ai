@@ -29,5 +29,8 @@ export async function recordDomainEvent(
     payload: event.payload,
   });
 
-  if (error) throw new Error(error.message);
+  if (error) {
+    console.warn('[audit] domain_events insert failed:', error.message);
+    return;
+  }
 }
