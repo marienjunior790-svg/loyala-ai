@@ -1,10 +1,8 @@
-/** Normalise un numéro local (ex. 065719922) vers format wa.me international */
+/** Normalise un numéro local Congo (ex. 065719922) vers format wa.me +242 */
 function normalizeWhatsAppDigits(raw: string): string {
   const digits = raw.replace(/\D/g, '');
-  // Maroc : 06/07xxxxxxxx → 2126/7xxxxxxxx
-  if (/^0[67]\d{8}$/.test(digits)) {
-    return `212${digits.slice(1)}`;
-  }
+  if (digits.startsWith('242')) return digits;
+  if (digits.startsWith('0')) return `242${digits.slice(1)}`;
   return digits;
 }
 
