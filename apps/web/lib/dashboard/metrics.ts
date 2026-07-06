@@ -28,7 +28,7 @@ export interface DashboardMetrics {
   ai?: import('@/lib/ai/metrics').AIMetricsSummary | null;
 }
 
-/** Demo CRM metrics — AI metrics merged when organizationId provided */
+/** Demo CRM metrics — merges real client KPIs when organizationId provided */
 export async function getDashboardMetrics(organizationId?: string): Promise<DashboardMetrics> {
   const base = getDemoDashboardMetrics();
 
@@ -37,9 +37,17 @@ export async function getDashboardMetrics(organizationId?: string): Promise<Dash
   try {
     const { createClient } = await import('@/lib/supabase/server');
     const { fetchAIMetricsForTenant } = await import('@/lib/ai/metrics');
+    const { getCrmKpis } = await import('./crm-metrics');
     const supabase = await createClient();
-    const ai = await fetchAIMetricsForTenant(supabase, organizationId);
-    return { ...base, ai };
+    const [crmKpis, ai] = await Promise.all([
+      getCrmKpis(supabase, organizationId),
+      fetchAIMetricsForTenant(supabase, organizationId).catch(() => null),
+    ]);
+    return {
+      ...base,
+      kpis: crmKpis,
+      ai,
+    };
   } catch {
     return { ...base, ai: null };
   }

@@ -1,6 +1,5 @@
-import { redirect } from 'next/navigation';
+import { LandingPage } from '@/components/marketing/landing-page';
 
-/** Root redirect — routing logic expanded Sprint 1 (auth) */
-export default function RootPage() {
-  redirect('/login');
+export default function HomePage() {
+  return <LandingPage />;
 }

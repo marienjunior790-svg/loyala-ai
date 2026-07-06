@@ -35,8 +35,8 @@ async function OverviewContent() {
               <Link href="/clients">Voir les clients</Link>
             </Button>
             <Button asChild>
-              <Link href="/campaigns">
-                Nouvelle campagne
+              <Link href="/clients/new">
+                Ajouter un client
                 <ArrowUpRight className="h-4 w-4" />
               </Link>
             </Button>
@@ -74,11 +74,11 @@ async function OverviewContent() {
               <span className="text-sm font-medium">Insight IA</span>
             </div>
             <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
-              86 clients n&apos;ont pas visité depuis 30 jours. Une campagne WhatsApp
-              personnalisée pourrait générer ~420 000 XOF de revenus additionnels.
+              {metrics.kpis.find((k) => k.id === 'crm-inactive')?.value ?? '0'} clients à relancer.
+              Une campagne WhatsApp ciblée peut remplir vos tables cette semaine.
             </p>
             <Button className="mt-6 w-full" variant="secondary" asChild>
-              <Link href="/campaigns">Créer une campagne ciblée</Link>
+              <Link href="/clients">Relancer mes clients</Link>
             </Button>
           </CardContent>
         </Card>

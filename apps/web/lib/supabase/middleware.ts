@@ -18,6 +18,7 @@ type CookieToSet = {
   };
 };
 const GUEST_ONLY_PATHS = ['/login', '/signup', '/forgot-password'];
+const PUBLIC_PATHS = ['/'];
 const ONBOARDING_PATH = '/onboarding';
 
 export async function updateSession(request: NextRequest) {
@@ -43,12 +44,13 @@ export async function updateSession(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser();
   const pathname = request.nextUrl.pathname;
+  const isPublic = PUBLIC_PATHS.includes(pathname);
   const isGuestOnly = GUEST_ONLY_PATHS.some((p) => pathname.startsWith(p));
   const isOnboarding = pathname.startsWith(ONBOARDING_PATH);
   const isCallback = pathname.startsWith('/auth/callback');
   const isRecovery = pathname.startsWith('/reset-password');
 
-  if (!user && !isGuestOnly && !isCallback) {
+  if (!user && !isGuestOnly && !isCallback && !isPublic) {
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = '/login';
     return NextResponse.redirect(loginUrl);

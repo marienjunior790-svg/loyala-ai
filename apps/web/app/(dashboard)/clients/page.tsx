@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/server';
 import { listClients } from '@loyala/domain-crm';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { ClientsList } from '@/components/clients/clients-list';
 
 export const dynamic = 'force-dynamic';
 
@@ -33,10 +33,6 @@ export default async function ClientsPage() {
           <CardContent className="p-4 text-sm text-destructive">
             <p className="font-medium">Erreur chargement CRM</p>
             <p className="mt-1 font-mono text-xs">{loadError}</p>
-            <p className="mt-2 text-muted-foreground">
-              Exécutez <code className="text-xs">scripts/fix-clients-rls-inline.sql</code> si le
-              message mentionne <code className="text-xs">user_org_ids</code> ou permission denied.
-            </p>
           </CardContent>
         </Card>
       )}
@@ -44,49 +40,20 @@ export default async function ClientsPage() {
         <div>
           <h2 className="text-2xl font-semibold tracking-tight">Clients</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            {clients.length} client{clients.length !== 1 ? 's' : ''} dans votre CRM
+            Relancez vos clients inactifs en 1 clic via WhatsApp
           </p>
         </div>
         {canWrite && (
           <Button asChild>
             <Link href="/clients/new">
               <Plus className="h-4 w-4" />
-              Nouveau client
+              Ajouter un client
             </Link>
           </Button>
         )}
       </div>
 
-      {clients.length === 0 ? (
-        <Card className="border-dashed">
-          <CardContent className="flex flex-col items-center justify-center py-16 text-center">
-            <p className="text-muted-foreground">Aucun client pour le moment.</p>
-            {canWrite && (
-              <Button className="mt-4" asChild>
-                <Link href="/clients/new">Ajouter votre premier client</Link>
-              </Button>
-            )}
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid gap-3">
-          {clients.map((client) => (
-            <Link key={client.id} href={`/clients/${client.id}`}>
-              <Card className="transition-all hover:border-primary/30 hover:shadow-glow">
-                <CardContent className="flex items-center justify-between p-4">
-                  <div>
-                    <p className="font-medium">{client.full_name}</p>
-                    <p className="text-sm text-muted-foreground">{client.phone}</p>
-                  </div>
-                  <Badge variant="secondary" className="capitalize">
-                    {client.segment}
-                  </Badge>
-                </CardContent>
-              </Card>
-            </Link>
-          ))}
-        </div>
-      )}
+      <ClientsList clients={clients} canWrite={canWrite} />
     </div>
   );
 }
