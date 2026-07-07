@@ -152,8 +152,9 @@ export function collectWebEnvIssues(
 
   if (env.NODE_ENV !== 'production') return [];
 
-  const issues: WebEnvIssue[] = [...collectAIKeyIssues(env, 'web')];
+  const issues: WebEnvIssue[] = [];
 
+  // AI keys are validated on the worker — web proxies to WORKER_URL only.
   if (!env.WORKER_URL) {
     issues.push({
       variable: 'WORKER_URL',
@@ -174,6 +175,13 @@ export function collectWebEnvIssues(
       severity: 'warning',
       message:
         '[web] NEXT_PUBLIC_APP_URL not set and VERCEL_URL unavailable — SEO canonical URLs degraded',
+    });
+  }
+  if (source.AUTH_DEBUG === '1') {
+    issues.push({
+      variable: 'AUTH_DEBUG',
+      severity: 'warning',
+      message: '[web] AUTH_DEBUG=1 enabled in production — disable after incident investigation',
     });
   }
   if (!source.RESEND_API_KEY) {

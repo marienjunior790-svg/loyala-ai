@@ -14,7 +14,9 @@
     "test:rls": "vitest run packages/db/tests",
     "test:watch": "vitest",
     "typecheck": "turbo typecheck",
-    "db:migrate": "node scripts/apply-migrations.mjs"
+    "db:migrate": "node scripts/apply-migrations.mjs",
+    "verify:prod": "node scripts/verify-production.mjs",
+    "check:migrations": "node scripts/check-migrations.mjs"
   },
   "devDependencies": {
     "pg": "^8.13.1",

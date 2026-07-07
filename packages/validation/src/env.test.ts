@@ -54,18 +54,18 @@ describe('env validation', () => {
       true
     );
     expect(hasCriticalWebEnvIssues(issues)).toBe(false);
+    expect(issues.some((i) => i.variable === 'OPENAI_API_KEY')).toBe(false);
   });
 
-  it('collectWebEnvIssues flags missing AI keys as feature when mock disabled', () => {
+  it('collectWebEnvIssues does not require AI keys on web (worker handles AI)', () => {
     const issues = collectWebEnvIssues({
       ...prodBase,
       WORKER_URL: 'https://worker.example.com',
       WORKER_API_SECRET: 'prod-secret-min-16-ch',
       AI_ALLOW_MOCK: 'false',
-      AI_PRIMARY_PROVIDER: 'openai',
     });
-    expect(issues.some((i) => i.variable === 'OPENAI_API_KEY')).toBe(true);
-    expect(hasCriticalWebEnvIssues(issues)).toBe(false);
+    expect(issues.some((i) => i.variable === 'OPENAI_API_KEY')).toBe(false);
+    expect(issues.some((i) => i.severity === 'feature')).toBe(false);
   });
 
   it('collectWebEnvIssues flags RESEND as warning only', () => {
