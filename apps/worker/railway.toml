@@ -1,9 +1,11 @@
+# Deploy from repo root — see /railway.toml
+# Legacy path kept for documentation.
 [build]
 builder = "DOCKERFILE"
-dockerfilePath = "apps/worker/Dockerfile"
+dockerfilePath = "Dockerfile"
 
 [deploy]
-startCommand = "node apps/worker/dist/index.js"
 healthcheckPath = "/health"
-healthcheckTimeout = 30
+healthcheckTimeout = 120
 restartPolicyType = "ON_FAILURE"
+

@@ -1,5 +1,5 @@
 import './load-env.js';
-import { parseWorkerEnv, type WorkerEnv } from '@loyala/validation';
+import { parseWorkerEnv, type WorkerEnv } from '@loyala/validation/env';
 
 let cached: WorkerEnv | null = null;
 

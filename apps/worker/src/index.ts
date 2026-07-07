@@ -9,7 +9,8 @@ import { isInngestConfigured } from './inngest/client.js';
 import { verifyWorkerApiAuth } from './security/api-auth.js';
 
 const env = validateWorkerEnvAtBoot();
-const PORT = env.WORKER_PORT;
+/** Railway injects PORT; local dev uses WORKER_PORT from env schema. */
+const PORT = Number(process.env.PORT ?? env.WORKER_PORT);
 
 bootstrapWorkerAI();
 

@@ -1,0 +1,14 @@
+# Loyala AI worker — deploy from repository root:
+#   npx @railway/cli up --service loyala-worker
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "apps/worker/Dockerfile"
+watchPatterns = ["apps/worker/**", "packages/**"]
+
+[deploy]
+healthcheckPath = "/health"
+healthcheckTimeout = 120
+restartPolicyType = "ON_FAILURE"
+numReplicas = 1
+# Bundled entry — see apps/worker/Dockerfile
+startCommand = "node server.mjs"
