@@ -27,7 +27,11 @@ export async function listOrgNotifyUserIds(
 ): Promise<string[]> {
   const members = await listOrganizationMembers(supabase, organizationId);
   const admins = members.filter(
-    (m) => m.role_code === 'owner' || m.role_code === 'admin'
+    (m) =>
+      m.role_code === 'org_owner' ||
+      m.role_code === 'org_admin' ||
+      m.role_code === 'owner' ||
+      m.role_code === 'admin'
   );
   const targets = admins.length > 0 ? admins : members;
   return targets.map((m) => m.user_id);

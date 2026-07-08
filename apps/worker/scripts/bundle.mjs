@@ -10,11 +10,11 @@ await esbuild.build({
   entryPoints: [fileURLToPath(new URL('../src/index.ts', import.meta.url))],
   bundle: true,
   platform: 'node',
-  target: 'node20',
+  target: 'node22',
   format: 'esm',
   outfile: outFile,
   sourcemap: true,
-  // Keep native/optional deps external — installed in node_modules at runtime
+  // inngest kept external — installed via pnpm deploy in Docker runner stage
   external: ['inngest'],
   logLevel: 'info',
 });

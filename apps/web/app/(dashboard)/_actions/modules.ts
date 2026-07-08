@@ -1,6 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import type { OrgRole } from '@loyala/core-iam';
 import { requireAuth } from '@/lib/auth/guard';
 import { getSession } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
@@ -13,6 +14,12 @@ import {
 } from '@loyala/domain-crm';
 import { notifyCampaignReadyByEmail } from '@loyala/integrations';
 import { proxyToWorker } from '@/lib/worker/client';
+
+const CAMPAIGN_WRITE_ROLES: OrgRole[] = ['org_owner', 'org_admin', 'org_manager', 'org_staff'];
+
+function canRunCampaigns(role: OrgRole): boolean {
+  return CAMPAIGN_WRITE_ROLES.includes(role);
+}
 
 export type ModuleActionState = { error?: string; success?: string };
 
@@ -126,6 +133,9 @@ export async function generateInactiveCampaignAction(
   _formData: FormData
 ): Promise<ModuleActionState> {
   const ctx = await requireAuth();
+  if (!canRunCampaigns(ctx.role)) {
+    return { error: 'Permission insuffisante — rôle lecture seule (org_viewer)' };
+  }
   const supabase = await createClient();
 
   try {
@@ -147,6 +157,9 @@ export async function generateBirthdayCampaignAction(
   _formData: FormData
 ): Promise<ModuleActionState> {
   const ctx = await requireAuth();
+  if (!canRunCampaigns(ctx.role)) {
+    return { error: 'Permission insuffisante — rôle lecture seule (org_viewer)' };
+  }
 
   try {
     const today = new Date();

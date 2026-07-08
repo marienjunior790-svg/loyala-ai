@@ -1,6 +1,17 @@
 import { Inngest } from 'inngest';
 import { getWorkerEnv } from '../env.js';
 
+function trimEnv(name: string): string | undefined {
+  const v = process.env[name]?.trim();
+  return v || undefined;
+}
+
+// Railway/Vercel CLI can inject trailing newlines — breaks Inngest signature validation.
+for (const key of ['INNGEST_EVENT_KEY', 'INNGEST_SIGNING_KEY'] as const) {
+  const v = trimEnv(key);
+  if (v) process.env[key] = v;
+}
+
 export const inngest = new Inngest({
   id: 'loyala-worker',
   eventKey: process.env.INNGEST_EVENT_KEY,

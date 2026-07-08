@@ -55,6 +55,20 @@ const server = createServer(async (req, res) => {
   const url = req.url ?? '/';
   const pathname = url.split('?')[0] ?? '/';
 
+  if (pathname === '/' && req.method === 'GET') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(
+      JSON.stringify({
+        service: 'loyala-worker',
+        status: 'ok',
+        health: '/health',
+        inngest: '/api/inngest',
+        ai: AI_ROUTES,
+      })
+    );
+    return;
+  }
+
   if (pathname === '/health' && req.method === 'GET') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify(health()));

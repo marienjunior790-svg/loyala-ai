@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 
-export type ActiveMembership = { organization_id: string };
+export type ActiveMembership = { organization_id: string; role_code?: string | null };
 
 /** Resolve the user's active org — RPC first (SECURITY DEFINER), then RLS table fallback. */
 export async function getActiveMembership(
@@ -11,7 +11,10 @@ export async function getActiveMembership(
   if (!rpcError && rpcRows) {
     const row = Array.isArray(rpcRows) ? rpcRows[0] : rpcRows;
     if (row?.organization_id) {
-      return { organization_id: row.organization_id as string };
+      return {
+        organization_id: row.organization_id as string,
+        role_code: (row as { role_code?: string }).role_code ?? null,
+      };
     }
   }
 

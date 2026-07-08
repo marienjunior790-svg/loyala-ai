@@ -3,7 +3,19 @@
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "outputs": [".next/**", "dist/**"]
+      "outputs": [".next/**", "dist/**"],
+      "env": [
+        "NEXT_PUBLIC_SUPABASE_URL",
+        "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+        "NEXT_PUBLIC_APP_URL",
+        "SUPABASE_SERVICE_ROLE_KEY",
+        "WORKER_URL",
+        "WORKER_API_SECRET",
+        "AUTH_DEBUG",
+        "RESEND_API_KEY",
+        "RESEND_FROM_EMAIL",
+        "NODE_ENV"
+      ]
     },
     "dev": {
       "cache": false,

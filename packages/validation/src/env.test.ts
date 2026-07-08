@@ -142,11 +142,25 @@ describe('env validation', () => {
         NODE_ENV: 'production',
         NEXT_PUBLIC_SUPABASE_URL: 'https://example.supabase.co',
         SUPABASE_SERVICE_ROLE_KEY: 'test-key',
-        INNGEST_EVENT_KEY: 'key',
-        INNGEST_SIGNING_KEY: 'sign',
+        INNGEST_EVENT_KEY: 'eventkey-prod-test-key-minimum-length-ok',
+        INNGEST_SIGNING_KEY: 'signkey-prod-test-key-minimum-length-ok',
         AI_ALLOW_MOCK: 'true',
       })
     ).toThrow(/WORKER_API_SECRET/);
+  });
+
+  it('rejects signing key used as INNGEST_EVENT_KEY in production', () => {
+    expect(() =>
+      parseWorkerEnv({
+        NODE_ENV: 'production',
+        NEXT_PUBLIC_SUPABASE_URL: 'https://example.supabase.co',
+        SUPABASE_SERVICE_ROLE_KEY: 'test-key',
+        INNGEST_EVENT_KEY: 'signkey-prod-wrong-key-value-here-xx',
+        INNGEST_SIGNING_KEY: 'signkey-prod-test-key-minimum-length-ok',
+        WORKER_API_SECRET: 'x'.repeat(16),
+        AI_ALLOW_MOCK: 'true',
+      })
+    ).toThrow(/Event Key/);
   });
 });
 

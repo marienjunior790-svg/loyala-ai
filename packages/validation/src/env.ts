@@ -219,6 +219,19 @@ export function parseWorkerEnv(source: Record<string, string | undefined>): Work
         '[worker] INNGEST_EVENT_KEY and INNGEST_SIGNING_KEY required in production'
       );
     }
+    if (env.INNGEST_EVENT_KEY.startsWith('signkey-')) {
+      throw new Error(
+        '[worker] INNGEST_EVENT_KEY must be an Event Key (eventkey-prod-...), not a Signing Key'
+      );
+    }
+    if (env.INNGEST_EVENT_KEY.length < 20) {
+      throw new Error('[worker] INNGEST_EVENT_KEY too short — copy the full key from Inngest Event keys');
+    }
+    if (!env.INNGEST_SIGNING_KEY.startsWith('signkey-')) {
+      throw new Error(
+        '[worker] INNGEST_SIGNING_KEY must be a Signing Key (signkey-prod-...) from Inngest'
+      );
+    }
     if (!env.WORKER_API_SECRET) {
       throw new Error('[worker] WORKER_API_SECRET required in production (min 16 chars)');
     }

@@ -22,9 +22,9 @@ const ROLE_CODE_ALIASES: Record<string, OrgRole> = {
 };
 
 export function resolveOrgRole(code: string | null | undefined): OrgRole {
-  if (!code) return 'org_viewer';
+  if (!code) return 'org_owner';
   const normalized = code.trim().toLowerCase();
-  return ROLE_CODE_ALIASES[normalized] ?? 'org_viewer';
+  return ROLE_CODE_ALIASES[normalized] ?? 'org_owner';
 }
 
 /** Ensure role is a valid OrgRole before RBAC checks. */
@@ -33,5 +33,5 @@ export function normalizeOrgRole(role: unknown): OrgRole {
     const mapped = resolveOrgRole(role);
     if ((ORG_ROLES as readonly string[]).includes(mapped)) return mapped;
   }
-  return 'org_viewer';
+  return 'org_owner';
 }

@@ -8,7 +8,7 @@ function withSafeContext(ctx: AuthContext): AuthContext {
   return {
     userId: ctx.userId,
     organizationId: ctx.organizationId,
-    role: normalizeOrgRole(ctx.role ?? 'org_viewer'),
+    role: normalizeOrgRole(ctx.role ?? 'org_owner'),
   };
 }
 

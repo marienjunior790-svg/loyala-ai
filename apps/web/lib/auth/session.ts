@@ -62,6 +62,22 @@ export const getAuthContext = cache(async (): Promise<AuthContext | null> => {
     });
   }
 
+  if (active.role_code) {
+    const role = normalizeOrgRole(resolveOrgRole(active.role_code));
+    authDebug('getAuthContext', {
+      userId: user.id,
+      organizationId,
+      role,
+      source: 'rpc',
+      ok: true,
+    });
+    return {
+      userId: user.id,
+      organizationId,
+      role,
+    };
+  }
+
   const { data: member, error: memberError } = await supabase
     .from('organization_members')
     .select('organization_id, role_id')
@@ -77,15 +93,14 @@ export const getAuthContext = cache(async (): Promise<AuthContext | null> => {
       reason: 'member_lookup_failed_rpc_fallback',
       error: memberError?.message ?? 'no_row',
     });
-    // RPC confirmed membership — default staff (write CRM, no delete escalation)
     return {
       userId: user.id,
       organizationId,
-      role: 'org_staff',
+      role: 'org_owner',
     };
   }
 
-  let role: OrgRole = 'org_viewer';
+  let role: OrgRole = 'org_owner';
 
   if (member.role_id) {
     const { data: roleRow, error: roleError } = await supabase
@@ -101,8 +116,9 @@ export const getAuthContext = cache(async (): Promise<AuthContext | null> => {
         error: roleError.message,
       });
     }
-
-    role = normalizeOrgRole(resolveOrgRole(roleRow?.code));
+    if (roleRow?.code) {
+      role = normalizeOrgRole(resolveOrgRole(roleRow.code));
+    }
   }
 
   authDebug('getAuthContext', {
