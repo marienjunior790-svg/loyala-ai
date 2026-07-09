@@ -144,7 +144,7 @@ export async function generateInactiveCampaignAction(
     clients = await listClients(supabase, ctx.organizationId);
 
     const { isClientInactive } = await import('@loyala/domain-crm');
-    return generateLoyaltyCampaign(ctx, 'inactive', (list) =>
+    return await generateLoyaltyCampaign(ctx, 'inactive', (list) =>
       list.filter((c) => isClientInactive(c))
     );
   } catch (e) {
@@ -166,7 +166,7 @@ export async function generateBirthdayCampaignAction(
     const month = today.getMonth() + 1;
     const day = today.getDate();
 
-    return generateLoyaltyCampaign(ctx, 'birthday', (list) =>
+    return await generateLoyaltyCampaign(ctx, 'birthday', (list) =>
       list.filter((c) => {
         if (!c.date_of_birth) return false;
         const dob = new Date(c.date_of_birth);

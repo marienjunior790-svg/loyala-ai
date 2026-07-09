@@ -34,6 +34,7 @@ export default async function CampaignsPage() {
       <CampaignsPageClient
         campaigns={campaigns}
         automationStatus={automationStatus}
+        error={listError}
         canWrite={['org_owner', 'org_admin', 'org_manager', 'org_staff'].includes(ctx.role)}
       />
     );

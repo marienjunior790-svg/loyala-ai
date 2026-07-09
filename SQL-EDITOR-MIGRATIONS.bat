@@ -18,11 +18,11 @@ echo  4. Collez dans le SQL Editor (Ctrl+V)
 echo  5. Cliquez RUN (ou Ctrl+Enter)
 echo  6. Attendez "Success"
 echo.
-echo Fichier : supabase\migrations\019_production_go_live_roles.sql
+echo Fichier : supabase\migrations\020_production_full_schema_alignment.sql
 echo URL     : https://supabase.com/dashboard/project/nimjmyiggqgvledgwffv/sql/new
 echo.
 pause
-start notepad "%~dp0supabase\migrations\019_production_go_live_roles.sql"
+start notepad "%~dp0supabase\migrations\020_production_full_schema_alignment.sql"
 start https://supabase.com/dashboard/project/nimjmyiggqgvledgwffv/sql/new
 echo.
 echo Apres RUN reussi dans Supabase, revenez ici et appuyez sur une touche

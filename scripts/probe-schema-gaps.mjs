@@ -9,6 +9,22 @@ if (!base || !key) {
 
 const headers = { apikey: key, Authorization: `Bearer ${key}` };
 
+const ORGANIZATION_COLUMNS = [
+  'id',
+  'slug',
+  'name',
+  'country_code',
+  'timezone',
+  'currency',
+  'vertical',
+  'plan',
+  'plan_status',
+  'settings',
+  'created_at',
+  'updated_at',
+  'deleted_at',
+];
+
 const CLIENT_COLUMNS = [
   'id',
   'organization_id',
@@ -95,6 +111,7 @@ async function probeTable(table, columns) {
 }
 
 const report = {
+  organizations: await probeTable('organizations', ORGANIZATION_COLUMNS),
   clients: await probeTable('clients', CLIENT_COLUMNS),
   campaigns: await probeTable('campaigns', CAMPAIGN_COLUMNS),
   campaign_sends: await probeTable('campaign_sends', SEND_COLUMNS),
