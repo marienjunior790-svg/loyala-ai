@@ -132,15 +132,17 @@ describe('User journey smoke tests', () => {
 });
 
 describe('Production health checks', () => {
+  const productionOrigin = process.env.PRODUCTION_SMOKE_URL ?? 'https://fmagence.online';
+
   it('login page is reachable', async () => {
-    const res = await fetch('https://loyala-ai-web.vercel.app/login', {
+    const res = await fetch(`${productionOrigin}/login`, {
       redirect: 'manual',
     });
     expect(res.status).toBeLessThan(500);
   });
 
   it('health API responds', async () => {
-    const res = await fetch('https://loyala-ai-web.vercel.app/api/health');
+    const res = await fetch(`${productionOrigin}/api/health`);
     expect(res.status).toBeLessThan(500);
     const data = (await res.json()) as {
       status?: string;

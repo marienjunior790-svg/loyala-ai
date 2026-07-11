@@ -1,6 +1,7 @@
 import type { MetadataRoute } from 'next';
+import { getPublicAppUrl } from '@/lib/app-url';
 
-const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://loyala-ai-web.vercel.app';
+const appUrl = getPublicAppUrl();
 
 export default function robots(): MetadataRoute.Robots {
   return {

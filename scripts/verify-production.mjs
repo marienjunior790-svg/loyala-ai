@@ -3,7 +3,7 @@
  * Production verification — routes + /api/health diagnostics.
  * Usage: node scripts/verify-production.mjs [baseUrl]
  */
-const base = process.argv[2] ?? 'https://loyala-ai-web.vercel.app';
+const base = process.argv[2] ?? 'https://fmagence.online';
 
 const routes = [
   '/',

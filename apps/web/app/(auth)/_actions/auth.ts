@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation';
 import { headers } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
 import { authDebug } from '@/lib/auth/debug';
+import { getPublicAppUrl } from '@/lib/app-url';
 import { loginSchema, signupSchema, forgotPasswordSchema, resetPasswordSchema } from '@loyala/validation';
 
 export type AuthActionState = { error?: string; success?: string };
@@ -119,7 +120,7 @@ async function getSiteOrigin(): Promise<string> {
   const host = headersList.get('x-forwarded-host') ?? headersList.get('host');
   const proto = headersList.get('x-forwarded-proto') ?? 'http';
   if (host) return `${proto}://${host}`;
-  return process.env.NEXT_PUBLIC_SITE_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
+  return process.env.NEXT_PUBLIC_SITE_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? getPublicAppUrl();
 }
 
 export async function forgotPasswordAction(

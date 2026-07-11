@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { LandingPage } from '@/components/marketing/landing-page';
 import { SkipLink } from '@/components/ui/skip-link';
+import { getPublicAppUrl } from '@/lib/app-url';
 
 export const metadata: Metadata = {
   title: 'Accueil',
@@ -12,7 +13,7 @@ export const metadata: Metadata = {
   },
 };
 
-const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://loyala-ai-web.vercel.app';
+const appUrl = getPublicAppUrl();
 
 const jsonLd = {
   '@context': 'https://schema.org',

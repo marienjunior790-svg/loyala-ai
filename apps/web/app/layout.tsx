@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
+import { getPublicAppUrl } from '@/lib/app-url';
 import './globals.css';
 
 const inter = Inter({
@@ -8,7 +9,7 @@ const inter = Inter({
   preload: true,
 });
 
-const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://loyala-ai-web.vercel.app';
+const appUrl = getPublicAppUrl();
 
 export const metadata: Metadata = {
   metadataBase: new URL(appUrl),
