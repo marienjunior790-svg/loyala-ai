@@ -54,10 +54,11 @@ export const workerEnvSchema = sharedEnvSchema.extend({
   WHATSAPP_PHONE_NUMBER_ID: z.string().min(1).optional(),
   WHATSAPP_BUSINESS_ACCOUNT_ID: z.string().min(1).optional(),
   WHATSAPP_WEBHOOK_VERIFY_TOKEN: z.string().min(1).optional(),
+  WHATSAPP_APP_SECRET: z.string().min(1).optional(),
   WHATSAPP_API_VERSION: z.string().default('v21.0'),
   WHATSAPP_TEST_CLIENT_ID: z.string().uuid().optional(),
   WHATSAPP_TEST_PHONE: z.string().min(6).optional(),
-  WHATSAPP_CAMPAIGN_TEMPLATE_NAME: z.string().default('hello_world'),
+  WHATSAPP_CAMPAIGN_TEMPLATE_NAME: z.string().min(1).optional(),
   WHATSAPP_CAMPAIGN_TEMPLATE_LANGUAGE: z.string().default('fr'),
   WHATSAPP_CAMPAIGN_TEMPLATE_USE_NAME_VAR: z
     .enum(['true', 'false'])
@@ -259,6 +260,14 @@ export function parseWorkerEnv(source: Record<string, string | undefined>): Work
       if (!env.WHATSAPP_PHONE_NUMBER_ID) {
         throw new Error(
           '[worker] WHATSAPP_PHONE_NUMBER_ID required when WHATSAPP_API_ENABLED=true'
+        );
+      }
+      if (!env.WHATSAPP_APP_SECRET) {
+        throw new Error('[worker] WHATSAPP_APP_SECRET required when WHATSAPP_API_ENABLED=true');
+      }
+      if (!env.WHATSAPP_WEBHOOK_VERIFY_TOKEN) {
+        throw new Error(
+          '[worker] WHATSAPP_WEBHOOK_VERIFY_TOKEN required when WHATSAPP_API_ENABLED=true'
         );
       }
     }

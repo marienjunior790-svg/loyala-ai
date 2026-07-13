@@ -10,6 +10,38 @@ export interface MetaWebhookStatus {
   raw: unknown;
 }
 
+export type ApplyWebhookResult = 'updated' | 'skipped' | 'not_found' | 'duplicate';
+
+export interface WebhookHistoryEntry {
+  status: string;
+  timestamp?: string;
+  processedAt: string;
+}
+
+export interface ValidateMetaWebhookResult {
+  valid: boolean;
+  reason?: string;
+}
+
+/** Structural validation before processing (signature checked separately). */
+export function validateMetaWebhookPayload(payload: unknown): ValidateMetaWebhookResult {
+  if (!payload || typeof payload !== 'object') {
+    return { valid: false, reason: 'payload_not_object' };
+  }
+
+  const object = String((payload as { object?: string }).object ?? '');
+  if (object !== 'whatsapp_business_account') {
+    return { valid: false, reason: 'invalid_object_type' };
+  }
+
+  const entry = (payload as { entry?: unknown }).entry;
+  if (!Array.isArray(entry)) {
+    return { valid: false, reason: 'missing_entry_array' };
+  }
+
+  return { valid: true };
+}
+
 const STATUS_RANK: Record<WhatsAppMessageStatus, number> = {
   queued: 0,
   sent: 1,
@@ -72,23 +104,56 @@ export function parseMetaWebhookStatuses(payload: unknown): MetaWebhookStatus[] 
     }
   }
 
-  return results;
+  return dedupeStatuses(results);
+}
+
+function dedupeStatuses(statuses: MetaWebhookStatus[]): MetaWebhookStatus[] {
+  const seen = new Set<string>();
+  const unique: MetaWebhookStatus[] = [];
+  for (const status of statuses) {
+    const key = `${status.wamid}:${status.status}:${status.timestamp ?? ''}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    unique.push(status);
+  }
+  return unique;
+}
+
+/** Parse and dedupe status events from a validated Meta webhook payload. */
+export function parseAndDedupeMetaWebhookStatuses(payload: unknown): MetaWebhookStatus[] {
+  return parseMetaWebhookStatuses(payload);
+}
+
+function getWebhookHistory(raw: Record<string, unknown>): WebhookHistoryEntry[] {
+  const history = raw.webhookHistory;
+  return Array.isArray(history) ? (history as WebhookHistoryEntry[]) : [];
+}
+
+export function isDuplicateWebhookEvent(
+  rawPayload: Record<string, unknown>,
+  update: MetaWebhookStatus
+): boolean {
+  return getWebhookHistory(rawPayload).some(
+    (entry) => entry.status === update.status && entry.timestamp === update.timestamp
+  );
 }
 
 function shouldApplyStatus(
   current: WhatsAppMessageStatus,
-  incoming: MetaWebhookStatus['status']
+  incoming: MetaWebhookStatus['status'],
+  isDuplicate: boolean
 ): boolean {
-  if (incoming === 'failed') return true;
+  if (isDuplicate) return false;
+  if (incoming === 'failed') return current !== 'failed';
   const currentRank = STATUS_RANK[current] ?? 0;
   const incomingRank = STATUS_RANK[incoming] ?? 0;
-  return incomingRank >= currentRank;
+  return incomingRank > currentRank;
 }
 
 export async function applyMetaWebhookStatus(
   supabase: SupabaseClient,
   update: MetaWebhookStatus
-): Promise<'updated' | 'skipped' | 'not_found'> {
+): Promise<ApplyWebhookResult> {
   const { data: existing, error: fetchError } = await supabase
     .from('whatsapp_messages')
     .select('id, status, raw_payload, campaign_send_id, organization_id')
@@ -98,16 +163,28 @@ export async function applyMetaWebhookStatus(
   if (fetchError) throw new Error(fetchError.message);
   if (!existing) return 'not_found';
 
+  const rawPayload = (existing.raw_payload as Record<string, unknown>) ?? {};
+  const duplicate = isDuplicateWebhookEvent(rawPayload, update);
+  if (duplicate) return 'duplicate';
+
   const currentStatus = String(existing.status) as WhatsAppMessageStatus;
-  if (!shouldApplyStatus(currentStatus, update.status)) {
+  if (!shouldApplyStatus(currentStatus, update.status, duplicate)) {
     return 'skipped';
   }
+
+  const processedAt = new Date().toISOString();
+  const historyEntry: WebhookHistoryEntry = {
+    status: update.status,
+    timestamp: update.timestamp,
+    processedAt,
+  };
 
   const patch: Record<string, unknown> = {
     status: update.status,
     raw_payload: {
-      ...(existing.raw_payload as Record<string, unknown>),
+      ...rawPayload,
       lastWebhook: update.raw,
+      webhookHistory: [...getWebhookHistory(rawPayload), historyEntry],
     },
   };
 

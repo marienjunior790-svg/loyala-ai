@@ -10,4 +10,7 @@ export * from './notifications';
 export * from './whatsapp';
 export * from './whatsapp-messages';
 export * from './whatsapp-webhook';
+export * from './whatsapp-webhook-inbound';
+export * from './conversation-sessions';
+export * from './message-template-catalog';
 export * from './visits';

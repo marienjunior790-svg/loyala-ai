@@ -177,6 +177,24 @@ describe('env validation', () => {
       })
     ).toThrow(/WHATSAPP_ACCESS_TOKEN/);
   });
+
+  it('requires WHATSAPP_APP_SECRET when WHATSAPP_API_ENABLED in production', () => {
+    expect(() =>
+      parseWorkerEnv({
+        NODE_ENV: 'production',
+        NEXT_PUBLIC_SUPABASE_URL: 'https://example.supabase.co',
+        SUPABASE_SERVICE_ROLE_KEY: 'test-key',
+        INNGEST_EVENT_KEY: 'eventkey-prod-test-key-minimum-length-ok',
+        INNGEST_SIGNING_KEY: 'signkey-prod-test-key-minimum-length-ok',
+        WORKER_API_SECRET: 'x'.repeat(16),
+        AI_ALLOW_MOCK: 'true',
+        WHATSAPP_API_ENABLED: 'true',
+        WHATSAPP_ACCESS_TOKEN: 'test-token',
+        WHATSAPP_PHONE_NUMBER_ID: '123456789',
+        WHATSAPP_WEBHOOK_VERIFY_TOKEN: 'verify-token',
+      })
+    ).toThrow(/WHATSAPP_APP_SECRET/);
+  });
 });
 
 describe('deployed outage reproduction (d837bf8)', () => {
