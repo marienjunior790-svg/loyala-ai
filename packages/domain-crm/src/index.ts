@@ -7,3 +7,4 @@ export * from './loyalty';
 export * from './reviews';
 export * from './notifications';
 export * from './whatsapp';
+export * from './visits';
