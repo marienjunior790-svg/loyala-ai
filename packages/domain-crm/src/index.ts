@@ -3,6 +3,7 @@ export * from './segments';
 export * from './organizations';
 export * from './campaigns';
 export * from './campaign-automation';
+export * from './scheduled-campaigns';
 export * from './loyalty';
 export * from './reviews';
 export * from './notifications';
