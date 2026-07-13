@@ -1,0 +1,137 @@
+import type { SupabaseClient } from '@supabase/supabase-js';
+import type { WhatsAppMessageStatus } from './whatsapp-messages';
+
+export interface MetaWebhookStatus {
+  wamid: string;
+  status: 'sent' | 'delivered' | 'read' | 'failed';
+  timestamp?: string;
+  recipientId?: string;
+  errorMessage?: string;
+  raw: unknown;
+}
+
+const STATUS_RANK: Record<WhatsAppMessageStatus, number> = {
+  queued: 0,
+  sent: 1,
+  delivered: 2,
+  read: 3,
+  failed: 99,
+};
+
+function toIsoTimestamp(seconds?: string): string | undefined {
+  if (!seconds) return undefined;
+  const n = Number(seconds);
+  if (!Number.isFinite(n) || n <= 0) return undefined;
+  return new Date(n * 1000).toISOString();
+}
+
+function mapMetaStatus(status: string): MetaWebhookStatus['status'] | null {
+  const normalized = status.toLowerCase();
+  if (normalized === 'sent') return 'sent';
+  if (normalized === 'delivered') return 'delivered';
+  if (normalized === 'read') return 'read';
+  if (normalized === 'failed') return 'failed';
+  return null;
+}
+
+/** Extract message status updates from a Meta WhatsApp webhook payload. */
+export function parseMetaWebhookStatuses(payload: unknown): MetaWebhookStatus[] {
+  if (!payload || typeof payload !== 'object') return [];
+  const object = String((payload as { object?: string }).object ?? '');
+  if (object !== 'whatsapp_business_account') return [];
+
+  const entries = (payload as { entry?: unknown[] }).entry ?? [];
+  const results: MetaWebhookStatus[] = [];
+
+  for (const entry of entries) {
+    const changes = (entry as { changes?: unknown[] })?.changes ?? [];
+    for (const change of changes) {
+      const value = (change as { value?: Record<string, unknown> })?.value ?? {};
+      const statuses = (value.statuses as unknown[]) ?? [];
+      for (const item of statuses) {
+        const row = item as Record<string, unknown>;
+        const wamid = String(row.id ?? '').trim();
+        const mapped = mapMetaStatus(String(row.status ?? ''));
+        if (!wamid || !mapped) continue;
+
+        const errors = (row.errors as Array<Record<string, unknown>> | undefined) ?? [];
+        const firstError = errors[0];
+        const errorMessage = firstError
+          ? String(firstError.title ?? firstError.message ?? 'Delivery failed')
+          : undefined;
+
+        results.push({
+          wamid,
+          status: mapped,
+          timestamp: toIsoTimestamp(String(row.timestamp ?? '')),
+          recipientId: row.recipient_id ? String(row.recipient_id) : undefined,
+          errorMessage,
+          raw: item,
+        });
+      }
+    }
+  }
+
+  return results;
+}
+
+function shouldApplyStatus(
+  current: WhatsAppMessageStatus,
+  incoming: MetaWebhookStatus['status']
+): boolean {
+  if (incoming === 'failed') return true;
+  const currentRank = STATUS_RANK[current] ?? 0;
+  const incomingRank = STATUS_RANK[incoming] ?? 0;
+  return incomingRank >= currentRank;
+}
+
+export async function applyMetaWebhookStatus(
+  supabase: SupabaseClient,
+  update: MetaWebhookStatus
+): Promise<'updated' | 'skipped' | 'not_found'> {
+  const { data: existing, error: fetchError } = await supabase
+    .from('whatsapp_messages')
+    .select('id, status, raw_payload, campaign_send_id, organization_id')
+    .eq('wamid', update.wamid)
+    .maybeSingle();
+
+  if (fetchError) throw new Error(fetchError.message);
+  if (!existing) return 'not_found';
+
+  const currentStatus = String(existing.status) as WhatsAppMessageStatus;
+  if (!shouldApplyStatus(currentStatus, update.status)) {
+    return 'skipped';
+  }
+
+  const patch: Record<string, unknown> = {
+    status: update.status,
+    raw_payload: {
+      ...(existing.raw_payload as Record<string, unknown>),
+      lastWebhook: update.raw,
+    },
+  };
+
+  if (update.status === 'sent' && update.timestamp) patch.sent_at = update.timestamp;
+  if (update.status === 'delivered' && update.timestamp) patch.delivered_at = update.timestamp;
+  if (update.status === 'read' && update.timestamp) patch.read_at = update.timestamp;
+  if (update.status === 'failed') {
+    patch.error_message = update.errorMessage ?? 'Delivery failed';
+  }
+
+  const { error: updateError } = await supabase
+    .from('whatsapp_messages')
+    .update(patch)
+    .eq('id', existing.id);
+
+  if (updateError) throw new Error(updateError.message);
+
+  if (update.status === 'failed' && existing.campaign_send_id) {
+    await supabase
+      .from('campaign_sends')
+      .update({ status: 'failed' })
+      .eq('id', existing.campaign_send_id)
+      .eq('organization_id', existing.organization_id);
+  }
+
+  return 'updated';
+}

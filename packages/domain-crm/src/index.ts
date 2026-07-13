@@ -8,4 +8,5 @@ export * from './reviews';
 export * from './notifications';
 export * from './whatsapp';
 export * from './whatsapp-messages';
+export * from './whatsapp-webhook';
 export * from './visits';
