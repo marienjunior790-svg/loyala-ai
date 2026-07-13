@@ -168,7 +168,12 @@ export async function runBirthdayCampaignForOrg(organizationId: string, restaura
 
   const autoSend =
     campaignId && sendCount > 0
-      ? await autoSendCampaignForTestClient(admin, { organizationId, campaignId })
+      ? await autoSendCampaignForTestClient(admin, {
+          organizationId,
+          campaignId,
+          intent: 'birthday',
+          restaurantName,
+        })
       : { attempted: false, sent: false, skippedReason: 'no_campaign_sends' };
 
   logStructured({
@@ -251,7 +256,12 @@ export async function runInactiveRelaunchForOrg(organizationId: string, inactive
 
   const autoSend =
     campaignId && sendCount > 0
-      ? await autoSendCampaignForTestClient(admin, { organizationId, campaignId })
+      ? await autoSendCampaignForTestClient(admin, {
+          organizationId,
+          campaignId,
+          intent: 'inactive',
+          restaurantName,
+        })
       : { attempted: false, sent: false, skippedReason: 'no_campaign_sends' };
 
   logStructured({

@@ -9,7 +9,7 @@ import { isInngestConfigured } from './inngest/client.js';
 import { verifyWorkerApiAuth } from './security/api-auth.js';
 import { handleWhatsAppSend, whatsAppHealth } from './whatsapp/routes.js';
 import {
-  handleWhatsAppWebhookEvent,
+  handleWhatsAppWebhookPost,
   handleWhatsAppWebhookVerify,
 } from './whatsapp/webhook.js';
 
@@ -33,12 +33,17 @@ function health() {
   };
 }
 
-async function readJsonBody(req: IncomingMessage): Promise<Record<string, unknown>> {
+async function readRawBody(req: IncomingMessage): Promise<Buffer> {
   const chunks: Buffer[] = [];
   for await (const chunk of req) chunks.push(chunk as Buffer);
-  if (chunks.length === 0) return {};
+  return chunks.length > 0 ? Buffer.concat(chunks) : Buffer.alloc(0);
+}
+
+async function readJsonBody(req: IncomingMessage): Promise<Record<string, unknown>> {
+  const raw = await readRawBody(req);
+  if (raw.length === 0) return {};
   try {
-    return JSON.parse(Buffer.concat(chunks).toString('utf8')) as Record<string, unknown>;
+    return JSON.parse(raw.toString('utf8')) as Record<string, unknown>;
   } catch {
     return {};
   }
@@ -141,8 +146,10 @@ const server = createServer(async (req, res) => {
     }
 
     if (req.method === 'POST') {
-      const body = await readJsonBody(req);
-      const { status, data } = await handleWhatsAppWebhookEvent(body);
+      const rawBody = await readRawBody(req);
+      const { status, data } = await handleWhatsAppWebhookPost(rawBody, {
+        'x-hub-signature-256': req.headers['x-hub-signature-256'],
+      });
       res.writeHead(status, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify(data));
       return;

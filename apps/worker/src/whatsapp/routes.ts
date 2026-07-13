@@ -9,15 +9,19 @@ import {
 } from '@loyala/integrations';
 import { getWorkerAdminClient } from '../supabase.js';
 
+import { getWhatsAppAppSecret } from './webhook-security.js';
+
 export function whatsAppHealth() {
   const enabled = isWhatsAppApiEnabled();
   const configured = Boolean(getMetaWhatsAppConfigFromEnv());
   const webhookConfigured = Boolean(process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN?.trim());
+  const signatureConfigured = Boolean(getWhatsAppAppSecret());
   return {
     apiEnabled: enabled,
     configured,
     webhookConfigured,
-    ready: enabled && configured,
+    signatureConfigured,
+    ready: enabled && configured && webhookConfigured && signatureConfigured,
   };
 }
 
@@ -37,7 +41,7 @@ async function persistProbeSend(
     wamid: result.wamid,
     phone: result.phone,
     templateName: templateName ?? null,
-    messageBody: result.messageBody ?? String(body.body ?? '') || null,
+    messageBody: result.messageBody ?? (String(body.body ?? '') || null),
     status: 'sent',
     sentAt: new Date().toISOString(),
     rawPayload: { source: 'send-test', ...((result.raw as object) ?? {}) },

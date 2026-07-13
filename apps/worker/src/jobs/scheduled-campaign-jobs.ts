@@ -13,6 +13,7 @@ import {
 import { createAutomationService } from '@loyala/core-ai';
 import type { CampaignPlanPayload } from '@loyala/domain-crm';
 import { logStructured } from '@loyala/integrations';
+import { campaignTypeToIntent } from '@loyala/messaging';
 import { getWorkerAdminClient } from '../supabase.js';
 import {
   fetchBirthdayClientsToday,
@@ -60,6 +61,13 @@ export async function executeScheduledCampaign(
     };
   }
 
+  const { data: org } = await admin
+    .from('organizations')
+    .select('name')
+    .eq('id', organizationId)
+    .maybeSingle();
+  const restaurantName = String(org?.name ?? 'Restaurant');
+
   const existingSends = await countCampaignSends(admin, organizationId, campaignId);
   if (existingSends > 0) {
     await finalizeScheduledCampaignExecution(admin, organizationId, campaign, existingSends, {
@@ -68,6 +76,8 @@ export async function executeScheduledCampaign(
     const autoSend = await autoSendCampaignForTestClient(admin, {
       organizationId,
       campaignId,
+      intent: campaignTypeToIntent(campaign.type),
+      restaurantName,
     });
     return {
       campaignId,
@@ -78,13 +88,6 @@ export async function executeScheduledCampaign(
       autoSend,
     };
   }
-
-  const { data: org } = await admin
-    .from('organizations')
-    .select('name')
-    .eq('id', organizationId)
-    .maybeSingle();
-  const restaurantName = String(org?.name ?? 'Restaurant');
 
   try {
     let sendCount = 0;
@@ -110,7 +113,12 @@ export async function executeScheduledCampaign(
 
     const autoSend =
       sendCount > 0
-        ? await autoSendCampaignForTestClient(admin, { organizationId, campaignId })
+        ? await autoSendCampaignForTestClient(admin, {
+            organizationId,
+            campaignId,
+            intent: campaignTypeToIntent(campaign.type),
+            restaurantName,
+          })
         : { attempted: false, sent: false, skippedReason: 'no_campaign_sends' };
 
     logStructured({
