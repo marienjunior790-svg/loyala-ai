@@ -8,6 +8,10 @@ import { inngestHandler } from './inngest/serve.js';
 import { isInngestConfigured } from './inngest/client.js';
 import { verifyWorkerApiAuth } from './security/api-auth.js';
 import { handleWhatsAppSend, whatsAppHealth } from './whatsapp/routes.js';
+import {
+  handleWhatsAppWebhookEvent,
+  handleWhatsAppWebhookVerify,
+} from './whatsapp/webhook.js';
 
 const env = validateWorkerEnvAtBoot();
 /** Railway injects PORT; local dev uses WORKER_PORT from env schema. */
@@ -66,7 +70,10 @@ const server = createServer(async (req, res) => {
         health: '/health',
         inngest: '/api/inngest',
         ai: AI_ROUTES,
-        whatsapp: 'POST /whatsapp/send-test',
+        whatsapp: {
+          sendTest: 'POST /whatsapp/send-test',
+          webhook: 'GET|POST /whatsapp/webhook',
+        },
       })
     );
     return;
@@ -122,6 +129,24 @@ const server = createServer(async (req, res) => {
     res.writeHead(status, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify(data));
     return;
+  }
+
+  if (pathname === '/whatsapp/webhook') {
+    if (req.method === 'GET') {
+      const params = new URL(url, 'http://localhost').searchParams;
+      const result = handleWhatsAppWebhookVerify(params);
+      res.writeHead(result.status, { 'Content-Type': 'text/plain' });
+      res.end(result.body);
+      return;
+    }
+
+    if (req.method === 'POST') {
+      const body = await readJsonBody(req);
+      const { status, data } = await handleWhatsAppWebhookEvent(body);
+      res.writeHead(status, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(data));
+      return;
+    }
   }
 
   res.writeHead(404);

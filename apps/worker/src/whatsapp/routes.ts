@@ -8,9 +8,11 @@ import {
 export function whatsAppHealth() {
   const enabled = isWhatsAppApiEnabled();
   const configured = Boolean(getMetaWhatsAppConfigFromEnv());
+  const webhookConfigured = Boolean(process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN?.trim());
   return {
     apiEnabled: enabled,
     configured,
+    webhookConfigured,
     ready: enabled && configured,
   };
 }

@@ -33,6 +33,13 @@ railway variables set WHATSAPP_API_ENABLED=false
 # railway variables set WHATSAPP_CAMPAIGN_TEMPLATE_LANGUAGE="fr"
 ```
 
+**Webhook Meta (GO 4)** — callback URL dans Meta Developer :
+```
+https://YOUR-SERVICE.up.railway.app/whatsapp/webhook
+```
+Verify token = même valeur que `WHATSAPP_WEBHOOK_VERIFY_TOKEN`.
+Abonner le champ **messages** (status updates: sent, delivered, read, failed).
+
 **Probe envoi test** (après credentials Meta + template approuvé) :
 ```bash
 curl -X POST "$WORKER_URL/whatsapp/send-test" \
