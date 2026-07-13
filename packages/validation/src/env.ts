@@ -46,6 +46,15 @@ export const workerEnvSchema = sharedEnvSchema.extend({
     .default('false')
     .transform((v) => v === 'true'),
   WORKER_API_SECRET: z.string().min(16).optional(),
+  WHATSAPP_API_ENABLED: z
+    .enum(['true', 'false'])
+    .default('false')
+    .transform((v) => v === 'true'),
+  WHATSAPP_ACCESS_TOKEN: z.string().min(1).optional(),
+  WHATSAPP_PHONE_NUMBER_ID: z.string().min(1).optional(),
+  WHATSAPP_BUSINESS_ACCOUNT_ID: z.string().min(1).optional(),
+  WHATSAPP_WEBHOOK_VERIFY_TOKEN: z.string().min(1).optional(),
+  WHATSAPP_API_VERSION: z.string().default('v21.0'),
 });
 
 export type SharedEnv = z.infer<typeof sharedEnvSchema>;
@@ -234,6 +243,16 @@ export function parseWorkerEnv(source: Record<string, string | undefined>): Work
     }
     if (!env.WORKER_API_SECRET) {
       throw new Error('[worker] WORKER_API_SECRET required in production (min 16 chars)');
+    }
+    if (env.WHATSAPP_API_ENABLED) {
+      if (!env.WHATSAPP_ACCESS_TOKEN) {
+        throw new Error('[worker] WHATSAPP_ACCESS_TOKEN required when WHATSAPP_API_ENABLED=true');
+      }
+      if (!env.WHATSAPP_PHONE_NUMBER_ID) {
+        throw new Error(
+          '[worker] WHATSAPP_PHONE_NUMBER_ID required when WHATSAPP_API_ENABLED=true'
+        );
+      }
     }
   }
   return env;

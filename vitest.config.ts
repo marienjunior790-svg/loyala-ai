@@ -19,6 +19,7 @@ export default defineConfig({
       '@loyala/db': resolve(__dirname, 'packages/db/src'),
       '@loyala/domain-crm': resolve(__dirname, 'packages/domain-crm/src'),
       '@loyala/events': resolve(__dirname, 'packages/events/src'),
+      '@loyala/integrations': resolve(__dirname, 'packages/integrations/src'),
       '@loyala/validation': resolve(__dirname, 'packages/validation/src'),
     },
   },
