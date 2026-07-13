@@ -4,6 +4,7 @@ import {
   runBirthdayCampaignForOrg,
   runInactiveRelaunchForOrg,
 } from '../jobs/campaign-jobs.js';
+import { runAllDueScheduledCampaigns } from '../jobs/scheduled-campaign-jobs.js';
 
 const BATCH_SIZE = 5;
 
@@ -89,8 +90,22 @@ export const inactiveRelaunchJob = inngest.createFunction(
   }
 );
 
+/** User-scheduled campaigns — materialize sends when scheduled_at is due */
+export const scheduledCampaignExecutor = inngest.createFunction(
+  {
+    id: 'loyala-scheduled-campaign-executor',
+    retries: 2,
+  },
+  { cron: '*/15 * * * *' },
+  async ({ step }) => {
+    const result = await step.run('execute-due-scheduled-campaigns', runAllDueScheduledCampaigns);
+    return result;
+  }
+);
+
 export const inngestFunctions = [
   dailyCampaignDispatcher,
   birthdayCampaignJob,
   inactiveRelaunchJob,
+  scheduledCampaignExecutor,
 ];

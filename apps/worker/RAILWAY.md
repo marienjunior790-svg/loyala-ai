@@ -50,6 +50,8 @@ curl -X POST "$WORKER_URL/whatsapp/send-test" \
 
 **Note :** Railway injecte `PORT` automatiquement — le worker écoute `process.env.PORT ?? WORKER_PORT`.
 
+**Campagnes planifiées (UI)** — Inngest cron `*/15 * * * *` exécute les campagnes `status=scheduled` dont `scheduled_at` est dépassé (génère les `campaign_sends` → `/relances`).
+
 Après déploiement, ajouter sur **Vercel** :
 ```
 WORKER_URL=https://YOUR-SERVICE.up.railway.app

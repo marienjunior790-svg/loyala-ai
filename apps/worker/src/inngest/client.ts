@@ -22,6 +22,7 @@ export const INNGEST_EVENTS = {
   BIRTHDAY_RUN: 'loyala/campaign.birthday.run',
   INACTIVE_RUN: 'loyala/campaign.inactive.run',
   DISPATCH_DAILY: 'loyala/cron.daily.dispatch',
+  SCHEDULED_RUN: 'loyala/campaign.scheduled.run',
 } as const;
 
 export function isInngestConfigured(): boolean {
