@@ -45,8 +45,9 @@ Abonner le champ **messages** (status updates: sent, delivered, read, failed).
 curl -X POST "$WORKER_URL/whatsapp/send-test" \
   -H "Authorization: Bearer $WORKER_API_SECRET" \
   -H "Content-Type: application/json" \
-  -d '{"to":"221771234567","templateName":"hello_world","templateLanguage":"fr"}'
+  -d '{"to":"221771234567","templateName":"hello_world","templateLanguage":"fr","organizationId":"<org-uuid>","clientId":"<client-uuid>"}'
 ```
+`organizationId` optionnel — si fourni, écrit dans `whatsapp_messages` pour valider le webhook E2E.
 
 **Note :** Railway injecte `PORT` automatiquement — le worker écoute `process.env.PORT ?? WORKER_PORT`.
 

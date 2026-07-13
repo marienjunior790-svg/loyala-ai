@@ -18,6 +18,10 @@ import {
   fetchBirthdayClientsToday,
   fetchInactiveClientsForRelaunch,
 } from './campaign-jobs.js';
+import {
+  autoSendCampaignForTestClient,
+  type AutoSendCampaignResult,
+} from './whatsapp-auto-send.js';
 
 export interface ScheduledCampaignExecutionResult {
   campaignId: string;
@@ -26,6 +30,7 @@ export interface ScheduledCampaignExecutionResult {
   skipped?: boolean;
   reason?: string;
   error?: string;
+  autoSend?: AutoSendCampaignResult;
 }
 
 export async function executeScheduledCampaign(
@@ -60,12 +65,17 @@ export async function executeScheduledCampaign(
     await finalizeScheduledCampaignExecution(admin, organizationId, campaign, existingSends, {
       executionNote: 'sends_already_materialized',
     });
+    const autoSend = await autoSendCampaignForTestClient(admin, {
+      organizationId,
+      campaignId,
+    });
     return {
       campaignId,
       organizationId,
       sendCount: existingSends,
       skipped: true,
       reason: 'already_executed',
+      autoSend,
     };
   }
 
@@ -98,14 +108,19 @@ export async function executeScheduledCampaign(
       await notifyScheduledCampaignExecuted(admin, organizationId, sendCount, campaign.name);
     }
 
+    const autoSend =
+      sendCount > 0
+        ? await autoSendCampaignForTestClient(admin, { organizationId, campaignId })
+        : { attempted: false, sent: false, skippedReason: 'no_campaign_sends' };
+
     logStructured({
       level: sendCount > 0 ? 'info' : 'warn',
       service: 'worker',
       message: 'Scheduled campaign executed',
-      context: { organizationId, campaignId, sendCount, type: campaign.type },
+      context: { organizationId, campaignId, sendCount, type: campaign.type, autoSend },
     });
 
-    return { campaignId, organizationId, sendCount };
+    return { campaignId, organizationId, sendCount, autoSend };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     await markScheduledCampaignExecutionFailed(admin, organizationId, campaign, errorMessage);

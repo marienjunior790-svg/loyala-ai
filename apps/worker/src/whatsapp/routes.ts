@@ -1,9 +1,13 @@
+import { insertWhatsAppMessage } from '@loyala/domain-crm';
 import {
   getMetaWhatsAppConfigFromEnv,
   isWhatsAppApiEnabled,
+  logStructured,
+  normalizePhoneForWhatsApp,
   sendWhatsAppMessage,
   type SendMessageResult,
 } from '@loyala/integrations';
+import { getWorkerAdminClient } from '../supabase.js';
 
 export function whatsAppHealth() {
   const enabled = isWhatsAppApiEnabled();
@@ -15,6 +19,29 @@ export function whatsAppHealth() {
     webhookConfigured,
     ready: enabled && configured,
   };
+}
+
+async function persistProbeSend(
+  body: Record<string, unknown>,
+  result: SendMessageResult,
+  templateName?: string
+): Promise<void> {
+  const organizationId = String(body.organizationId ?? '').trim();
+  if (!organizationId || !result.wamid) return;
+
+  const admin = getWorkerAdminClient();
+  await insertWhatsAppMessage(admin, {
+    organizationId,
+    clientId: String(body.clientId ?? '').trim() || null,
+    campaignSendId: String(body.campaignSendId ?? '').trim() || null,
+    wamid: result.wamid,
+    phone: result.phone,
+    templateName: templateName ?? null,
+    messageBody: result.messageBody ?? String(body.body ?? '') || null,
+    status: 'sent',
+    sentAt: new Date().toISOString(),
+    rawPayload: { source: 'send-test', ...((result.raw as object) ?? {}) },
+  });
 }
 
 export async function handleWhatsAppSend(
@@ -62,8 +89,53 @@ export async function handleWhatsAppSend(
       });
     }
 
-    return { status: 200, data: result };
+    let persisted = false;
+    if (body.organizationId) {
+      try {
+        await persistProbeSend(body, result, messageType === 'template' ? templateName : undefined);
+        persisted = Boolean(result.wamid);
+      } catch (error) {
+        logStructured({
+          level: 'warn',
+          service: 'worker',
+          message: 'send-test whatsapp_messages persist failed',
+          context: {
+            organizationId: body.organizationId,
+            error: error instanceof Error ? error.message : String(error),
+          },
+        });
+      }
+    }
+
+    return {
+      status: 200,
+      data: {
+        ...result,
+        persisted,
+        phone: result.phone || normalizePhoneForWhatsApp(to),
+      },
+    };
   } catch (error) {
+    const organizationId = String(body.organizationId ?? '').trim();
+    if (organizationId) {
+      try {
+        const admin = getWorkerAdminClient();
+        await insertWhatsAppMessage(admin, {
+          organizationId,
+          clientId: String(body.clientId ?? '').trim() || null,
+          campaignSendId: String(body.campaignSendId ?? '').trim() || null,
+          phone: normalizePhoneForWhatsApp(to),
+          templateName: messageType === 'template' ? templateName : null,
+          messageBody: textBody || null,
+          status: 'failed',
+          errorMessage: error instanceof Error ? error.message : 'WhatsApp send failed',
+          rawPayload: { source: 'send-test' },
+        });
+      } catch {
+        // Best-effort failure log for E2E probes.
+      }
+    }
+
     return {
       status: 502,
       data: {
