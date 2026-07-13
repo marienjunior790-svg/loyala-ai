@@ -7,6 +7,7 @@ import { validateWorkerEnvAtBoot } from './env.js';
 import { inngestHandler } from './inngest/serve.js';
 import { isInngestConfigured } from './inngest/client.js';
 import { verifyWorkerApiAuth } from './security/api-auth.js';
+import { handleWhatsAppSend, whatsAppHealth } from './whatsapp/routes.js';
 
 const env = validateWorkerEnvAtBoot();
 /** Railway injects PORT; local dev uses WORKER_PORT from env schema. */
@@ -24,6 +25,7 @@ function health() {
       primary: env.AI_PRIMARY_PROVIDER,
       fallback: env.AI_FALLBACK_PROVIDER,
     },
+    whatsapp: whatsAppHealth(),
   };
 }
 
@@ -64,6 +66,7 @@ const server = createServer(async (req, res) => {
         health: '/health',
         inngest: '/api/inngest',
         ai: AI_ROUTES,
+        whatsapp: 'POST /whatsapp/send-test',
       })
     );
     return;
@@ -104,6 +107,20 @@ const server = createServer(async (req, res) => {
         })
       );
     }
+    return;
+  }
+
+  if (pathname === '/whatsapp/send-test' && req.method === 'POST') {
+    if (!verifyWorkerApiAuth(req.headers)) {
+      res.writeHead(401, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Unauthorized' }));
+      return;
+    }
+
+    const body = await readJsonBody(req);
+    const { status, data } = await handleWhatsAppSend(body);
+    res.writeHead(status, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(data));
     return;
   }
 
