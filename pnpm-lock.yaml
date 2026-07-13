@@ -120,6 +120,9 @@ importers:
       '@loyala/integrations':
         specifier: workspace:*
         version: link:../../packages/integrations
+      '@loyala/messaging':
+        specifier: workspace:*
+        version: link:../../packages/messaging
       '@loyala/validation':
         specifier: workspace:*
         version: link:../../packages/validation
@@ -213,6 +216,16 @@ importers:
       '@types/node':
         specifier: ^22.10.5
         version: 22.20.0
+      typescript:
+        specifier: ^5.7.2
+        version: 5.9.3
+
+  packages/messaging:
+    dependencies:
+      '@loyala/integrations':
+        specifier: workspace:*
+        version: link:../integrations
+    devDependencies:
       typescript:
         specifier: ^5.7.2
         version: 5.9.3

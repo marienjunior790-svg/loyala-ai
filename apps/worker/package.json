@@ -18,6 +18,7 @@
     "@loyala/domain-crm": "workspace:*",
     "@loyala/events": "workspace:*",
     "@loyala/integrations": "workspace:*",
+    "@loyala/messaging": "workspace:*",
     "@loyala/validation": "workspace:*",
     "inngest": "^3.32.5"
   },

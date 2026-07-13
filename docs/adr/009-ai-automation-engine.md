@@ -108,7 +108,7 @@ Ces flux impliquent des appels LLM coûteux, une isolation stricte par organisat
 
 - **Complexité modérée** — Package `core-ai` + worker + Inngest à maintenir
 - **Ops** — Migrations Supabase, clés Inngest, monitoring logs à surveiller
-- **CRM incomplet** — `date_of_birth` ajouté (migration 004) pour anniversaires ; envoi WhatsApp = Sprint 3
+- **CRM incomplet** — `date_of_birth` ajouté (migration 004) pour anniversaires ; envoi WhatsApp = voir ADR-010 (Message Router)
 
 ## Implémentation
 
@@ -124,4 +124,5 @@ Ces flux impliquent des appels LLM coûteux, une isolation stricte par organisat
 ## Références
 
 - ADR-005 Inngest Event Bus
+- ADR-010 Message Router + Channel Adapter (envoi multi-canal)
 - Blueprint v2.1 §5 (logging IA), T6 (orchestrateur unique)
