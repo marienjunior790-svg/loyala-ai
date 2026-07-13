@@ -7,6 +7,7 @@ import { notifyCampaignReadyByEmail } from '@loyala/integrations';
 import { logStructured } from '@loyala/integrations';
 import { createAutomationService } from '@loyala/core-ai';
 import { getWorkerAdminClient } from '../supabase.js';
+import { autoSendCampaignForTestClient } from './whatsapp-auto-send.js';
 import type { BirthdayClient } from '@loyala/core-ai';
 
 export interface BirthdayClientRow extends BirthdayClient {
@@ -165,14 +166,19 @@ export async function runBirthdayCampaignForOrg(organizationId: string, restaura
     await notifyAdminsByEmail(organizationId, restaurantName, sendCount, 'anniversaire');
   }
 
+  const autoSend =
+    campaignId && sendCount > 0
+      ? await autoSendCampaignForTestClient(admin, { organizationId, campaignId })
+      : { attempted: false, sent: false, skippedReason: 'no_campaign_sends' };
+
   logStructured({
     level: 'info',
     service: 'worker',
     message: 'Birthday campaign persisted',
-    context: { organizationId, campaignId, sendCount },
+    context: { organizationId, campaignId, sendCount, autoSend },
   });
 
-  return { organizationId, campaigns, count: campaigns.length, campaignId, sendCount };
+  return { organizationId, campaigns, count: campaigns.length, campaignId, sendCount, autoSend };
 }
 
 export async function runInactiveRelaunchForOrg(organizationId: string, inactiveDays = 30) {
@@ -243,11 +249,16 @@ export async function runInactiveRelaunchForOrg(organizationId: string, inactive
     await notifyAdminsByEmail(organizationId, restaurantName, sendCount, 'inactifs');
   }
 
+  const autoSend =
+    campaignId && sendCount > 0
+      ? await autoSendCampaignForTestClient(admin, { organizationId, campaignId })
+      : { attempted: false, sent: false, skippedReason: 'no_campaign_sends' };
+
   logStructured({
     level: 'info',
     service: 'worker',
     message: 'Inactive campaign persisted',
-    context: { organizationId, campaignId, sendCount },
+    context: { organizationId, campaignId, sendCount, autoSend },
   });
 
   return {
@@ -257,5 +268,6 @@ export async function runInactiveRelaunchForOrg(organizationId: string, inactive
     campaignId,
     sendCount,
     inactiveDetected: inactive.length,
+    autoSend,
   };
 }

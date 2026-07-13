@@ -25,6 +25,12 @@ railway variables set WHATSAPP_API_ENABLED=false
 # railway variables set WHATSAPP_BUSINESS_ACCOUNT_ID="987654321"
 # railway variables set WHATSAPP_API_VERSION="v21.0"
 # railway variables set WHATSAPP_WEBHOOK_VERIFY_TOKEN="openssl rand -hex 16"
+
+# Auto-send Inngest (GO 3) — 1 client pilote uniquement
+# railway variables set WHATSAPP_TEST_CLIENT_ID="<uuid-client-supabase>"
+# ou railway variables set WHATSAPP_TEST_PHONE="221771234567"
+# railway variables set WHATSAPP_CAMPAIGN_TEMPLATE_NAME="hello_world"
+# railway variables set WHATSAPP_CAMPAIGN_TEMPLATE_LANGUAGE="fr"
 ```
 
 **Probe envoi test** (après credentials Meta + template approuvé) :

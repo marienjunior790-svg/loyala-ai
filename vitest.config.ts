@@ -10,6 +10,7 @@ export default defineConfig({
       'packages/**/tests/**/*.test.ts',
       'apps/web/lib/**/*.test.ts',
       'apps/web/tests/**/*.test.ts',
+      'apps/worker/src/**/*.test.ts',
     ],
   },
   resolve: {

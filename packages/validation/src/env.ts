@@ -55,6 +55,14 @@ export const workerEnvSchema = sharedEnvSchema.extend({
   WHATSAPP_BUSINESS_ACCOUNT_ID: z.string().min(1).optional(),
   WHATSAPP_WEBHOOK_VERIFY_TOKEN: z.string().min(1).optional(),
   WHATSAPP_API_VERSION: z.string().default('v21.0'),
+  WHATSAPP_TEST_CLIENT_ID: z.string().uuid().optional(),
+  WHATSAPP_TEST_PHONE: z.string().min(6).optional(),
+  WHATSAPP_CAMPAIGN_TEMPLATE_NAME: z.string().default('hello_world'),
+  WHATSAPP_CAMPAIGN_TEMPLATE_LANGUAGE: z.string().default('fr'),
+  WHATSAPP_CAMPAIGN_TEMPLATE_USE_NAME_VAR: z
+    .enum(['true', 'false'])
+    .default('false')
+    .transform((v) => v === 'true'),
 });
 
 export type SharedEnv = z.infer<typeof sharedEnvSchema>;
