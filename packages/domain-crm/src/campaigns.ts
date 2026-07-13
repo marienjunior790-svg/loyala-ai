@@ -380,3 +380,34 @@ export async function markCampaignSendSent(
 
   assertOk(error);
 }
+
+export async function markCampaignSendFailed(
+  supabase: SupabaseClient,
+  organizationId: string,
+  sendId: string
+): Promise<void> {
+  const { error } = await supabase
+    .from('campaign_sends')
+    .update({ status: 'failed' })
+    .eq('id', sendId)
+    .eq('organization_id', organizationId);
+
+  assertOk(error);
+}
+
+export async function listPendingCampaignSendsForCampaign(
+  supabase: SupabaseClient,
+  organizationId: string,
+  campaignId: string
+): Promise<CampaignSend[]> {
+  const { data, error } = await supabase
+    .from('campaign_sends')
+    .select('*, clients(full_name, phone)')
+    .eq('organization_id', organizationId)
+    .eq('campaign_id', campaignId)
+    .eq('status', 'pending')
+    .order('created_at', { ascending: true });
+
+  assertOk(error);
+  return (data ?? []) as CampaignSend[];
+}
