@@ -9,7 +9,7 @@
  *  4. Optionally submit Meta templates if --submit-templates
  *
  * Usage:
- *   cp .env.ops.local.example .env.ops.local   # then fill
+ *   copy docs/runbooks/env.ops.local.example → .env.ops.local   # then fill
  *   node scripts/run-phase1-ops.mjs
  *   node scripts/run-phase1-ops.mjs --submit-templates
  */
@@ -55,7 +55,7 @@ function run(label, args, env) {
 const fileEnv = loadEnv('.env.ops.local');
 if (!fileEnv) {
   console.error('Missing .env.ops.local');
-  console.error('  1. copy .env.ops.local.example → .env.ops.local');
+  console.error('  1. copy docs/runbooks/env.ops.local.example → .env.ops.local');
   console.error('  2. fill DATABASE_URL (or SUPABASE_ACCESS_TOKEN) + WhatsApp keys');
   console.error('  3. re-run: node scripts/run-phase1-ops.mjs');
   process.exit(2);
