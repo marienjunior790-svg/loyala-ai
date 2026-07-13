@@ -20,6 +20,9 @@ export async function updateOrganizationSettingsAction(
 
   const name = String(formData.get('name') ?? '').trim();
   const whatsappPhone = String(formData.get('whatsappPhone') ?? '').trim();
+  const countryCode = String(formData.get('countryCode') ?? '').trim().toUpperCase();
+  const timezone = String(formData.get('timezone') ?? '').trim();
+  const currency = String(formData.get('currency') ?? '').trim().toUpperCase();
   const logoFile = formData.get('logo') as File | null;
 
   if (name.length < 2) return { error: 'Nom requis' };
@@ -46,7 +49,13 @@ export async function updateOrganizationSettingsAction(
   }
 
   try {
-    await updateOrganization(supabase, ctx.organizationId, { name, settings });
+    await updateOrganization(supabase, ctx.organizationId, {
+      name,
+      settings,
+      ...(countryCode.length === 2 ? { countryCode } : {}),
+      ...(timezone ? { timezone } : {}),
+      ...(currency.length === 3 ? { currency } : {}),
+    });
     revalidatePath('/settings');
     revalidatePath('/administration');
     return { success: 'Paramètres enregistrés' };

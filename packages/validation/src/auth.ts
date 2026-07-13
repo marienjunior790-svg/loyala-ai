@@ -26,7 +26,7 @@ export const onboardingSchema = z.object({
   organizationName: z.string().min(2, 'Nom requis'),
   countryCode: z.string().length(2).default('SN'),
   timezone: z.string().min(1).default('Africa/Dakar'),
-  currency: z.enum(['XOF', 'XAF', 'MAD', 'NGN']).default('XOF'),
+  currency: z.enum(['XOF', 'XAF', 'MAD', 'NGN', 'CDF', 'AOA', 'STN', 'GNF']).default('XOF'),
   whatsappPhone: z.string().optional(),
 });
 

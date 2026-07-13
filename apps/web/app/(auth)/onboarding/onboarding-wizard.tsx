@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { completeOnboardingAction, type OnboardingState } from './_actions/onboarding';
 import { buildWhatsAppUrl } from '@/lib/whatsapp';
 import { cn } from '@/lib/utils';
+import { COUNTRY_OPTIONS, getCountryOption } from '@/lib/countries';
 
 const initial: OnboardingState = {};
 
@@ -22,11 +23,21 @@ export function OnboardingWizard() {
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState({
     organizationName: '',
-    countryCode: 'SN',
-    timezone: 'Africa/Dakar',
-    currency: 'XOF',
+    countryCode: 'CG',
+    timezone: 'Africa/Brazzaville',
+    currency: 'XAF',
     whatsappPhone: '',
   });
+
+  function setCountry(code: string) {
+    const country = getCountryOption(code);
+    setForm({
+      ...form,
+      countryCode: code,
+      timezone: country?.timezone ?? form.timezone,
+      currency: country?.currency ?? form.currency,
+    });
+  }
 
   async function handleLaunch() {
     setPending(true);
@@ -87,13 +98,26 @@ export function OnboardingWizard() {
             <select
               className="mt-1 flex h-11 w-full rounded-lg border border-input bg-background px-4 text-sm"
               value={form.countryCode}
-              onChange={(e) => setForm({ ...form, countryCode: e.target.value })}
+              onChange={(e) => setCountry(e.target.value)}
             >
-              <option value="SN">Sénégal</option>
-              <option value="CI">Côte d&apos;Ivoire</option>
-              <option value="MA">Maroc</option>
-              <option value="NG">Nigeria</option>
+              <optgroup label="Afrique centrale">
+                {COUNTRY_OPTIONS.filter((c) => c.region === 'central').map((c) => (
+                  <option key={c.code} value={c.code}>
+                    {c.label}
+                  </option>
+                ))}
+              </optgroup>
+              <optgroup label="Afrique de l'Ouest et autres">
+                {COUNTRY_OPTIONS.filter((c) => c.region !== 'central').map((c) => (
+                  <option key={c.code} value={c.code}>
+                    {c.label}
+                  </option>
+                ))}
+              </optgroup>
             </select>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {form.timezone} · {form.currency}
+            </p>
           </div>
           <Button
             className="w-full"
@@ -115,7 +139,7 @@ export function OnboardingWizard() {
             <label className="text-sm text-muted-foreground">Numéro WhatsApp du restaurant</label>
             <Input
               className="mt-1"
-              placeholder="+221 77 123 45 67"
+              placeholder="06 571 99 22"
               value={form.whatsappPhone}
               onChange={(e) => setForm({ ...form, whatsappPhone: e.target.value })}
             />

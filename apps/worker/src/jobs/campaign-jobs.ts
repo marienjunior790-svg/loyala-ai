@@ -22,14 +22,36 @@ export interface OrgRow {
 
 export async function listActiveOrganizations(): Promise<OrgRow[]> {
   const admin = getWorkerAdminClient();
-  const { data, error } = await admin
+
+  const full = await admin
     .from('organizations')
     .select('id, name')
     .is('deleted_at', null)
     .in('plan_status', ['trialing', 'active']);
 
-  if (error) throw new Error(`listActiveOrganizations: ${error.message}`);
-  return (data ?? []) as OrgRow[];
+  if (!full.error) {
+    return (full.data ?? []) as OrgRow[];
+  }
+
+  const msg = full.error.message.toLowerCase();
+  const schemaGap =
+    msg.includes('does not exist') ||
+    msg.includes('schema cache') ||
+    msg.includes('could not find');
+
+  if (!schemaGap) {
+    throw new Error(`listActiveOrganizations: ${full.error.message}`);
+  }
+
+  // Production schema lag (missing plan_status / deleted_at) — list all orgs.
+  logStructured('warn', 'listActiveOrganizations falling back without plan_status filter', {
+    error: full.error.message,
+  });
+  const fallback = await admin.from('organizations').select('id, name');
+  if (fallback.error) {
+    throw new Error(`listActiveOrganizations: ${fallback.error.message}`);
+  }
+  return (fallback.data ?? []) as OrgRow[];
 }
 
 export async function fetchBirthdayClientsToday(
