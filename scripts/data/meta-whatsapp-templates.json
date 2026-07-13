@@ -1,0 +1,42 @@
+[
+  {
+    "name": "loyala_birthday_v1",
+    "language": "fr",
+    "category": "MARKETING",
+    "intent": "birthday",
+    "body": "Bonjour {{1}}, {{2}} 🎉 — {{3}}",
+    "bodyExamples": [
+      ["Marie", "Joyeux anniversaire ! Nous vous offrons 15% cette semaine.", "Restaurant Soleil"]
+    ]
+  },
+  {
+    "name": "loyala_inactive_v1",
+    "language": "fr",
+    "category": "MARKETING",
+    "intent": "inactive",
+    "body": "Bonjour {{1}}. {{2}} À bientôt chez {{3}}",
+    "bodyExamples": [
+      ["Marie", "Cette semaine nous vous offrons un dessert.", "Restaurant Soleil"]
+    ]
+  },
+  {
+    "name": "loyala_loyalty_v1",
+    "language": "fr",
+    "category": "MARKETING",
+    "intent": "loyalty",
+    "body": "Bonjour {{1}}, {{2}} — {{3}}",
+    "bodyExamples": [
+      ["Jean", "Vous avez 120 points fidélité à utiliser.", "Le Bistrot"]
+    ]
+  },
+  {
+    "name": "loyala_promo_v1",
+    "language": "fr",
+    "category": "MARKETING",
+    "intent": "promo",
+    "body": "{{1}} : {{2}}. {{3}}",
+    "bodyExamples": [
+      ["Restaurant Soleil", "Menu déjeuner à 5 000 XOF ce vendredi.", "Réservez vite !"]
+    ]
+  }
+]

@@ -231,6 +231,7 @@ curl http://localhost:3001/health
 ## Références
 
 - [ADR-009 — AI Automation Engine](../adr/009-ai-automation-engine.md)
+- [ADR-010 — Message Router + Channel Adapter](../adr/010-messaging-router-channel-adapter.md)
 - [packages/core-ai/README.md](../../packages/core-ai/README.md)
 - [apps/worker/README.md](../../apps/worker/README.md)
 - [GOVERNANCE.md](../blueprint/GOVERNANCE.md)
