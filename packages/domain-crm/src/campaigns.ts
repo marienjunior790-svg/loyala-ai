@@ -140,21 +140,39 @@ export async function createCampaign(
     .select()
     .single();
 
+  // Legacy Prisma dual-column: tenant_id NOT NULL while app writes organization_id.
+  if (error && /tenant_id/i.test(error.message)) {
+    const withTenant = await supabase
+      .from('campaigns')
+      .insert({
+        ...withSchedule,
+        tenant_id: organizationId,
+      })
+      .select()
+      .single();
+    data = withTenant.data;
+    error = withTenant.error;
+  }
+
   // Pre-016: no scheduled_at / scheduled|paused statuses.
-  if (error && /scheduled|check constraint|column/i.test(error.message)) {
+  if (error && /scheduled|check constraint|column/i.test(error.message) && !/tenant_id/i.test(error.message)) {
     let legacyStatus: 'draft' | 'ready' | 'completed' | 'failed' = 'ready';
     if (input.status === 'paused' || input.status === 'draft') legacyStatus = 'draft';
     else if (input.status === 'completed' || input.status === 'failed') legacyStatus = input.status;
     else legacyStatus = 'ready';
 
-    const legacy = await supabase
-      .from('campaigns')
-      .insert({
-        ...baseRow,
-        status: legacyStatus,
-      })
-      .select()
-      .single();
+    const legacyRow: Record<string, unknown> = {
+      ...baseRow,
+      status: legacyStatus,
+    };
+    let legacy = await supabase.from('campaigns').insert(legacyRow).select().single();
+    if (legacy.error && /tenant_id/i.test(legacy.error.message)) {
+      legacy = await supabase
+        .from('campaigns')
+        .insert({ ...legacyRow, tenant_id: organizationId })
+        .select()
+        .single();
+    }
     data = legacy.data;
     error = legacy.error;
   }
@@ -348,20 +366,28 @@ export async function createCampaignSend(
     status?: 'pending' | 'sent';
   }
 ): Promise<CampaignSend> {
-  const { data, error } = await supabase
-    .from('campaign_sends')
-    .insert({
-      organization_id: organizationId,
-      campaign_id: input.campaignId ?? null,
-      client_id: input.clientId,
-      channel: 'whatsapp',
-      message_body: input.messageBody,
-      whatsapp_url: input.whatsappUrl,
-      status: input.status ?? 'pending',
-      sent_at: input.status === 'sent' ? new Date().toISOString() : null,
-    })
-    .select()
-    .single();
+  const row: Record<string, unknown> = {
+    organization_id: organizationId,
+    campaign_id: input.campaignId ?? null,
+    client_id: input.clientId,
+    channel: 'whatsapp',
+    message_body: input.messageBody,
+    whatsapp_url: input.whatsappUrl,
+    status: input.status ?? 'pending',
+    sent_at: input.status === 'sent' ? new Date().toISOString() : null,
+  };
+
+  let { data, error } = await supabase.from('campaign_sends').insert(row).select().single();
+
+  if (error && /tenant_id/i.test(error.message)) {
+    const retry = await supabase
+      .from('campaign_sends')
+      .insert({ ...row, tenant_id: organizationId })
+      .select()
+      .single();
+    data = retry.data;
+    error = retry.error;
+  }
 
   assertOk(error);
   return data as CampaignSend;

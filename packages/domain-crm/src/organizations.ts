@@ -151,22 +151,61 @@ export async function listOrganizationMembers(
   supabase: SupabaseClient,
   organizationId: string
 ): Promise<OrgMember[]> {
-  const { data, error } = await supabase
+  // Prefer embed when FK is in PostgREST schema cache; fall back to 2-step lookup.
+  const embedded = await supabase
     .from('organization_members')
-    .select('user_id, status, joined_at, roles(code)')
+    .select('user_id, status, joined_at, role_id, roles(code)')
     .eq('organization_id', organizationId)
     .eq('status', 'active');
 
-  if (error) throw new Error(error.message);
+  if (!embedded.error) {
+    return (embedded.data ?? []).map((row) => {
+      const roles = row.roles as { code: string } | { code: string }[] | null;
+      const roleCode = Array.isArray(roles) ? roles[0]?.code : roles?.code;
+      return {
+        user_id: String(row.user_id),
+        role_code: roleCode ?? null,
+        status: String(row.status),
+        joined_at: row.joined_at ? String(row.joined_at) : null,
+      };
+    });
+  }
 
-  return (data ?? []).map((row) => {
-    const roles = row.roles as { code: string } | { code: string }[] | null;
-    const roleCode = Array.isArray(roles) ? roles[0]?.code : roles?.code;
-    return {
-      user_id: String(row.user_id),
-      role_code: roleCode ?? null,
-      status: String(row.status),
-      joined_at: row.joined_at ? String(row.joined_at) : null,
-    };
-  });
+  const relationshipMissing = /relationship|schema cache|roles/i.test(embedded.error.message);
+  if (!relationshipMissing) throw new Error(embedded.error.message);
+
+  const { data: members, error: membersError } = await supabase
+    .from('organization_members')
+    .select('user_id, status, joined_at, role_id')
+    .eq('organization_id', organizationId)
+    .eq('status', 'active');
+
+  if (membersError) throw new Error(membersError.message);
+
+  const roleIds = [
+    ...new Set(
+      (members ?? [])
+        .map((m) => m.role_id)
+        .filter((id): id is string => typeof id === 'string' && id.length > 0)
+    ),
+  ];
+
+  const roleById = new Map<string, string>();
+  if (roleIds.length > 0) {
+    const { data: roles, error: rolesError } = await supabase
+      .from('roles')
+      .select('id, code')
+      .in('id', roleIds);
+    if (rolesError) throw new Error(rolesError.message);
+    for (const role of roles ?? []) {
+      roleById.set(String(role.id), String(role.code));
+    }
+  }
+
+  return (members ?? []).map((row) => ({
+    user_id: String(row.user_id),
+    role_code: row.role_id ? (roleById.get(String(row.role_id)) ?? null) : null,
+    status: String(row.status),
+    joined_at: row.joined_at ? String(row.joined_at) : null,
+  }));
 }

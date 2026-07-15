@@ -169,7 +169,7 @@ export function CampaignsPageClient({
             </p>
             <form action={inactiveAction}>
               <Button type="submit" disabled={inactivePending || !canWrite}>
-                {inactivePending ? 'Génération...' : 'Générer relances inactifs'}
+                {inactivePending ? 'Génération...' : 'Générer des relances pour inactifs'}
               </Button>
             </form>
             {inactiveState.error && (

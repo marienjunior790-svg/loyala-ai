@@ -24,6 +24,7 @@
     "db:apply-023": "node scripts/apply-migration-file.mjs 023_conversation_sessions.sql",
     "db:apply-024": "node scripts/apply-migration-file.mjs 024_message_template_catalog.sql",
     "db:apply-026": "node scripts/apply-026-domain-events.mjs",
+    "db:apply-027": "node scripts/apply-027-admin-campaigns.mjs",
     "db:apply-phase1-whatsapp": "node scripts/apply-phase1-whatsapp-migrations.mjs",
     "ops:phase1": "node scripts/run-phase1-ops.mjs",
     "db:audit-schema": "node scripts/audit-prod-schema.mjs",
