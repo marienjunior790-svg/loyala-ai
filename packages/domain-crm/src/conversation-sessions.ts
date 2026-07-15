@@ -208,12 +208,12 @@ export async function recordInboundConversationSessions(
     channel?: ConversationChannel;
     metadata?: Record<string, unknown>;
   }
-): Promise<InboundSessionTouchResult> {
+): Promise<InboundSessionTouchResult & { clients: ClientPhoneMatch[] }> {
   const channel = params.channel ?? 'whatsapp';
   const clients = await findClientsByWhatsAppAddress(supabase, params.fromAddress);
 
   if (clients.length === 0) {
-    return { sessionsUpdated: 0, clientsMatched: 0 };
+    return { sessionsUpdated: 0, clientsMatched: 0, clients: [] };
   }
 
   for (const client of clients) {
@@ -227,5 +227,5 @@ export async function recordInboundConversationSessions(
     });
   }
 
-  return { sessionsUpdated: clients.length, clientsMatched: clients.length };
+  return { sessionsUpdated: clients.length, clientsMatched: clients.length, clients };
 }

@@ -55,7 +55,7 @@ Cocher chaque item avant ouverture aux clients payants.
 
 ## 6. Monitoring & alertes
 
-- [ ] Sentry (ou équivalent) connecté web + worker
+- [ ] Logs structurés / health checks connectés (Sentry optionnel — non requis MVP)
 - [ ] Uptime monitor sur `https://[app]/api/health`
 - [ ] Uptime monitor sur `https://[worker]/health`
 - [ ] Alerte email/Slack si health down > 2 min

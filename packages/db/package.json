@@ -8,7 +8,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run --config ../../vitest.config.ts packages/db",
     "test:rls": "vitest run --config ../../vitest.config.ts packages/db/tests/rls",
-    "lint": "echo \"lint:db ok\""
+    "lint": "eslint src tests --max-warnings=50"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.1"

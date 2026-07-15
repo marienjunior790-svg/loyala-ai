@@ -1,7 +1,7 @@
 'use client';
 
 import { useActionState } from 'react';
-import { Button } from '@loyala/ui';
+import { Button } from '@/components/ui/button';
 import { forgotPasswordAction, type AuthActionState } from '../_actions/auth';
 
 const initial: AuthActionState = {};

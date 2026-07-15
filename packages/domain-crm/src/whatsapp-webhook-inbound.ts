@@ -81,10 +81,17 @@ function dedupeInbound(messages: MetaWebhookInboundMessage[]): MetaWebhookInboun
 export async function applyMetaWebhookInboundMessages(
   supabase: SupabaseClient,
   messages: MetaWebhookInboundMessage[]
-): Promise<InboundSessionTouchResult & { processed: number; skipped: number }> {
+): Promise<
+  InboundSessionTouchResult & {
+    processed: number;
+    skipped: number;
+    matched: Array<{ organizationId: string; clientId: string; wamid: string }>;
+  }
+> {
   let sessionsUpdated = 0;
   let clientsMatched = 0;
   let skipped = 0;
+  const matched: Array<{ organizationId: string; clientId: string; wamid: string }> = [];
 
   for (const message of messages) {
     const normalizedFrom = normalizeAddressForChannel('whatsapp', message.from);
@@ -110,6 +117,13 @@ export async function applyMetaWebhookInboundMessages(
     } else {
       sessionsUpdated += result.sessionsUpdated;
       clientsMatched += result.clientsMatched;
+      for (const client of result.clients) {
+        matched.push({
+          organizationId: client.organizationId,
+          clientId: client.clientId,
+          wamid: message.wamid,
+        });
+      }
     }
   }
 
@@ -118,5 +132,6 @@ export async function applyMetaWebhookInboundMessages(
     skipped,
     sessionsUpdated,
     clientsMatched,
+    matched,
   };
 }

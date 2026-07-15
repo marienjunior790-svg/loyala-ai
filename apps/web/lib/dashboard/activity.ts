@@ -5,8 +5,14 @@ const EVENT_LABELS: Record<string, { title: string; type: ActivityItem['type'] }
   'client.created': { title: 'Nouveau client', type: 'client' },
   'client.updated': { title: 'Client modifié', type: 'client' },
   'client.deleted': { title: 'Client supprimé', type: 'client' },
+  'client.visit.recorded': { title: 'Visite enregistrée', type: 'client' },
+  'client.expense.recorded': { title: 'Dépense enregistrée', type: 'client' },
   'organization.created': { title: 'Organisation créée', type: 'client' },
   'member.joined': { title: 'Membre ajouté', type: 'client' },
+  'campaign.created': { title: 'Campagne créée', type: 'campaign' },
+  'campaign.scheduled': { title: 'Campagne planifiée', type: 'campaign' },
+  'campaign.send.requested': { title: 'Envoi campagne demandé', type: 'campaign' },
+  'message.received': { title: 'Message WhatsApp reçu', type: 'campaign' },
 };
 
 function formatRelativeTime(iso: string): string {

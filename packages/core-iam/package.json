@@ -7,7 +7,7 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "vitest run --config ../../vitest.config.ts packages/core-iam",
-    "lint": "echo \"lint:core-iam ok\""
+    "lint": "eslint src --max-warnings=50"
   },
   "devDependencies": {
     "typescript": "^5.7.2",

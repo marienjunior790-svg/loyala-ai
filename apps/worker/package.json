@@ -5,12 +5,13 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "tsc",
+    "build": "node scripts/bundle.mjs",
     "build:bundle": "node scripts/bundle.mjs",
+    "build:tsc": "tsc",
     "start": "node dist/server.mjs",
     "start:dev": "tsx src/index.ts",
     "typecheck": "tsc --noEmit",
-    "lint": "echo \"lint:worker ok\""
+    "lint": "eslint src --max-warnings=50"
   },
   "dependencies": {
     "@loyala/core-ai": "workspace:*",

@@ -6,12 +6,17 @@
   "types": "./src/index.ts",
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "lint": "echo \"lint:events ok\""
+    "lint": "eslint src --max-warnings=50",
+    "test": "vitest run --config ../../vitest.config.ts src"
   },
   "dependencies": {
     "zod": "^3.24.1"
   },
+  "peerDependencies": {
+    "@supabase/supabase-js": "^2.49.0"
+  },
   "devDependencies": {
+    "@supabase/supabase-js": "^2.49.1",
     "@types/node": "^22.10.5",
     "typescript": "^5.7.2"
   }

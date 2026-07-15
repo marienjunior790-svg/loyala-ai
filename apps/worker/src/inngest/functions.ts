@@ -103,9 +103,35 @@ export const scheduledCampaignExecutor = inngest.createFunction(
   }
 );
 
+/** Observability / future fan-out for domain_events bridge */
+export const domainEventConsumer = inngest.createFunction(
+  {
+    id: 'loyala-domain-event-consumer',
+    retries: 1,
+  },
+  { event: INNGEST_EVENTS.DOMAIN_EVENT },
+  async ({ event, step }) => {
+    const data = event.data as {
+      eventType?: string;
+      organizationId?: string;
+      aggregateId?: string;
+    };
+
+    await step.run('ack-domain-event', async () => ({
+      eventType: data.eventType ?? 'unknown',
+      organizationId: data.organizationId ?? null,
+      aggregateId: data.aggregateId ?? null,
+      acknowledgedAt: new Date().toISOString(),
+    }));
+
+    return { ok: true, eventType: data.eventType };
+  }
+);
+
 export const inngestFunctions = [
   dailyCampaignDispatcher,
   birthdayCampaignJob,
   inactiveRelaunchJob,
   scheduledCampaignExecutor,
+  domainEventConsumer,
 ];

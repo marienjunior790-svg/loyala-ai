@@ -14,6 +14,7 @@ import {
   type CampaignStatus,
   type CampaignType,
 } from '@loyala/domain-crm';
+import { recordDomainEvent } from '@loyala/events';
 
 export type CampaignCrudState = { error?: string; success?: string };
 
@@ -53,7 +54,7 @@ export async function createCampaignAction(
       return { error: 'Date de planification invalide' };
     }
 
-    await createCampaign(supabase, ctx.organizationId, {
+    const campaign = await createCampaign(supabase, ctx.organizationId, {
       name,
       type,
       messagePreview: messagePreview || undefined,
@@ -61,6 +62,15 @@ export async function createCampaignAction(
       status: scheduledAt ? 'scheduled' : 'draft',
       scheduledAt,
       metadata: { source: 'manual' },
+    });
+
+    await recordDomainEvent(supabase, {
+      organizationId: ctx.organizationId,
+      eventType: scheduledAt ? 'campaign.scheduled' : 'campaign.created',
+      aggregateType: 'campaign',
+      aggregateId: campaign.id,
+      actorId: ctx.userId,
+      payload: { name, type, status: scheduledAt ? 'scheduled' : 'draft' },
     });
 
     revalidateCampaigns();
@@ -149,12 +159,26 @@ export async function scheduleCampaignAction(
       return { error: 'Date de planification invalide' };
     }
 
-    await scheduleCampaign(
-      supabase,
-      ctx.organizationId,
-      campaignId,
-      new Date(scheduledRaw).toISOString()
-    );
+    const scheduledAt = new Date(scheduledRaw).toISOString();
+    await scheduleCampaign(supabase, ctx.organizationId, campaignId, scheduledAt);
+
+    await recordDomainEvent(supabase, {
+      organizationId: ctx.organizationId,
+      eventType: 'campaign.scheduled',
+      aggregateType: 'campaign',
+      aggregateId: campaignId,
+      actorId: ctx.userId,
+      payload: { scheduledAt },
+    });
+    await recordDomainEvent(supabase, {
+      organizationId: ctx.organizationId,
+      eventType: 'campaign.send.requested',
+      aggregateType: 'campaign',
+      aggregateId: campaignId,
+      actorId: ctx.userId,
+      payload: { scheduledAt, source: 'schedule' },
+    });
+
     revalidateCampaigns();
     return { success: 'Campagne planifiée' };
   } catch (e) {

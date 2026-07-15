@@ -6,13 +6,15 @@ Logs centralisés, monitoring uptime, alertes erreurs.
 
 | Couche | Outil | Intégration |
 |--------|-------|-------------|
-| **Erreurs** | [Sentry](https://sentry.io) | Next.js + worker SDK |
+| **Erreurs** | Logs structurés JSON | `reportError` / `logStructured` (web + worker) |
 | **Uptime** | [Better Stack](https://betterstack.com) ou UptimeRobot | Ping `/api/health` |
 | **Logs app** | Vercel Logs + Railway logs | Natif |
 | **Logs métier IA** | Supabase `ai_request_logs` | `@loyala/core-ai` |
-| **Audit** | Supabase `domain_events` | Web server actions |
+| **Audit** | Supabase `domain_events` | `@loyala/events` + bridge Inngest |
 | **Jobs** | Inngest dashboard | Natif |
 | **Métriques produit** | `GET /api/metrics/ai` | RPC `get_tenant_ai_metrics` |
+
+> **Sentry :** non déployé (décision P3). Voir `docs/decisions/2026-07-15-observability-without-sentry.md`. Option future si un DSN et un budget d’événements sont validés.
 
 ---
 
@@ -35,29 +37,22 @@ Heartbeat: Inngest (optionnel)
 
 ---
 
-## Sentry (setup)
+## Erreurs applicatives (actuel)
 
-### Web — `apps/web`
+Les erreurs Next.js (`error.tsx`, `global-error.tsx`, `instrumentation.ts`) passent par `reportError` → logs JSON drainables (Vercel).
+
+Pas de SDK Sentry en production MVP.
+
+### Option future — Sentry
+
+Si un DSN est provisionné :
 
 ```bash
 pnpm --filter web add @sentry/nextjs
-npx @sentry/wizard@latest -i nextjs
+pnpm --filter worker add @sentry/node
 ```
 
-Variables :
-
-```
-SENTRY_DSN=https://...@sentry.io/...
-SENTRY_AUTH_TOKEN=...          # CI only
-NEXT_PUBLIC_SENTRY_DSN=...     # client errors
-```
-
-### Worker
-
-```typescript
-import * as Sentry from '@sentry/node';
-Sentry.init({ dsn: process.env.SENTRY_DSN, environment: process.env.NODE_ENV });
-```
+Puis initialiser uniquement quand `SENTRY_DSN` est défini (éviter un stub env non câblé).
 
 ---
 
@@ -102,7 +97,7 @@ LIMIT 50;
 | Condition | Canal | Sévérité |
 |-----------|-------|----------|
 | Health down 2 min | Slack + email | P1 |
-| Sentry error rate > 10/min | Slack | P2 |
+| Error log rate spike (Vercel/Railway) | Slack | P2 |
 | Inngest function failed 3x | Email | P2 |
 | IA cost daily > $100 | Email finance | P3 |
 | RLS test CI failed | Block deploy | P1 |
@@ -122,7 +117,7 @@ WHERE created_at > now() - interval '1 day';
 ### Ops (interne)
 
 - Inngest : runs, failures, duration
-- Sentry : errors by release
+- Logs Vercel/Railway : erreurs par release / service
 - Supabase : DB size, connections, slow queries
 
 ### Produit (par tenant)
@@ -149,4 +144,4 @@ WHERE created_at > now() - interval '1 day';
 | `ai_request_logs` | 90 jours (Starter), 1 an (Enterprise) |
 | `domain_events` | 1 an |
 | Vercel logs | Selon plan (7–30 jours) |
-| Sentry events | 90 jours |
+| Better Stack heartbeats | Selon plan |

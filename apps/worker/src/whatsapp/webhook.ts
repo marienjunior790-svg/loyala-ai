@@ -5,6 +5,8 @@ import {
   parseMetaWebhookStatuses,
   validateMetaWebhookPayload,
 } from '@loyala/domain-crm';
+import { recordDomainEvent } from '@loyala/events';
+import { emitDomainEventBridge } from '../domain-events/bridge.js';
 import { logStructured } from '@loyala/integrations';
 import { getWorkerAdminClient } from '../supabase.js';
 import {
@@ -161,6 +163,26 @@ export async function handleWhatsAppWebhookPost(
       stats.inboundProcessed = inboundResult.processed;
       stats.inboundSessionsUpdated = inboundResult.sessionsUpdated;
       stats.inboundSkipped = inboundResult.skipped;
+
+      for (const match of inboundResult.matched) {
+        const recorded = await recordDomainEvent(admin, {
+          organizationId: match.organizationId,
+          eventType: 'message.received',
+          aggregateType: 'client',
+          aggregateId: match.clientId,
+          actorId: null,
+          payload: { wamid: match.wamid, channel: 'whatsapp' },
+          metadata: { source: 'whatsapp_webhook' },
+        });
+        if (recorded.ok) {
+          await emitDomainEventBridge({
+            eventType: 'message.received',
+            organizationId: match.organizationId,
+            aggregateId: match.clientId,
+            eventId: recorded.eventId,
+          });
+        }
+      }
     } catch (error) {
       stats.errors += 1;
       logStructured({

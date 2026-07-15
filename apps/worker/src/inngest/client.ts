@@ -23,6 +23,8 @@ export const INNGEST_EVENTS = {
   INACTIVE_RUN: 'loyala/campaign.inactive.run',
   DISPATCH_DAILY: 'loyala/cron.daily.dispatch',
   SCHEDULED_RUN: 'loyala/campaign.scheduled.run',
+  /** Bridge from domain_events audit → async consumers */
+  DOMAIN_EVENT: 'loyala/domain.event',
 } as const;
 
 export function isInngestConfigured(): boolean {

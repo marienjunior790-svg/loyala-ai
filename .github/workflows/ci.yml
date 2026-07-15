@@ -53,9 +53,12 @@ jobs:
           WORKER_API_SECRET: placeholder-secret-min-16-chars
           AI_ALLOW_MOCK: 'true'
 
-      - name: Build worker
-        run: pnpm --filter worker build
+      - name: Build worker (deployable bundle)
+        run: pnpm --filter worker build:bundle
 
+      - name: Lint
+        run: pnpm lint
+        continue-on-error: false
   production-smoke:
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'

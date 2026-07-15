@@ -2,7 +2,7 @@
 
 import { useActionState } from 'react';
 import Link from 'next/link';
-import { Button } from '@loyala/ui';
+import { Button } from '@/components/ui/button';
 import { signupAction, type AuthActionState } from '../_actions/auth';
 
 const initial: AuthActionState = {};

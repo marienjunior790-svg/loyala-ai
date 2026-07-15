@@ -10,6 +10,7 @@ vi.mock('@loyala/domain-crm', async (importOriginal) => {
       skipped: 0,
       sessionsUpdated: 1,
       clientsMatched: 1,
+      matched: [],
     })),
   };
 });
