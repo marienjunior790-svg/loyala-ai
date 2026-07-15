@@ -1,69 +1,74 @@
 # Meta WhatsApp templates — Loyala platform (Phase 3)
 
-Templates marketing FR pour campagnes business-initiated. Le worker mappe le **message IA** vers les variables `{{1}}`, `{{2}}`, `{{3}}`.
+Templates marketing FR pour campagnes business-initiated. Le worker mappe le **message IA** vers les variables template.
 
-## Catalogue
+## Catalogue (corps actuels — `scripts/data/meta-whatsapp-templates.json`)
 
-| Nom Meta | Intent | Corps |
-|----------|--------|-------|
-| `loyala_birthday_v1` | birthday | Bonjour {{1}}, {{2}} 🎉 — {{3}} |
-| `loyala_inactive_v1` | inactive | Bonjour {{1}}. {{2}} À bientôt chez {{3}} |
-| `loyala_loyalty_v1` | loyalty | Bonjour {{1}}, {{2}} — {{3}} |
-| `loyala_promo_v1` | promo | {{1}} : {{2}}. {{3}} |
+| Nom Meta | Intent | Langue | Variables |
+|----------|--------|--------|-----------|
+| `loyala_birthday_v1` | birthday | `fr` | `{{1}}` nom, `{{2}}` offre |
+| `loyala_inactive_v1` | inactive | `fr` | `{{1}}` nom, `{{2}}` message |
+| `loyala_loyalty_v1` | loyalty | `fr` | `{{1}}` nom, `{{2}}` points |
+| `loyala_promo_v1` | promo | `fr` | `{{1}}` civilité, `{{2}}` promo |
 
-Définitions JSON : `scripts/data/meta-whatsapp-templates.json`
+## État (P1 — 2026-07-15)
+
+| Couche | État |
+|--------|------|
+| Soumis Meta | Oui (4/4) — dernière vérification : **PENDING** |
+| DB `message_template_catalog` | `pending_approval` (4/4) |
+| Token ops `WHATSAPP_ACCESS_TOKEN` | **Expiré** (USER token ~24h) — renouveler System User permanent |
+| Mode compte | Test number + `biz_verify=not_verified` — Option B Live en cours |
+
+Tant que Meta est PENDING : le worker utilise le **catalogue code** en fallback + `hello_world` pour les pilotes.
 
 ## Procédure
 
-### 1. Appliquer migration 024
+### 1. Migration 024 (+ 025 sécurité)
 
 ```bash
 node scripts/apply-migration-file.mjs 024_message_template_catalog.sql
-pnpm db:verify-024
+node scripts/verify-024-message-template-catalog.mjs
 ```
 
-Les seeds sont en `pending_approval`. Le worker utilise le **catalogue code** en fallback jusqu'à approbation DB.
-
-### 2. Soumettre à Meta
+### 2. Soumettre / re-vérifier Meta
 
 ```bash
-export WHATSAPP_ACCESS_TOKEN="EAA..."
-export WHATSAPP_BUSINESS_ACCOUNT_ID="123456789"
+# Depuis .env.ops.local (token permanent recommandé)
 node scripts/submit-meta-whatsapp-templates.mjs
+node scripts/check-meta-template-status.mjs
+node scripts/check-meta-production-readiness.mjs
 ```
-
-Suivre l'approbation dans **Meta Business Manager → WhatsApp → Message templates** (souvent 24–48 h).
 
 ### 3. Marquer approuvé en base
 
 Quand Meta affiche **Approved** :
 
 ```bash
-export DATABASE_URL="postgresql://..."
 node scripts/mark-meta-templates-approved.mjs
-# ou une sélection :
+# ou sélection :
 node scripts/mark-meta-templates-approved.mjs loyala_inactive_v1 loyala_birthday_v1
 ```
 
-Le worker charge alors le catalogue depuis `message_template_catalog` (status `approved`).
-
-### 4. Pilote technique `hello_world`
-
-Toujours supporté pour tests sans templates Loyala :
+### 4. Pilote technique
 
 ```bash
-WHATSAPP_CAMPAIGN_TEMPLATE_NAME=hello_world
+# hello_world (toujours dispo en sandbox si destinataire allow-listé)
+node scripts/whatsapp-pilot-send.mjs
+
+# après approval :
+# TEMPLATE_NAME=loyala_inactive_v1 TEMPLATE_LANG=fr node scripts/whatsapp-pilot-send.mjs
 ```
 
 ## Vérification E2E
 
-1. Client test avec `opt_in_whatsapp` + anniversaire ou campagne inactive
-2. `WHATSAPP_TEST_CLIENT_ID` configuré sur Railway
-3. Auto-send Inngest → logs `deliveryMode: api_template` + `templateName: loyala_inactive_v1`
-4. Webhook Meta → `whatsapp_messages.status` delivered/read
+1. Client test `opt_in_whatsapp` + `WHATSAPP_TEST_CLIENT_ID` sur Railway  
+2. Auto-send → `deliveryMode: api_template`  
+3. Webhook → `whatsapp_messages.status` delivered/read  
+4. UI `/relances` → badges Envoyé / Remis / Lu  
 
 ## Références
 
-- ADR-010 Phase 3
-- `packages/messaging/src/template-mapper.ts` — slot extraction (heuristique)
+- ADR-010 Phase 3  
+- `packages/messaging/src/template-mapper.ts`  
 - Meta : [Message Templates](https://developers.facebook.com/docs/whatsapp/business-management-api/message-templates)

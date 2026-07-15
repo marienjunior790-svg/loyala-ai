@@ -15,7 +15,15 @@ interface Bucket {
   resetAt: number;
 }
 
+const UPSTASH_TIMEOUT_MS = 3000;
 const memoryBuckets = new Map<string, Bucket>();
+
+export function isUpstashConfigured(): boolean {
+  return Boolean(
+    process.env.UPSTASH_REDIS_REST_URL?.trim() &&
+      process.env.UPSTASH_REDIS_REST_TOKEN?.trim()
+  );
+}
 
 function memoryRateLimit(
   key: string,
@@ -41,29 +49,52 @@ function memoryRateLimit(
   };
 }
 
+function upstashBaseUrl(): string | null {
+  const raw = process.env.UPSTASH_REDIS_REST_URL?.trim();
+  if (!raw) return null;
+  return raw.replace(/\/$/, '');
+}
+
+async function upstashRest(
+  command: string,
+  ...args: string[]
+): Promise<{ ok: true; value: string } | { ok: false; status?: number }> {
+  const baseUrl = upstashBaseUrl();
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN?.trim();
+  if (!baseUrl || !token) return { ok: false };
+
+  const path = [command, ...args.map((arg) => encodeURIComponent(arg))].join('/');
+  try {
+    const res = await fetch(`${baseUrl}/${path}`, {
+      headers: { Authorization: `Bearer ${token}` },
+      signal: AbortSignal.timeout(UPSTASH_TIMEOUT_MS),
+    });
+    if (!res.ok) return { ok: false, status: res.status };
+    return { ok: true, value: await res.text() };
+  } catch {
+    return { ok: false };
+  }
+}
+
 async function upstashRateLimit(
   key: string,
   limit: number,
   windowSec: number
-): Promise<RateLimitResult | null> {
-  const url = process.env.UPSTASH_REDIS_REST_URL;
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
-  if (!url || !token) return null;
+): Promise<RateLimitResult | 'error' | null> {
+  if (!isUpstashConfigured()) return null;
 
   const windowMs = windowSec * 1000;
   const now = Date.now();
   const bucketKey = `rl:${key}:${Math.floor(now / windowMs)}`;
 
-  const incrRes = await fetch(`${url}/incr/${encodeURIComponent(bucketKey)}`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  if (!incrRes.ok) return null;
+  const incrRes = await upstashRest('incr', bucketKey);
+  if (!incrRes.ok) return 'error';
 
-  const count = Number(await incrRes.text());
+  const count = Number(incrRes.value);
+  if (!Number.isFinite(count)) return 'error';
+
   if (count === 1) {
-    await fetch(`${url}/expire/${encodeURIComponent(bucketKey)}/${windowSec}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    await upstashRest('expire', bucketKey, String(windowSec));
   }
 
   const resetAt = (Math.floor(now / windowMs) + 1) * windowMs;
@@ -72,6 +103,17 @@ async function upstashRateLimit(
     limit,
     remaining: Math.max(0, limit - count),
     resetAt,
+  };
+}
+
+/** Fail-open when Redis is configured but unreachable (avoid per-replica memory drift). */
+function failOpenRateLimit(limit: number, windowSec: number): RateLimitResult {
+  const windowMs = windowSec * 1000;
+  return {
+    ok: true,
+    limit,
+    remaining: limit,
+    resetAt: Date.now() + windowMs,
   };
 }
 
@@ -84,9 +126,16 @@ export async function checkRateLimit(
   const windowMs = windowSec * 1000;
 
   const upstash = await upstashRateLimit(identifier, limit, windowSec);
-  if (upstash) return upstash;
+  if (upstash && upstash !== 'error') return upstash;
 
-  if (process.env.NODE_ENV === 'production' && !process.env.UPSTASH_REDIS_REST_URL) {
+  if (upstash === 'error') {
+    console.error(
+      '[rate-limit] Upstash request failed — allowing request (fail-open, no per-replica fallback)'
+    );
+    return failOpenRateLimit(limit, windowSec);
+  }
+
+  if (process.env.NODE_ENV === 'production' && !isUpstashConfigured()) {
     console.warn('[rate-limit] UPSTASH not configured — using in-memory (not safe at scale)');
   }
 

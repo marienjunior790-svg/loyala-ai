@@ -4,9 +4,12 @@
     "language": "fr",
     "category": "MARKETING",
     "intent": "birthday",
-    "body": "Bonjour {{1}}, {{2}} 🎉 — {{3}}",
+    "body": "Bonjour {{1}}, {{2}} — Toute l'équipe vous souhaite une belle journée.",
     "bodyExamples": [
-      ["Marie", "Joyeux anniversaire ! Nous vous offrons 15% cette semaine.", "Restaurant Soleil"]
+      [
+        "Marie",
+        "joyeux anniversaire ! Profitez de 15% cette semaine au Restaurant Soleil"
+      ]
     ]
   },
   {
@@ -14,9 +17,12 @@
     "language": "fr",
     "category": "MARKETING",
     "intent": "inactive",
-    "body": "Bonjour {{1}}. {{2}} À bientôt chez {{3}}",
+    "body": "Bonjour {{1}}, {{2}} — Nous serions ravis de vous revoir bientôt.",
     "bodyExamples": [
-      ["Marie", "Cette semaine nous vous offrons un dessert.", "Restaurant Soleil"]
+      [
+        "Marie",
+        "cela fait un moment ! Passez cette semaine et profitez d'un dessert offert"
+      ]
     ]
   },
   {
@@ -24,9 +30,12 @@
     "language": "fr",
     "category": "MARKETING",
     "intent": "loyalty",
-    "body": "Bonjour {{1}}, {{2}} — {{3}}",
+    "body": "Bonjour {{1}}, {{2}} — Merci pour votre fidélité.",
     "bodyExamples": [
-      ["Jean", "Vous avez 120 points fidélité à utiliser.", "Le Bistrot"]
+      [
+        "Jean",
+        "vous avez 120 points à utiliser au Bistrot"
+      ]
     ]
   },
   {
@@ -34,9 +43,12 @@
     "language": "fr",
     "category": "MARKETING",
     "intent": "promo",
-    "body": "{{1}} : {{2}}. {{3}}",
+    "body": "Bonjour {{1}}, {{2}} — Réservez vite, places limitées.",
     "bodyExamples": [
-      ["Restaurant Soleil", "Menu déjeuner à 5 000 XOF ce vendredi.", "Réservez vite !"]
+      [
+        "cher client",
+        "menu déjeuner à 5 000 XOF ce vendredi au Restaurant Soleil"
+      ]
     ]
   }
 ]

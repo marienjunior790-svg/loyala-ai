@@ -83,7 +83,10 @@ for (const def of templates) {
     console.log(`✅ ${def.name} — submitted (id: ${result.json.id ?? 'pending review'})`);
   } else {
     failed += 1;
-    const err = result.json?.error?.message ?? JSON.stringify(result.json).slice(0, 200);
+    const err =
+      result.json?.error?.error_user_msg ??
+      result.json?.error?.message ??
+      JSON.stringify(result.json).slice(0, 400);
     console.log(`❌ ${def.name} — HTTP ${result.status}: ${err}`);
   }
 }

@@ -11,7 +11,7 @@ Cocher chaque item avant ouverture aux clients payants.
 - [ ] Vercel projet web connecté au repo `main`
 - [ ] Worker déployé (Railway/Fly) avec domaine HTTPS
 - [ ] Inngest configuré → URL worker `/api/inngest`
-- [ ] Upstash Redis créé (rate limiting prod)
+- [ ] Upstash Redis créé + vars sur Vercel (`node scripts/verify-upstash-rate-limit.mjs`)
 
 ## 2. Secrets & variables
 
@@ -22,6 +22,7 @@ Cocher chaque item avant ouverture aux clients payants.
 - [ ] `OPENAI_API_KEY` + `ANTHROPIC_API_KEY` actifs
 - [ ] `INNGEST_EVENT_KEY` + `INNGEST_SIGNING_KEY` prod
 - [ ] `AI_ALLOW_MOCK=false` en production
+- [ ] `AUTH_DEBUG=0` (ou variable absente) en production Vercel
 - [ ] Preview/staging : secrets séparés de prod
 
 ## 3. Sécurité

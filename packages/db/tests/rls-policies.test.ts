@@ -39,4 +39,19 @@ describe('RLS policies (static)', () => {
     expect(migration010).toContain('user_id = auth.uid()');
     expect(migration010).toContain('get_my_active_membership');
   });
+
+  it('ai_request_logs uses public.user_org_ids() (025)', () => {
+    const migration025 = readMigration('025_p0_security_fixes.sql');
+    expect(migration025).toContain('CREATE POLICY ai_logs_select ON ai_request_logs');
+    expect(migration025).toMatch(
+      /organization_id IN \(SELECT public\.user_org_ids\(\)\)/
+    );
+  });
+
+  it('org-assets storage scoped per organization folder (025)', () => {
+    const migration025 = readMigration('025_p0_security_fixes.sql');
+    expect(migration025).toContain('org_assets_insert');
+    expect(migration025).toContain('storage.foldername(name)');
+    expect(migration025).toContain('public.user_org_ids()');
+  });
 });

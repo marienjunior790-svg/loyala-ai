@@ -3,6 +3,7 @@ import { getAuthContext, getSession } from './session';
 import { hasPermission, type AuthContext, type Permission } from '@loyala/core-iam';
 import { normalizeOrgRole } from './role-map';
 import { authDebug } from './debug';
+import { canReadClients, canWriteClients } from './clients-access';
 
 function withSafeContext(ctx: AuthContext): AuthContext {
   return {
@@ -55,10 +56,9 @@ export async function requireAuthPermission(permission: Permission): Promise<Aut
   const ctx = await requireAuth();
   const hasMembership = Boolean(ctx.organizationId);
   const roleGranted = hasPermission(ctx, permission);
-  const clientsReadGranted =
-    permission === 'clients:read' && hasMembership && ctx.userId;
-  const clientsWriteGranted =
-    permission === 'clients:write' && hasMembership && ctx.userId;
+  // Formalized MVP bypass — see clients-access.ts + CRM_MVP_CLIENTS_BYPASS
+  const clientsReadGranted = permission === 'clients:read' && canReadClients(ctx);
+  const clientsWriteGranted = permission === 'clients:write' && canWriteClients(ctx);
 
   authDebug('requireAuthPermission', {
     userId: ctx.userId,
