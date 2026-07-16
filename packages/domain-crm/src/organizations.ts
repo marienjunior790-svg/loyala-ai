@@ -33,7 +33,7 @@ function normalizeOrganization(row: Record<string, unknown>): Organization {
     country_code: String(row.country_code ?? 'SN'),
     timezone: String(row.timezone ?? 'Africa/Dakar'),
     currency: String(row.currency ?? 'XOF'),
-    plan: String(row.plan ?? 'starter'),
+    plan: String(row.plan ?? 'trial'),
     plan_status: String(row.plan_status ?? 'trialing'),
     settings: (row.settings as Record<string, unknown>) ?? {},
   };

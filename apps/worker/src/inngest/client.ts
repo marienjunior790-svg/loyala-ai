@@ -25,6 +25,8 @@ export const INNGEST_EVENTS = {
   SCHEDULED_RUN: 'loyala/campaign.scheduled.run',
   /** Bridge from domain_events audit → async consumers */
   DOMAIN_EVENT: 'loyala/domain.event',
+  BILLING_PAYMENT_POLL: 'loyala/billing.payment.poll',
+  BILLING_RENEWAL: 'loyala/billing.renewal',
 } as const;
 
 export function isInngestConfigured(): boolean {

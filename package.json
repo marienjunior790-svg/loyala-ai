@@ -25,6 +25,8 @@
     "db:apply-024": "node scripts/apply-migration-file.mjs 024_message_template_catalog.sql",
     "db:apply-026": "node scripts/apply-026-domain-events.mjs",
     "db:apply-027": "node scripts/apply-027-admin-campaigns.mjs",
+    "db:apply-028": "node scripts/apply-028-unify-plans.mjs",
+    "db:apply-029": "node scripts/apply-029-openpay-billing.mjs",
     "db:apply-phase1-whatsapp": "node scripts/apply-phase1-whatsapp-migrations.mjs",
     "ops:phase1": "node scripts/run-phase1-ops.mjs",
     "db:audit-schema": "node scripts/audit-prod-schema.mjs",
@@ -46,6 +48,8 @@
     "inngest:test-cloud": "node scripts/test-inngest-keys-cloud.mjs",
     "inngest:diagnose": "node scripts/diagnose-inngest.mjs",
     "verify:prod": "node scripts/verify-production.mjs",
+    "deploy:web": "node scripts/deploy-vercel-web.mjs",
+    "deploy:web:verify": "node scripts/deploy-vercel-web.mjs --verify",
     "check:migrations": "node scripts/check-migrations.mjs"
   },
   "devDependencies": {

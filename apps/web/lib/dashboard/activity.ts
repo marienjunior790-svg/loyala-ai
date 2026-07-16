@@ -13,6 +13,9 @@ const EVENT_LABELS: Record<string, { title: string; type: ActivityItem['type'] }
   'campaign.scheduled': { title: 'Campagne planifiée', type: 'campaign' },
   'campaign.send.requested': { title: 'Envoi campagne demandé', type: 'campaign' },
   'message.received': { title: 'Message WhatsApp reçu', type: 'campaign' },
+  'subscription.updated': { title: 'Abonnement mis à jour', type: 'client' },
+  'payment.succeeded': { title: 'Paiement réussi', type: 'client' },
+  'payment.failed': { title: 'Paiement échoué', type: 'client' },
 };
 
 function formatRelativeTime(iso: string): string {

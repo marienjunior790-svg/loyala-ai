@@ -12,6 +12,10 @@ import {
   handleWhatsAppWebhookPost,
   handleWhatsAppWebhookVerify,
 } from './whatsapp/webhook.js';
+import {
+  billingHealth,
+  handleBillingWebhookPost,
+} from './billing/routes.js';
 
 const env = validateWorkerEnvAtBoot();
 /** Railway injects PORT; local dev uses WORKER_PORT from env schema. */
@@ -30,6 +34,7 @@ function health() {
       fallback: env.AI_FALLBACK_PROVIDER,
     },
     whatsapp: whatsAppHealth(),
+    billing: billingHealth(),
   };
 }
 
@@ -79,6 +84,10 @@ const server = createServer(async (req, res) => {
           sendTest: 'POST /whatsapp/send-test',
           webhook: 'GET|POST /whatsapp/webhook',
         },
+        billing: {
+          health: 'GET /billing/health',
+          webhook: 'POST /billing/webhook',
+        },
       })
     );
     return;
@@ -87,6 +96,24 @@ const server = createServer(async (req, res) => {
   if (pathname === '/health' && req.method === 'GET') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify(health()));
+    return;
+  }
+
+  if (pathname === '/billing/health' && req.method === 'GET') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ ok: true, ...billingHealth() }));
+    return;
+  }
+
+  if (pathname === '/billing/webhook' && req.method === 'POST') {
+    const rawBody = await readRawBody(req);
+    const { status, data } = await handleBillingWebhookPost(rawBody, {
+      'x-openpay-signature': req.headers['x-openpay-signature'],
+      'x-openpay-webhook-signature': req.headers['x-openpay-webhook-signature'],
+      'x-signature': req.headers['x-signature'],
+    });
+    res.writeHead(status, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(data));
     return;
   }
 

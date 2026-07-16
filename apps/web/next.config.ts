@@ -20,6 +20,7 @@ const nextConfig: NextConfig = {
     '@loyala/core-iam',
     '@loyala/db',
     '@loyala/domain-crm',
+    '@loyala/domain-billing',
     '@loyala/events',
     '@loyala/validation',
     '@loyala/integrations',

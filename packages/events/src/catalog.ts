@@ -31,6 +31,9 @@ export const DOMAIN_EVENT_TYPES = [
   'campaign.send.requested',
   'campaign.scheduled',
   'message.received',
+  'subscription.updated',
+  'payment.succeeded',
+  'payment.failed',
 ] as const;
 
 export type DomainEventType = (typeof DOMAIN_EVENT_TYPES)[number];

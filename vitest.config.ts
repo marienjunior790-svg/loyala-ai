@@ -19,6 +19,7 @@ export default defineConfig({
       '@loyala/core-iam': resolve(__dirname, 'packages/core-iam/src'),
       '@loyala/db': resolve(__dirname, 'packages/db/src'),
       '@loyala/domain-crm': resolve(__dirname, 'packages/domain-crm/src'),
+      '@loyala/domain-billing': resolve(__dirname, 'packages/domain-billing/src'),
       '@loyala/events': resolve(__dirname, 'packages/events/src'),
       '@loyala/integrations': resolve(__dirname, 'packages/integrations/src'),
       '@loyala/messaging': resolve(__dirname, 'packages/messaging/src'),

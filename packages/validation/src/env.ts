@@ -21,9 +21,17 @@ export const sharedEnvSchema = z.object({
   RESEND_API_KEY: z.string().min(1).optional(),
   RESEND_FROM_EMAIL: z.string().min(1).optional(),
   BETTERSTACK_HEARTBEAT_URL: z.string().url().optional(),
-  STRIPE_SECRET_KEY: z.string().min(1).optional(),
   UPSTASH_REDIS_REST_URL: z.string().url().optional(),
   UPSTASH_REDIS_REST_TOKEN: z.string().min(1).optional(),
+  BILLING_PROVIDER: z.enum(['openpay_cg']).default('openpay_cg'),
+  BILLING_ENABLED: z
+    .enum(['true', 'false'])
+    .default('false')
+    .transform((v) => v === 'true'),
+  OPENPAY_API_KEY: z.string().min(1).optional(),
+  OPENPAY_API_BASE: z.string().url().default('https://api.openpay-cg.com/v1'),
+  OPENPAY_WEBHOOK_SECRET: z.string().min(1).optional(),
+  OPENPAY_STATUS_PATH: z.string().min(1).optional(),
 });
 
 export const webEnvSchema = sharedEnvSchema.extend({

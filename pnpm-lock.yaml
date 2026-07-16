@@ -47,6 +47,9 @@ importers:
       '@loyala/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@loyala/domain-billing':
+        specifier: workspace:*
+        version: link:../../packages/domain-billing
       '@loyala/domain-crm':
         specifier: workspace:*
         version: link:../../packages/domain-crm
@@ -129,6 +132,9 @@ importers:
       '@loyala/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@loyala/domain-billing':
+        specifier: workspace:*
+        version: link:../../packages/domain-billing
       '@loyala/domain-crm':
         specifier: workspace:*
         version: link:../../packages/domain-crm
@@ -198,6 +204,25 @@ importers:
       vitest:
         specifier: ^2.1.8
         version: 2.1.9(@types/node@22.20.0)
+
+  packages/domain-billing:
+    dependencies:
+      '@loyala/events':
+        specifier: workspace:*
+        version: link:../events
+      zod:
+        specifier: ^3.24.1
+        version: 3.25.76
+    devDependencies:
+      '@supabase/supabase-js':
+        specifier: ^2.49.1
+        version: 2.110.0
+      '@types/node':
+        specifier: ^22.10.5
+        version: 22.20.0
+      typescript:
+        specifier: ^5.7.2
+        version: 5.9.3
 
   packages/domain-crm:
     dependencies:

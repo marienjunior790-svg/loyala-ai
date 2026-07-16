@@ -17,6 +17,7 @@
     "@loyala/core-ai": "workspace:*",
     "@loyala/db": "workspace:*",
     "@loyala/domain-crm": "workspace:*",
+    "@loyala/domain-billing": "workspace:*",
     "@loyala/events": "workspace:*",
     "@loyala/integrations": "workspace:*",
     "@loyala/messaging": "workspace:*",

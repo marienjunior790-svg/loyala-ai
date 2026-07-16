@@ -128,10 +128,36 @@ export const domainEventConsumer = inngest.createFunction(
   }
 );
 
+export const billingPaymentPollJob = inngest.createFunction(
+  {
+    id: 'loyala-billing-payment-poll',
+    retries: 2,
+  },
+  { cron: '*/10 * * * *' },
+  async ({ step }) => {
+    const { pollPendingPayments } = await import('../billing/routes.js');
+    return step.run('poll-pending-payments', pollPendingPayments);
+  }
+);
+
+export const billingRenewalJob = inngest.createFunction(
+  {
+    id: 'loyala-billing-renewal',
+    retries: 2,
+  },
+  { cron: '0 9 * * *' },
+  async ({ step }) => {
+    const { runBillingRenewals } = await import('../billing/routes.js');
+    return step.run('mark-past-due-subscriptions', runBillingRenewals);
+  }
+);
+
 export const inngestFunctions = [
   dailyCampaignDispatcher,
   birthdayCampaignJob,
   inactiveRelaunchJob,
   scheduledCampaignExecutor,
   domainEventConsumer,
+  billingPaymentPollJob,
+  billingRenewalJob,
 ];

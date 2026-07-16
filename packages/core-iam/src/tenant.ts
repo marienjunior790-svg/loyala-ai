@@ -2,7 +2,7 @@
 export interface TenantContext {
   organizationId: string;
   organizationSlug: string;
-  plan: 'starter' | 'growth' | 'enterprise';
+  plan: 'trial' | 'growth' | 'pro';
   vertical: string;
 }
 
