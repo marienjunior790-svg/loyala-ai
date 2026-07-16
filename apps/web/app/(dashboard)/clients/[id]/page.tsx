@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
-import { ArrowLeft, Pencil } from 'lucide-react';
+import { ArrowLeft, History, Pencil } from 'lucide-react';
 import { requireAuthPermission } from '@/lib/auth/guard';
 import { canWriteClients, canDeleteClients } from '@/lib/auth/clients-access';
 import { createClient } from '@/lib/supabase/server';
@@ -67,23 +67,31 @@ export default async function ClientDetailPage({
           </div>
           <p className="mt-1 text-sm text-muted-foreground">{client.phone}</p>
         </div>
-        {canWrite && (
-          <div className="flex flex-wrap gap-2">
-            <RecordVisitDialog clientId={client.id} clientName={client.full_name} />
-            {client.opt_in_whatsapp && (
-              <WhatsAppRelaunchButton
-                phone={client.phone}
-                clientName={client.full_name}
-              />
-            )}
-            <Button variant="outline" asChild>
-              <Link href={`/clients/${client.id}/edit`}>
-                <Pencil className="h-4 w-4" />
-                Modifier
-              </Link>
-            </Button>
-          </div>
-        )}
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" asChild>
+            <Link href={`/clients/${client.id}/historique`}>
+              <History className="h-4 w-4" />
+              Historique CRM
+            </Link>
+          </Button>
+          {canWrite && (
+            <>
+              <RecordVisitDialog clientId={client.id} clientName={client.full_name} />
+              {client.opt_in_whatsapp && (
+                <WhatsAppRelaunchButton
+                  phone={client.phone}
+                  clientName={client.full_name}
+                />
+              )}
+              <Button variant="outline" asChild>
+                <Link href={`/clients/${client.id}/edit`}>
+                  <Pencil className="h-4 w-4" />
+                  Modifier
+                </Link>
+              </Button>
+            </>
+          )}
+        </div>
       </div>
 
       <Card>

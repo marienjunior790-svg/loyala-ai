@@ -14,3 +14,4 @@ export * from './whatsapp-webhook-inbound';
 export * from './conversation-sessions';
 export * from './message-template-catalog';
 export * from './visits';
+export * from './client-history';

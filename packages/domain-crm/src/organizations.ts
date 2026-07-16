@@ -126,7 +126,7 @@ export async function updateOrganization(
       .single();
 
     if (!error && data) {
-      return normalizeOrganization(data as Record<string, unknown>);
+      return normalizeOrganization(data as unknown as Record<string, unknown>);
     }
     lastError = error?.message ?? 'update failed';
     if (error && !isMissingSchemaColumn(error.message)) {
