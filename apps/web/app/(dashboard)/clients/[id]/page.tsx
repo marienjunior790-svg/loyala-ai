@@ -4,11 +4,17 @@ import { ArrowLeft, History, Pencil } from 'lucide-react';
 import { requireAuthPermission } from '@/lib/auth/guard';
 import { canWriteClients, canDeleteClients } from '@/lib/auth/clients-access';
 import { createClient } from '@/lib/supabase/server';
-import { getClient, listClientVisits } from '@loyala/domain-crm';
+import {
+  getClient,
+  listClientPurchases,
+  listCatalogItems,
+  computeClientPurchaseInsights,
+} from '@loyala/domain-crm';
 import { DeleteClientButton } from './delete-client-button';
 import { WhatsAppRelaunchButton } from '@/components/clients/whatsapp-relaunch-button';
 import { RecordVisitDialog } from '@/components/clients/record-visit-dialog';
-import { ClientVisitsHistory } from '@/components/clients/client-visits-history';
+import { ClientHistorySection } from '@/components/clients/client-history-section';
+import { ClientCrmInsights } from '@/components/clients/client-crm-insights';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -46,7 +52,19 @@ export default async function ClientDetailPage({
 
   if (!client) notFound();
 
-  const visits = await listClientVisits(supabase, ctx.organizationId, id);
+  const [visits, catalogItems] = await Promise.all([
+    listClientPurchases(supabase, ctx.organizationId, id),
+    listCatalogItems(supabase, ctx.organizationId, { activeOnly: true }),
+  ]);
+  const insights = computeClientPurchaseInsights(visits);
+  const pickerItems = catalogItems.map((i) => ({
+    id: i.id,
+    name: i.name,
+    price: Number(i.price),
+    currency: i.currency,
+    type: i.type,
+    categoryName: i.catalog_categories?.name ?? null,
+  }));
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -76,7 +94,11 @@ export default async function ClientDetailPage({
           </Button>
           {canWrite && (
             <>
-              <RecordVisitDialog clientId={client.id} clientName={client.full_name} />
+              <RecordVisitDialog
+                clientId={client.id}
+                clientName={client.full_name}
+                catalogItems={pickerItems}
+              />
               {client.opt_in_whatsapp && (
                 <WhatsAppRelaunchButton
                   phone={client.phone}
@@ -133,10 +155,19 @@ export default async function ClientDetailPage({
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Historique des visites</CardTitle>
+          <CardTitle className="text-lg">Intelligence CRM</CardTitle>
         </CardHeader>
         <CardContent>
-          <ClientVisitsHistory
+          <ClientCrmInsights insights={insights} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Historique</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ClientHistorySection
             clientId={client.id}
             visits={visits}
             canWrite={canWrite}

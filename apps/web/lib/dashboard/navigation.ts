@@ -7,6 +7,7 @@ import {
   Send,
   Gift,
   Star,
+  Package,
   BarChart3,
   Bell,
   CreditCard,
@@ -25,6 +26,7 @@ export interface NavItem {
 export const mainNav: NavItem[] = [
   { label: 'Vue générale', href: '/dashboard', icon: LayoutDashboard, description: 'KPIs et activité', mobile: true },
   { label: 'Clients', href: '/clients', icon: Users, description: 'CRM contacts', mobile: true },
+  { label: 'Catalogue', href: '/catalogue', icon: Package, description: 'Produits et services', mobile: false },
   { label: 'Segments', href: '/segments', icon: PieChart, description: 'Répartition clients', mobile: false },
   { label: 'Relances', href: '/relances', icon: Send, description: 'Historique WhatsApp', mobile: true },
   { label: 'Campagnes', href: '/campaigns', icon: MessageCircle, description: 'Automations IA', mobile: true },

@@ -38,11 +38,23 @@ export async function recordVisitAction(
 ): Promise<VisitActionState> {
   const ctx = await requireAuthPermission('clients:write');
 
+  let items: unknown = undefined;
+  const itemsRaw = formData.get('itemsJson');
+  if (typeof itemsRaw === 'string' && itemsRaw.trim()) {
+    try {
+      const parsedItems = JSON.parse(itemsRaw);
+      if (Array.isArray(parsedItems) && parsedItems.length > 0) items = parsedItems;
+    } catch {
+      return { error: 'Lignes d\'achat invalides' };
+    }
+  }
+
   const parsed = recordVisitSchema.safeParse({
     clientId: formData.get('clientId'),
     visitedAt: formData.get('visitedAt'),
     amount: formData.get('amount') || undefined,
     notes: formData.get('notes') || undefined,
+    items,
   });
 
   if (!parsed.success) {

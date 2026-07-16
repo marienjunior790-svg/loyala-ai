@@ -64,6 +64,7 @@ const DETAIL_LABELS: Record<string, string> = {
   pointsDelta: 'Points',
   reason: 'Motif',
   rating: 'Note',
+  items: 'Achats',
   author: 'Auteur',
   content: 'Contenu',
   url: 'Lien',
@@ -76,8 +77,27 @@ const DETAIL_LABELS: Record<string, string> = {
   metadata: 'Métadonnées',
 };
 
+function formatFcfa(amount: number): string {
+  return `${Math.round(amount).toLocaleString('fr-FR')} FCFA`;
+}
+
+function isPurchaseItem(v: unknown): v is { name: string; quantity: number; lineTotal: number } {
+  return typeof v === 'object' && v != null && 'name' in v && 'quantity' in v;
+}
+
 function renderDetailValue(value: unknown): string {
   if (value == null || value === '') return '—';
+  if (Array.isArray(value)) {
+    if (value.length === 0) return '—';
+    if (value.every(isPurchaseItem)) {
+      const lines = value.map(
+        (i) => `• ${i.name} ×${Number(i.quantity)} — ${formatFcfa(Number(i.lineTotal))}`
+      );
+      const total = value.reduce((s, i) => s + Number(i.lineTotal), 0);
+      return `${lines.join('\n')}\nTotal : ${formatFcfa(total)}`;
+    }
+    return JSON.stringify(value, null, 2);
+  }
   if (typeof value === 'object') return JSON.stringify(value, null, 2);
   return String(value);
 }
@@ -215,7 +235,7 @@ export function ClientHistoryTimeline({ events }: ClientHistoryTimelineProps) {
 
             <div className="space-y-3 overflow-y-auto px-6 py-5">
               {Object.entries(selected.details)
-                .filter(([, value]) => value != null && value !== '')
+                .filter(([, value]) => value != null && value !== '' && !(Array.isArray(value) && value.length === 0))
                 .map(([key, value]) => (
                   <div key={key}>
                     <p className="text-xs uppercase tracking-wide text-muted-foreground">

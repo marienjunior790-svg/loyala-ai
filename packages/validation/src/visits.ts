@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { visitItemSchema } from './catalog';
 
 const optionalAmount = z
   .union([z.coerce.number().min(0, 'Montant invalide'), z.literal(''), z.undefined()])
@@ -9,6 +10,7 @@ export const recordVisitSchema = z.object({
   visitedAt: z.string().min(1, 'Date requise'),
   amount: optionalAmount,
   notes: z.string().max(500).optional().or(z.literal('')),
+  items: z.array(visitItemSchema).optional(),
 });
 
 export const recordExpenseSchema = z.object({

@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Client } from './clients';
-import { listClientVisits, type ClientVisit } from './visits';
+import { listClientPurchases, type ClientVisit, type ClientVisitWithItems } from './visits';
 
 /**
  * Unified per-client CRM timeline ("Historique CRM").
@@ -242,7 +242,7 @@ export function listClientDomainEvents(
 
 export interface BuildClientTimelineInput {
   client: Pick<Client, 'id' | 'full_name' | 'created_at' | 'notes'>;
-  visits?: ClientVisit[];
+  visits?: Array<ClientVisit & { items?: ClientVisitWithItems['items'] }>;
   messages?: ClientMessageRow[];
   campaignSends?: ClientCampaignSendRow[];
   loyalty?: ClientLoyaltyRow[];
@@ -352,20 +352,31 @@ export function buildClientTimeline(input: BuildClientTimelineInput): ClientTime
 
   for (const visit of input.visits ?? []) {
     const isExpense = visit.kind === 'expense';
+    const items = visit.items ?? [];
+    const itemsSummary = items.length
+      ? items.map((i) => `${i.name} ×${Number(i.quantity)}`).join(', ')
+      : null;
     events.push({
       id: `visit:${visit.id}`,
       category: 'purchase',
       icon: '🛍️',
       title: isExpense ? 'Dépense enregistrée' : 'Visite enregistrée',
       summary:
-        visit.amount != null && Number(visit.amount) > 0
+        itemsSummary ??
+        (visit.amount != null && Number(visit.amount) > 0
           ? formatXof(Number(visit.amount))
-          : visit.notes || (isExpense ? 'Dépense' : 'Visite'),
+          : visit.notes || (isExpense ? 'Dépense' : 'Visite')),
       timestamp: visit.visited_at,
       actor: actorLabel(visit.created_by, currentUserId),
       source: 'client_visits',
       details: {
         kind: visit.kind,
+        items: items.map((i) => ({
+          name: i.name,
+          quantity: Number(i.quantity),
+          unitPrice: Number(i.unit_price),
+          lineTotal: Number(i.line_total),
+        })),
         amount: visit.amount,
         notes: visit.notes,
         visitedAt: visit.visited_at,
@@ -497,7 +508,7 @@ export async function getClientHistory(
   currentUserId?: string | null
 ): Promise<ClientTimelineEvent[]> {
   const [visits, messages, campaignSends, loyalty, reviews, events] = await Promise.all([
-    listClientVisits(supabase, organizationId, client.id, 200),
+    listClientPurchases(supabase, organizationId, client.id, 200),
     listClientWhatsAppMessages(supabase, organizationId, client.id),
     listClientCampaignSends(supabase, organizationId, client.id),
     listClientLoyaltyTransactions(supabase, organizationId, client.id),
