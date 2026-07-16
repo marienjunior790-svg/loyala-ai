@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { getPlan, isPaidPlan, type MobileProvider, type PlanCode } from './plans.js';
+import { getPlan, isPaidPlan, type MobileProvider, type PlanCode } from './plans';
 
 const PENDING_TTL_MS = 15 * 60 * 1000;
 

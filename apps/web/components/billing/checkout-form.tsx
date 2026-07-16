@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import {
   startCheckoutAction,
   type CheckoutActionState,
-} from '../_actions/checkout';
+} from '@/app/(dashboard)/billing/_actions/checkout';
 
 const initial: CheckoutActionState = {};
 

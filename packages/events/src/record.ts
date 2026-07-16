@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { createEventEnvelope, isKnownDomainEventType } from './catalog.js';
+import { createEventEnvelope, isKnownDomainEventType } from './catalog';
 
 export interface RecordDomainEventParams {
   organizationId: string;

@@ -4,7 +4,7 @@ import {
   type OpenPayClientConfig,
   type OpenPayPaymentResult,
   type OpenPayStatusResult,
-} from './types.js';
+} from './types';
 
 const DEFAULT_BASE = 'https://api.openpay-cg.com/v1';
 

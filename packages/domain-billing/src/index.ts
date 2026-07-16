@@ -7,7 +7,7 @@ export {
   type BillingPlan,
   type PlanCode,
   type MobileProvider,
-} from './plans.js';
+} from './plans';
 
 export {
   startCheckout,
@@ -18,4 +18,4 @@ export {
   getActiveSubscription,
   type StartCheckoutParams,
   type StartCheckoutResult,
-} from './checkout.js';
+} from './checkout';

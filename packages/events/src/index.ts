@@ -7,10 +7,10 @@ export {
   type EventEnvelope,
   type DomainEventType,
   type P0EventType,
-} from './catalog.js';
+} from './catalog';
 
 export {
   recordDomainEvent,
   type RecordDomainEventParams,
   type RecordDomainEventResult,
-} from './record.js';
+} from './record';
