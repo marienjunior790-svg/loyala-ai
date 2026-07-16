@@ -30,7 +30,7 @@ export const dailyCampaignDispatcher = inngest.createFunction(
       'fan-out-inactive',
       orgs.map((org) => ({
         name: INNGEST_EVENTS.INACTIVE_RUN,
-        data: { organizationId: org.id, inactiveDays: 30 },
+        data: { organizationId: org.id, inactiveDays: 14 },
       }))
     );
 
@@ -83,7 +83,7 @@ export const inactiveRelaunchJob = inngest.createFunction(
     }
 
     const result = await step.run(`inactive-${organizationId}`, () =>
-      runInactiveRelaunchForOrg(organizationId, inactiveDays ?? 30)
+      runInactiveRelaunchForOrg(organizationId, inactiveDays ?? 14)
     );
 
     return result;

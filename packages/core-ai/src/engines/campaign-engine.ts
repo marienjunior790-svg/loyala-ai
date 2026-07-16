@@ -103,7 +103,7 @@ export class CampaignEngine {
 
   planLoyaltyRelances(
     clients: InactiveClient[],
-    inactiveDays = 30
+    inactiveDays = 14
   ): (InactiveClient & { daysInactive: number })[] {
     return detectInactiveClients(clients, { inactiveDaysThreshold: inactiveDays });
   }

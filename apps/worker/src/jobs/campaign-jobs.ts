@@ -87,7 +87,7 @@ export async function fetchBirthdayClientsToday(
 
 export async function fetchInactiveClientsForRelaunch(
   organizationId: string,
-  inactiveDays = 30
+  inactiveDays = 14
 ) {
   const admin = getWorkerAdminClient();
   const cutoff = new Date();
@@ -208,7 +208,7 @@ export async function runBirthdayCampaignForOrg(organizationId: string, restaura
   return { organizationId, campaigns, count: campaigns.length, campaignId, sendCount, autoSend };
 }
 
-export async function runInactiveRelaunchForOrg(organizationId: string, inactiveDays = 30) {
+export async function runInactiveRelaunchForOrg(organizationId: string, inactiveDays = 14) {
   const rawClients = await fetchInactiveClientsForRelaunch(organizationId, inactiveDays);
   const automation = createAutomationService(organizationId);
 

@@ -37,11 +37,11 @@ export class CampaignOrchestrator {
     );
   }
 
-  detectInactive(clients: InactiveClient[], inactiveDays = 30) {
+  detectInactive(clients: InactiveClient[], inactiveDays = 14) {
     return detectInactiveClients(clients, { inactiveDaysThreshold: inactiveDays });
   }
 
-  planLoyaltyRelances(inactive: InactiveClient[], inactiveDays = 30) {
+  planLoyaltyRelances(inactive: InactiveClient[], inactiveDays = 14) {
     return this.engine.planLoyaltyRelances(inactive, inactiveDays);
   }
 

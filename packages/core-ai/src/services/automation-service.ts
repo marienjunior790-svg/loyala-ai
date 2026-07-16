@@ -30,7 +30,7 @@ export class AutomationService {
   }
 
   /** 2. Détection inactifs */
-  detectInactive(clients: InactiveClient[], inactiveDays = 30) {
+  detectInactive(clients: InactiveClient[], inactiveDays = 14) {
     return this.campaigns.detectInactive(clients, inactiveDays);
   }
 
@@ -52,7 +52,7 @@ export class AutomationService {
     return this.campaigns.runLoyaltyBatch(clients);
   }
 
-  planLoyaltyFromInactive(inactive: InactiveClient[], inactiveDays = 30) {
+  planLoyaltyFromInactive(inactive: InactiveClient[], inactiveDays = 14) {
     return this.campaigns.planLoyaltyRelances(inactive, inactiveDays);
   }
 

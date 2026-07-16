@@ -4,6 +4,7 @@ import {
   countCampaignSends,
   finalizeScheduledCampaignExecution,
   getScheduledCampaignForExecution,
+  INACTIVE_DAYS_THRESHOLD,
   isCampaignDue,
   listDueScheduledCampaigns,
   markScheduledCampaignExecutionFailed,
@@ -193,7 +194,7 @@ async function executeScheduledCampaignWithAi(
         visitCount: c.visitCount,
         totalSpent: c.totalSpent,
       })),
-      30
+      INACTIVE_DAYS_THRESHOLD
     );
 
     const loyaltyClients = inactive

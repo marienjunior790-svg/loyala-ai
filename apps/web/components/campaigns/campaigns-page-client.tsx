@@ -165,7 +165,7 @@ export function CampaignsPageClient({
               <span className="text-sm font-medium">Relance inactifs — IA + WhatsApp</span>
             </div>
             <p className="text-sm text-muted-foreground">
-              Messages personnalisés pour clients inactifs (30+ jours). Envoi via Relances.
+              Messages personnalisés pour clients inactifs (14+ jours). Envoi via Relances.
             </p>
             <form action={inactiveAction}>
               <Button type="submit" disabled={inactivePending || !canWrite}>

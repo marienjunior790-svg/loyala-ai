@@ -134,7 +134,7 @@ export async function handleAIRoute(
 
       const clients = body.clients as Parameters<typeof automation.detectInactive>[0];
 
-      const days = (body.inactiveDays as number) ?? 30;
+      const days = (body.inactiveDays as number) ?? 14;
 
       return { status: 200, data: { inactive: automation.detectInactive(clients, days) } };
 

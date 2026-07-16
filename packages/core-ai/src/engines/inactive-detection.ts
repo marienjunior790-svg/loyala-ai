@@ -16,7 +16,7 @@ export interface InactiveDetectionConfig {
 }
 
 const DEFAULT_CONFIG: InactiveDetectionConfig = {
-  inactiveDaysThreshold: 30,
+  inactiveDaysThreshold: 14,
 };
 
 export function detectInactiveClients(

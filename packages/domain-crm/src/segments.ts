@@ -3,9 +3,9 @@ import type { Client } from './clients';
 
 /**
  * Seuil d'inactivité — aligné sur @loyala/core-ai detectInactiveClients
- * et apps/worker fetchInactiveClientsForRelaunch (30 jours).
+ * et apps/worker fetchInactiveClientsForRelaunch (14 jours).
  */
-export const INACTIVE_DAYS_THRESHOLD = 30;
+export const INACTIVE_DAYS_THRESHOLD = 14;
 
 export type ClientSegment = 'new' | 'regular' | 'vip' | 'inactive' | 'at_risk';
 

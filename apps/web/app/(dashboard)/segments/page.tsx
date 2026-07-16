@@ -38,7 +38,7 @@ export default async function SegmentsPage() {
         <div>
           <h2 className="text-2xl font-semibold tracking-tight">Segments</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Répartition calculée automatiquement (seuil inactivité 30 jours)
+            Répartition calculée automatiquement (seuil inactivité 14 jours)
           </p>
         </div>
         <SyncSegmentsButton />
