@@ -50,7 +50,7 @@ Réponds UNIQUEMENT en JSON: {"segment":"vip|regular|at_risk|new|dormant","confi
   },
   'client.inactive.analyze': {
     version: '1.0',
-    system: `${BASE_SYSTEM} Tu analyses les clients inactifs pour relance.`,
+    system: `${BASE_SYSTEM} Tu analyses les clients inactifs pour relance. Personnalise le message avec le produit/catégorie préféré du client s'il est fourni, et propose une urgence plus élevée pour les clients VIP.`,
     userTemplate: `Client inactif depuis {{daysInactive}} jours:
 {{payload}}
 JSON: {"urgency":"low|medium|high","winBackMessage":"max 160 chars","channel":"whatsapp|sms|email"}`,
@@ -60,10 +60,11 @@ JSON: {"urgency":"low|medium|high","winBackMessage":"max 160 chars","channel":"w
   },
   'campaign.birthday.generate': {
     version: '1.0',
-    system: `${BASE_SYSTEM} Tu rédiges des messages anniversaire WhatsApp courts et chaleureux.`,
+    system: `${BASE_SYSTEM} Tu rédiges des messages anniversaire WhatsApp courts et chaleureux. Si un produit ou une catégorie préféré est fourni, mentionne-le subtilement pour personnaliser.`,
     userTemplate: `Restaurant: {{restaurantName}}
 Client: {{clientName}}
 Offre: {{offer}}
+Historique: {{insights}}
 JSON: {"message":"max 300 chars","emoji":"1 emoji","sendWindow":"matin|midi|soir"}`,
     maxTokens: 200,
     temperature: 0.5,
@@ -71,8 +72,9 @@ JSON: {"message":"max 300 chars","emoji":"1 emoji","sendWindow":"matin|midi|soir
   },
   'campaign.loyalty.generate': {
     version: '1.0',
-    system: `${BASE_SYSTEM} Tu crées des relances fidélité personnalisées.`,
+    system: `${BASE_SYSTEM} Tu crées des relances fidélité personnalisées. Utilise le produit/catégorie préféré pour recommander, et valorise les clients VIP.`,
     userTemplate: `Client: {{clientName}}, points: {{points}}, dernière visite: {{lastVisit}}
+Historique: {{insights}}
 JSON: {"message":"max 300 chars","incentive":"string","urgency":"low|medium|high"}`,
     maxTokens: 220,
     temperature: 0.4,

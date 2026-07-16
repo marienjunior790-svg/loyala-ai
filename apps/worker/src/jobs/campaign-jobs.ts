@@ -1,14 +1,62 @@
 import {
   persistCampaignPlans,
   listOrgNotifyUserIds,
+  getClientsPurchaseInsights,
   type CampaignPlanPayload,
+  type ClientPurchaseInsights,
 } from '@loyala/domain-crm';
 import { notifyCampaignReadyByEmail } from '@loyala/integrations';
 import { logStructured } from '@loyala/integrations';
 import { createAutomationService } from '@loyala/core-ai';
 import { getWorkerAdminClient } from '../supabase.js';
 import { autoSendCampaignForTestClient } from './whatsapp-auto-send.js';
-import type { BirthdayClient } from '@loyala/core-ai';
+import type { BirthdayClient, ClientInsightSummary } from '@loyala/core-ai';
+
+function toInsightSummary(i: ClientPurchaseInsights): ClientInsightSummary {
+  return {
+    favoriteProduct: i.favoriteProduct?.name ?? null,
+    favoriteCategory: i.favoriteCategory?.name ?? null,
+    averageBasket: i.averageBasket,
+    totalSpent: i.totalSpent,
+    bestMonth: i.bestMonth?.month ?? null,
+    isVip: i.isVipCandidate,
+  };
+}
+
+/**
+ * Attaches per-client CRM purchase insights (favorite product/category, VIP,
+ * average basket, best month) so AI relance prompts can personalize.
+ * Fails soft: on any error, returns the clients unchanged.
+ */
+export async function enrichWithInsights<T extends { clientId: string }>(
+  organizationId: string,
+  clients: T[]
+): Promise<(T & { insights?: ClientInsightSummary })[]> {
+  if (clients.length === 0) return clients;
+  try {
+    const admin = getWorkerAdminClient();
+    const map = await getClientsPurchaseInsights(
+      admin,
+      organizationId,
+      clients.map((c) => c.clientId)
+    );
+    return clients.map((c) => {
+      const insights = map.get(c.clientId);
+      return insights ? { ...c, insights: toInsightSummary(insights) } : c;
+    });
+  } catch (error) {
+    logStructured({
+      level: 'warn',
+      service: 'worker',
+      message: 'enrichWithInsights failed, sending without insights',
+      context: {
+        organizationId,
+        error: error instanceof Error ? error.message : String(error),
+      },
+    });
+    return clients;
+  }
+}
 
 export interface BirthdayClientRow extends BirthdayClient {
   phone: string;
@@ -164,7 +212,8 @@ export async function runBirthdayCampaignForOrg(organizationId: string, restaura
   }
 
   const automation = createAutomationService(organizationId);
-  const campaigns = await automation.runBirthdayCampaigns(clients, restaurantName);
+  const enrichedClients = await enrichWithInsights(organizationId, clients);
+  const campaigns = await automation.runBirthdayCampaigns(enrichedClients, restaurantName);
 
   const admin = getWorkerAdminClient();
   const { campaignId, sendCount } = await persistCampaignPlans(admin, {
@@ -244,7 +293,8 @@ export async function runInactiveRelaunchForOrg(organizationId: string, inactive
     return { organizationId, campaigns: [], skipped: true, reason: 'no_opted_in_clients' };
   }
 
-  const campaigns = await automation.runLoyaltyRelances(loyaltyClients);
+  const enrichedLoyalty = await enrichWithInsights(organizationId, loyaltyClients);
+  const campaigns = await automation.runLoyaltyRelances(enrichedLoyalty);
 
   const admin = getWorkerAdminClient();
   const org = await admin

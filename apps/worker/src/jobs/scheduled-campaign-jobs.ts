@@ -19,6 +19,7 @@ import { getWorkerAdminClient } from '../supabase.js';
 import {
   fetchBirthdayClientsToday,
   fetchInactiveClientsForRelaunch,
+  enrichWithInsights,
 } from './campaign-jobs.js';
 import {
   autoSendCampaignForTestClient,
@@ -169,12 +170,16 @@ async function executeScheduledCampaignWithAi(
   if (campaign.type === 'birthday') {
     const rawClients = await fetchBirthdayClientsToday(campaign.organization_id);
     const eligible = rawClients.filter((c) => c.optInWhatsapp && c.phone);
-    plans = (await automation.runBirthdayCampaigns(
+    const birthdayClients = await enrichWithInsights(
+      campaign.organization_id,
       eligible.map((c) => ({
         clientId: c.clientId,
         fullName: c.fullName,
         birthday: c.birthday,
-      })),
+      }))
+    );
+    plans = (await automation.runBirthdayCampaigns(
+      birthdayClients,
       restaurantName
     )) as CampaignPlanPayload[];
     clientsForSends = eligible.map((c) => ({
@@ -209,7 +214,8 @@ async function executeScheduledCampaignWithAi(
         lastVisit: c.lastVisitAt ?? new Date(0).toISOString(),
       }));
 
-    plans = (await automation.runLoyaltyRelances(loyaltyClients)) as CampaignPlanPayload[];
+    const enrichedLoyalty = await enrichWithInsights(campaign.organization_id, loyaltyClients);
+    plans = (await automation.runLoyaltyRelances(enrichedLoyalty)) as CampaignPlanPayload[];
     clientsForSends = loyaltyClients.map((c) => {
       const raw = rawClients.find((r) => r.clientId === c.clientId)!;
       return {

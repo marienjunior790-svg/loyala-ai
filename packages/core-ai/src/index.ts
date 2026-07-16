@@ -121,3 +121,5 @@ export type {
 } from './pipeline/classificationPipeline';
 export type { TenantAIMetrics } from './observability/tenantMetrics';
 export type { BirthdayClient, LoyaltyClient, CampaignPlan } from './engines/campaign-engine';
+export { formatClientInsights } from './types/insights';
+export type { ClientInsightSummary } from './types/insights';

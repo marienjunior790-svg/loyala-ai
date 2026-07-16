@@ -309,3 +309,36 @@ export async function listClientPurchases(
   );
   return visits.map((v) => ({ ...v, items: itemsByVisit.get(v.id) ?? [] }));
 }
+
+/** Batch purchase history for several clients (2 queries total). */
+export async function listClientsPurchases(
+  supabase: SupabaseClient,
+  organizationId: string,
+  clientIds: string[]
+): Promise<Map<string, ClientVisitWithItems[]>> {
+  const result = new Map<string, ClientVisitWithItems[]>();
+  if (clientIds.length === 0) return result;
+
+  const { data, error } = await supabase
+    .from('client_visits')
+    .select('*')
+    .eq('organization_id', organizationId)
+    .in('client_id', clientIds)
+    .order('visited_at', { ascending: false });
+
+  if (error) throw new Error(error.message);
+
+  const visits = (data ?? []) as ClientVisit[];
+  const itemsByVisit = await listVisitItemsByVisitIds(
+    supabase,
+    organizationId,
+    visits.map((v) => v.id)
+  );
+
+  for (const v of visits) {
+    const list = result.get(v.client_id) ?? [];
+    list.push({ ...v, items: itemsByVisit.get(v.id) ?? [] });
+    result.set(v.client_id, list);
+  }
+  return result;
+}

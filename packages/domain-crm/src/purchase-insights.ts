@@ -1,4 +1,5 @@
-import type { ClientVisitWithItems, VisitItem } from './visits';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import { listClientsPurchases, type ClientVisitWithItems, type VisitItem } from './visits';
 
 export interface ClientPurchaseInsights {
   totalSpent: number;
@@ -104,4 +105,18 @@ export function computeClientPurchaseInsights(
     bestMonth,
     isVipCandidate,
   };
+}
+
+/** Fetch + compute purchase insights for several clients at once. */
+export async function getClientsPurchaseInsights(
+  supabase: SupabaseClient,
+  organizationId: string,
+  clientIds: string[]
+): Promise<Map<string, ClientPurchaseInsights>> {
+  const purchases = await listClientsPurchases(supabase, organizationId, clientIds);
+  const out = new Map<string, ClientPurchaseInsights>();
+  for (const id of clientIds) {
+    out.set(id, computeClientPurchaseInsights(purchases.get(id) ?? []));
+  }
+  return out;
 }

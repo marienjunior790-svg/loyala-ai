@@ -10,11 +10,13 @@ import type {
   PromotionSuggest,
 } from '../schemas/outputs';
 import { detectInactiveClients, type InactiveClient } from './inactive-detection';
+import { formatClientInsights, type ClientInsightSummary } from '../types/insights';
 
 export interface BirthdayClient {
   clientId: string;
   fullName: string;
   birthday: string;
+  insights?: ClientInsightSummary;
 }
 
 export interface LoyaltyClient {
@@ -22,6 +24,7 @@ export interface LoyaltyClient {
   fullName: string;
   loyaltyPoints: number;
   lastVisit: string;
+  insights?: ClientInsightSummary;
 }
 
 export interface CampaignPlan<T> {
@@ -46,6 +49,7 @@ export class CampaignEngine {
         clientName: client.fullName,
         restaurantName,
         offer,
+        insights: formatClientInsights(client.insights) || "Pas d'historique d'achat",
       },
       jsonSchema: birthdayCampaignSchema,
     });
@@ -66,6 +70,7 @@ export class CampaignEngine {
         clientName: client.fullName,
         points: String(client.loyaltyPoints),
         lastVisit: client.lastVisit,
+        insights: formatClientInsights(client.insights) || "Pas d'historique d'achat",
       },
       jsonSchema: loyaltyCampaignSchema,
     });

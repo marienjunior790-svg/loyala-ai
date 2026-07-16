@@ -1,6 +1,7 @@
 import { orchestrate } from '../orchestrator/orchestrate';
 import { inactiveAnalysisSchema } from '../schemas/outputs';
 import type { InactiveAnalysis } from '../schemas/outputs';
+import type { ClientInsightSummary } from '../types/insights';
 
 export interface InactiveClient {
   clientId: string;
@@ -9,6 +10,7 @@ export interface InactiveClient {
   lastVisitAt: string | null;
   visitCount: number;
   totalSpent: number;
+  insights?: ClientInsightSummary;
 }
 
 export interface InactiveDetectionConfig {
@@ -53,6 +55,11 @@ export async function analyzeInactiveClient(
         fullName: client.fullName,
         visitCount: client.visitCount,
         totalSpent: client.totalSpent,
+        favoriteProduct: client.insights?.favoriteProduct ?? null,
+        favoriteCategory: client.insights?.favoriteCategory ?? null,
+        averageBasket: client.insights?.averageBasket ?? null,
+        bestMonth: client.insights?.bestMonth ?? null,
+        isVip: client.insights?.isVip ?? false,
       }),
     },
     jsonSchema: inactiveAnalysisSchema,
