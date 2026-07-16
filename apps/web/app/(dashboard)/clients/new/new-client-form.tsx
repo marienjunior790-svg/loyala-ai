@@ -70,6 +70,17 @@ export function NewClientForm() {
             />
           </div>
           <div>
+            <label className="text-sm text-muted-foreground">Date de naissance</label>
+            <input
+              name="dateOfBirth"
+              type="date"
+              className="mt-1 w-full rounded-lg border border-input bg-background px-4 py-2.5 text-sm outline-none ring-offset-background focus:ring-2 focus:ring-ring"
+            />
+            <p className="mt-1 text-xs text-muted-foreground">
+              Active les campagnes anniversaire automatiques.
+            </p>
+          </div>
+          <div>
             <label className="text-sm text-muted-foreground">Notes</label>
             <textarea
               name="notes"

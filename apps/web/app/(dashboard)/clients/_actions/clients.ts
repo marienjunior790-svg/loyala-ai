@@ -31,6 +31,7 @@ export async function createClientAction(
     fullName: formData.get('fullName'),
     phone: formData.get('phone'),
     email: formData.get('email') || undefined,
+    dateOfBirth: formData.get('dateOfBirth') || undefined,
     optInWhatsapp: formData.get('optInWhatsapp') === 'on',
     notes: formData.get('notes') || undefined,
   });
@@ -85,6 +86,7 @@ export async function updateClientAction(
     fullName: formData.get('fullName') || undefined,
     phone: formData.get('phone') || undefined,
     email: formData.get('email') || undefined,
+    dateOfBirth: formData.get('dateOfBirth') || undefined,
     optInWhatsapp: formData.get('optInWhatsapp') === 'on',
     notes: formData.get('notes') || undefined,
   });

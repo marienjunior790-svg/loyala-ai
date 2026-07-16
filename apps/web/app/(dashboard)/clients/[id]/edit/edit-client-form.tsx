@@ -43,6 +43,18 @@ export function EditClientForm({ client }: { client: Client }) {
             />
           </div>
           <div>
+            <label className="text-sm text-muted-foreground">Date de naissance</label>
+            <input
+              name="dateOfBirth"
+              type="date"
+              defaultValue={client.date_of_birth ?? ''}
+              className={inputClass}
+            />
+            <p className="mt-1 text-xs text-muted-foreground">
+              Active les campagnes anniversaire automatiques.
+            </p>
+          </div>
+          <div>
             <label className="text-sm text-muted-foreground">Notes</label>
             <textarea
               name="notes"

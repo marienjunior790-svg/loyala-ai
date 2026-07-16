@@ -115,6 +115,10 @@ export default async function ClientDetailPage({
             <p className="mt-1 text-sm">{formatDateTime(client.last_visit_at)}</p>
           </div>
           <div>
+            <p className="text-xs text-muted-foreground">Date de naissance</p>
+            <p className="mt-1 text-sm">{formatDateTime(client.date_of_birth)}</p>
+          </div>
+          <div>
             <p className="text-xs text-muted-foreground">WhatsApp</p>
             <p className="mt-1 text-sm">{client.opt_in_whatsapp ? 'Opt-in' : 'Non opt-in'}</p>
           </div>

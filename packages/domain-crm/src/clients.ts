@@ -63,6 +63,7 @@ export async function createClient(
       full_name: input.fullName,
       phone: input.phone.replace(/\s/g, ''),
       email: input.email || null,
+      date_of_birth: input.dateOfBirth || null,
       opt_in_whatsapp: input.optInWhatsapp,
       notes: input.notes || null,
     })
@@ -83,6 +84,7 @@ export async function updateClient(
   if (input.fullName) payload.full_name = input.fullName;
   if (input.phone) payload.phone = input.phone.replace(/\s/g, '');
   if (input.email !== undefined) payload.email = input.email || null;
+  if (input.dateOfBirth !== undefined) payload.date_of_birth = input.dateOfBirth || null;
   if (input.optInWhatsapp !== undefined) payload.opt_in_whatsapp = input.optInWhatsapp;
   if (input.notes !== undefined) payload.notes = input.notes || null;
 
