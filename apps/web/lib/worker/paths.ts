@@ -11,6 +11,7 @@ export const WORKER_AI_PATHS = [
   'catalog/generate',
   'catalog/import',
   'catalog/variants',
+  'catalog/translate',
   'catalog/image',
   'inbox/reply',
   'inbox/classify',

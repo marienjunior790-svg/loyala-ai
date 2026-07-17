@@ -87,6 +87,46 @@ export const variantSuggestSchema = z.object({
     .default([]),
 });
 
+export const catalogTranslateItemSchema = z.object({
+  id: z.string().min(1).max(64),
+  name: z.string().min(1).max(160),
+  description: z.string().max(1000).optional().default(''),
+  options: z
+    .array(
+      z.object({
+        id: z.string().min(1).max(48),
+        name: z.string().min(1).max(80),
+        choices: z
+          .array(
+            z.object({
+              id: z.string().min(1).max(48),
+              label: z.string().min(1).max(80),
+            })
+          )
+          .max(40)
+          .default([]),
+      })
+    )
+    .max(20)
+    .optional()
+    .default([]),
+});
+
+export const catalogTranslateSchema = z.object({
+  locale: z.string().min(2).max(8),
+  categories: z
+    .array(
+      z.object({
+        id: z.string().min(1).max(64),
+        name: z.string().min(1).max(120),
+        description: z.string().max(500).optional().default(''),
+      })
+    )
+    .max(40)
+    .default([]),
+  items: z.array(catalogTranslateItemSchema).max(80).default([]),
+});
+
 export const promotionSuggestSchema = z.object({
   promotions: z.array(
     z.object({
@@ -122,5 +162,6 @@ export type CatalogGenerateItem = z.infer<typeof catalogGenerateItemSchema>;
 export type PromotionSuggest = z.infer<typeof promotionSuggestSchema>;
 export type VariantSuggest = z.infer<typeof variantSuggestSchema>;
 export type VariantSuggestGroup = z.infer<typeof variantSuggestGroupSchema>;
+export type CatalogTranslate = z.infer<typeof catalogTranslateSchema>;
 export type MessageClassification = z.infer<typeof messageClassifySchema>;
 export type AutoReply = z.infer<typeof autoReplySchema>;

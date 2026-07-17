@@ -16,12 +16,22 @@ import {
   Images,
   Loader2,
   Sparkles,
+  Languages,
+  Smartphone,
+  MessageSquare,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import type { CatalogCategory, CatalogItem, CatalogItemType, OptionGroup } from '@loyala/domain-crm';
-import { getItemOptions } from '@loyala/domain-crm';
+import type {
+  CatalogCategory,
+  CatalogItem,
+  CatalogItemType,
+  CatalogSettings,
+  CatalogVersion,
+  OptionGroup,
+} from '@loyala/domain-crm';
+import { computeCatalogQuality, getItemOptions } from '@loyala/domain-crm';
 import {
   createItemAction,
   updateItemAction,
@@ -35,9 +45,14 @@ import {
   searchFreeImagesAction,
   saveProductImageAction,
 } from '@/app/(dashboard)/catalogue/_actions/images';
+import { translateCatalogAction } from '@/app/(dashboard)/catalogue/_actions/translate';
 import { CatalogAiPanel } from '@/components/catalogue/catalog-ai-create';
 import { ProductImagePicker } from '@/components/catalogue/product-image-picker';
 import { CatalogOptionsEditor } from '@/components/catalogue/catalog-options-editor';
+import { CatalogQualityPanel } from '@/components/catalogue/catalog-quality-panel';
+import { CatalogMenuPreview } from '@/components/catalogue/catalog-menu-preview';
+import { CatalogPublishBar } from '@/components/catalogue/catalog-publish-bar';
+import { CatalogAssistantPanel } from '@/components/catalogue/catalog-assistant';
 
 type Tab = 'products' | 'services' | 'categories';
 
@@ -56,9 +71,11 @@ interface CatalogClientProps {
   categories: CatalogCategory[];
   items: CatalogItem[];
   canWrite: boolean;
+  settings: CatalogSettings;
+  versions: CatalogVersion[];
 }
 
-export function CatalogClient({ categories, items, canWrite }: CatalogClientProps) {
+export function CatalogClient({ categories, items, canWrite, settings, versions }: CatalogClientProps) {
   const router = useRouter();
   const [tab, setTab] = useState<Tab>('products');
   const [search, setSearch] = useState('');
@@ -71,6 +88,11 @@ export function CatalogClient({ categories, items, canWrite }: CatalogClientProp
   const [message, setMessage] = useState<{ kind: 'error' | 'success'; text: string } | null>(null);
   const [pickerItem, setPickerItem] = useState<CatalogItem | null>(null);
   const [batch, setBatch] = useState<{ total: number; done: number } | null>(null);
+  const [showPreview, setShowPreview] = useState(false);
+  const [assistantOpen, setAssistantOpen] = useState(false);
+  const [onlyNoPhoto, setOnlyNoPhoto] = useState(false);
+
+  const quality = useMemo(() => computeCatalogQuality(categories, items), [categories, items]);
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -78,13 +100,14 @@ export function CatalogClient({ categories, items, canWrite }: CatalogClientProp
       const matchesTab = tab === 'services' ? item.type === 'service' : item.type !== 'service';
       if (!matchesTab) return false;
       if (categoryFilter && item.category_id !== categoryFilter) return false;
+      if (onlyNoPhoto && item.photo_url) return false;
       if (term) {
         const hay = `${item.name} ${item.sku ?? ''} ${item.description ?? ''}`.toLowerCase();
         if (!hay.includes(term)) return false;
       }
       return true;
     });
-  }, [items, tab, categoryFilter, search]);
+  }, [items, tab, categoryFilter, search, onlyNoPhoto]);
 
   function run(fn: () => Promise<{ error?: string; success?: string }>) {
     startTransition(async () => {
@@ -161,6 +184,26 @@ export function CatalogClient({ categories, items, canWrite }: CatalogClientProp
     <div className="space-y-5">
       <CatalogAiPanel canWrite={canWrite} isEmpty={isEmpty} onManual={openNewItem} />
 
+      {!isEmpty && (
+        <>
+          <CatalogPublishBar
+            settings={settings}
+            versions={versions}
+            canWrite={canWrite}
+            onPreview={() => setShowPreview(true)}
+          />
+          <CatalogQualityPanel
+            report={quality}
+            onAction={(kind) => {
+              if (kind === 'missing_image') {
+                setOnlyNoPhoto(true);
+                setTab('products');
+              } else setAssistantOpen(true);
+            }}
+          />
+        </>
+      )}
+
       {message && (
         <div
           className={`rounded-lg border px-3 py-2 text-sm ${
@@ -195,207 +238,261 @@ export function CatalogClient({ categories, items, canWrite }: CatalogClientProp
             </button>
           );
         })}
+        <div className="ml-auto flex flex-wrap items-center gap-2">
+          {canWrite && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={pending}
+              onClick={() => {
+                if (
+                  confirm(
+                    'Traduire le catalogue en anglais (brouillon, sans remplacer le live) ?'
+                  )
+                ) {
+                  run(() => translateCatalogAction({ locale: 'en', replaceLive: false }));
+                }
+              }}
+            >
+              <Languages className="h-4 w-4" />
+              Traduire EN
+            </Button>
+          )}
+          <Button
+            type="button"
+            variant={showPreview ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setShowPreview((v) => !v)}
+          >
+            <Smartphone className="h-4 w-4" />
+            Aperçu QR
+          </Button>
+          <Button type="button" variant="outline" size="sm" onClick={() => setAssistantOpen(true)}>
+            <MessageSquare className="h-4 w-4" />
+            Assistant
+          </Button>
+        </div>
       </div>
 
-      {tab === 'categories' ? (
-        <CategoriesPanel
-          categories={categories}
-          canWrite={canWrite}
-          pending={pending}
-          onNew={() => {
-            setEditingCategory(null);
-            setCategoryDialogOpen(true);
-          }}
-          onEdit={(c) => {
-            setEditingCategory(c);
-            setCategoryDialogOpen(true);
-          }}
-          onDelete={(id) => {
-            if (confirm('Supprimer cette catégorie ? Les articles associés ne seront pas supprimés.')) {
-              run(() => deleteCategoryAction(id));
-            }
-          }}
-        />
-      ) : (
-        <>
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="relative flex-1 min-w-[200px]">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Rechercher un article, un SKU..."
-                className="pl-9"
-              />
-            </div>
-            <select
-              value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
-              className="rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
-            >
-              <option value="">Toutes les catégories</option>
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-            {canWrite && missingPhotoCount > 0 && (
-              <Button
-                type="button"
-                variant="outline"
-                onClick={illustrateMissing}
-                disabled={batch !== null || pending}
-                title="Rechercher automatiquement des images libres de droits"
-              >
-                {batch !== null ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Illustration {batch.done}/{batch.total}
-                  </>
-                ) : (
-                  <>
-                    <Images className="h-4 w-4" />
-                    Illustrer ({missingPhotoCount})
-                  </>
-                )}
-              </Button>
-            )}
-            {canWrite && (
-              <Button type="button" onClick={openNewItem}>
-                <Plus className="h-4 w-4" />
-                Ajouter
-              </Button>
-            )}
-          </div>
-
-          {batch !== null && (
-            <div className="h-1.5 w-full overflow-hidden rounded-full bg-secondary">
-              <div
-                className="h-full rounded-full bg-primary transition-all"
-                style={{ width: `${Math.round((batch.done / Math.max(batch.total, 1)) * 100)}%` }}
-              />
-            </div>
-          )}
-
-          {filtered.length === 0 ? (
-            <div className="rounded-lg border border-dashed border-border py-12 text-center text-sm text-muted-foreground">
-              Aucun {tab === 'services' ? 'service' : 'produit'} pour le moment.
-            </div>
+      <div className={showPreview ? 'grid gap-6 lg:grid-cols-[1fr_340px]' : ''}>
+        <div className="min-w-0 space-y-4">
+          {tab === 'categories' ? (
+            <CategoriesPanel
+              categories={categories}
+              canWrite={canWrite}
+              pending={pending}
+              onNew={() => {
+                setEditingCategory(null);
+                setCategoryDialogOpen(true);
+              }}
+              onEdit={(c) => {
+                setEditingCategory(c);
+                setCategoryDialogOpen(true);
+              }}
+              onDelete={(id) => {
+                if (confirm('Supprimer cette catégorie ? Les articles associés ne seront pas supprimés.')) {
+                  run(() => deleteCategoryAction(id));
+                }
+              }}
+            />
           ) : (
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {filtered.map((item) => (
-                <div
-                  key={item.id}
-                  className={`flex flex-col rounded-xl border border-border bg-background p-4 transition hover:border-primary/40 ${
-                    item.is_active ? '' : 'opacity-60'
-                  }`}
-                >
-                  <div className="relative mb-3 aspect-video overflow-hidden rounded-lg border border-border bg-secondary/30">
-                    {item.photo_url ? (
-                      <img
-                        src={item.photo_url}
-                        alt={item.name}
-                        loading="lazy"
-                        className="h-full w-full object-cover"
-                      />
-                    ) : (
-                      <div className="flex h-full w-full flex-col items-center justify-center gap-1 text-muted-foreground">
-                        <ImageIcon className="h-6 w-6" />
-                        <span className="text-[11px]">Sans image</span>
-                      </div>
-                    )}
-                    {canWrite && (
-                      <button
-                        type="button"
-                        onClick={() => setPickerItem(item)}
-                        className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-md bg-black/55 px-2 py-1 text-[11px] font-medium text-white backdrop-blur transition hover:bg-primary"
-                      >
-                        {item.photo_url ? (
-                          <>
-                            <Pencil className="h-3 w-3" /> Changer
-                          </>
-                        ) : (
-                          <>
-                            <Sparkles className="h-3 w-3" /> Ajouter
-                          </>
-                        )}
-                      </button>
-                    )}
-                  </div>
-
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="truncate font-medium">{item.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {item.catalog_categories?.name ?? 'Sans catégorie'}
-                      </p>
-                    </div>
-                    <Badge variant={item.is_active ? 'default' : 'secondary'}>
-                      {TYPE_LABELS[item.type]}
-                    </Badge>
-                  </div>
-
-                  {item.description && (
-                    <p className="mt-2 line-clamp-2 text-xs text-muted-foreground">{item.description}</p>
-                  )}
-
-                  {getItemOptions(item).length > 0 && (
-                    <div className="mt-2 flex flex-wrap gap-1">
-                      {getItemOptions(item).slice(0, 3).map((g) => (
-                        <span
-                          key={g.id}
-                          className="rounded-full bg-secondary px-2 py-0.5 text-[10px] text-muted-foreground"
-                        >
-                          {g.name}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-
-                  <div className="mt-3 flex items-center justify-between">
-                    <span className="text-lg font-semibold">{formatPrice(item.price, item.currency)}</span>
-                    {item.type === 'service' && item.duration_minutes ? (
-                      <span className="text-xs text-muted-foreground">{item.duration_minutes} min</span>
-                    ) : item.stock != null ? (
-                      <span className="text-xs text-muted-foreground">Stock : {item.stock}</span>
-                    ) : null}
-                  </div>
-
-                  {canWrite && (
-                    <div className="mt-4 flex items-center gap-1 border-t border-border pt-3">
-                      <Button variant="ghost" size="sm" onClick={() => openEditItem(item)}>
-                        <Pencil className="h-3.5 w-3.5" />
-                        Modifier
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        disabled={pending}
-                        onClick={() => run(() => toggleItemActiveAction(item.id, !item.is_active))}
-                        title={item.is_active ? 'Désactiver' : 'Activer'}
-                      >
-                        <Power className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        disabled={pending}
-                        onClick={() => {
-                          if (confirm('Supprimer cet article ?')) run(() => deleteItemAction(item.id));
-                        }}
-                        title="Supprimer"
-                      >
-                        <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                      </Button>
-                    </div>
-                  )}
+            <>
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="relative flex-1 min-w-[200px]">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Rechercher un article, un SKU..."
+                    className="pl-9"
+                  />
                 </div>
-              ))}
-            </div>
+                {onlyNoPhoto && (
+                  <button
+                    type="button"
+                    onClick={() => setOnlyNoPhoto(false)}
+                    className="inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/10 px-2.5 py-1 text-xs font-medium text-amber-200"
+                  >
+                    Sans photo
+                    <X className="h-3 w-3" />
+                  </button>
+                )}
+                <select
+                  value={categoryFilter}
+                  onChange={(e) => setCategoryFilter(e.target.value)}
+                  className="rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+                >
+                  <option value="">Toutes les catégories</option>
+                  {categories.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+                {canWrite && missingPhotoCount > 0 && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={illustrateMissing}
+                    disabled={batch !== null || pending}
+                    title="Rechercher automatiquement des images libres de droits"
+                  >
+                    {batch !== null ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Illustration {batch.done}/{batch.total}
+                      </>
+                    ) : (
+                      <>
+                        <Images className="h-4 w-4" />
+                        Illustrer ({missingPhotoCount})
+                      </>
+                    )}
+                  </Button>
+                )}
+                {canWrite && (
+                  <Button type="button" onClick={openNewItem}>
+                    <Plus className="h-4 w-4" />
+                    Ajouter
+                  </Button>
+                )}
+              </div>
+
+              {batch !== null && (
+                <div className="h-1.5 w-full overflow-hidden rounded-full bg-secondary">
+                  <div
+                    className="h-full rounded-full bg-primary transition-all"
+                    style={{ width: `${Math.round((batch.done / Math.max(batch.total, 1)) * 100)}%` }}
+                  />
+                </div>
+              )}
+
+              {filtered.length === 0 ? (
+                <div className="rounded-lg border border-dashed border-border py-12 text-center text-sm text-muted-foreground">
+                  Aucun {tab === 'services' ? 'service' : 'produit'} pour le moment.
+                </div>
+              ) : (
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {filtered.map((item) => (
+                    <div
+                      key={item.id}
+                      className={`flex flex-col rounded-xl border border-border bg-background p-4 transition hover:border-primary/40 ${
+                        item.is_active ? '' : 'opacity-60'
+                      }`}
+                    >
+                      <div className="relative mb-3 aspect-video overflow-hidden rounded-lg border border-border bg-secondary/30">
+                        {item.photo_url ? (
+                          <img
+                            src={item.photo_url}
+                            alt={item.name}
+                            loading="lazy"
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          <div className="flex h-full w-full flex-col items-center justify-center gap-1 text-muted-foreground">
+                            <ImageIcon className="h-6 w-6" />
+                            <span className="text-[11px]">Sans image</span>
+                          </div>
+                        )}
+                        {canWrite && (
+                          <button
+                            type="button"
+                            onClick={() => setPickerItem(item)}
+                            className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-md bg-black/55 px-2 py-1 text-[11px] font-medium text-white backdrop-blur transition hover:bg-primary"
+                          >
+                            {item.photo_url ? (
+                              <>
+                                <Pencil className="h-3 w-3" /> Changer
+                              </>
+                            ) : (
+                              <>
+                                <Sparkles className="h-3 w-3" /> Ajouter
+                              </>
+                            )}
+                          </button>
+                        )}
+                      </div>
+
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="truncate font-medium">{item.name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {item.catalog_categories?.name ?? 'Sans catégorie'}
+                          </p>
+                        </div>
+                        <Badge variant={item.is_active ? 'default' : 'secondary'}>
+                          {TYPE_LABELS[item.type]}
+                        </Badge>
+                      </div>
+
+                      {item.description && (
+                        <p className="mt-2 line-clamp-2 text-xs text-muted-foreground">{item.description}</p>
+                      )}
+
+                      {getItemOptions(item).length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-1">
+                          {getItemOptions(item).slice(0, 3).map((g) => (
+                            <span
+                              key={g.id}
+                              className="rounded-full bg-secondary px-2 py-0.5 text-[10px] text-muted-foreground"
+                            >
+                              {g.name}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+
+                      <div className="mt-3 flex items-center justify-between">
+                        <span className="text-lg font-semibold">{formatPrice(item.price, item.currency)}</span>
+                        {item.type === 'service' && item.duration_minutes ? (
+                          <span className="text-xs text-muted-foreground">{item.duration_minutes} min</span>
+                        ) : item.stock != null ? (
+                          <span className="text-xs text-muted-foreground">Stock : {item.stock}</span>
+                        ) : null}
+                      </div>
+
+                      {canWrite && (
+                        <div className="mt-4 flex items-center gap-1 border-t border-border pt-3">
+                          <Button variant="ghost" size="sm" onClick={() => openEditItem(item)}>
+                            <Pencil className="h-3.5 w-3.5" />
+                            Modifier
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            disabled={pending}
+                            onClick={() => run(() => toggleItemActiveAction(item.id, !item.is_active))}
+                            title={item.is_active ? 'Désactiver' : 'Activer'}
+                          >
+                            <Power className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            disabled={pending}
+                            onClick={() => {
+                              if (confirm('Supprimer cet article ?')) run(() => deleteItemAction(item.id));
+                            }}
+                            title="Supprimer"
+                          >
+                            <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
           )}
-        </>
-      )}
+        </div>
+        {showPreview && (
+          <div className="lg:sticky lg:top-4">
+            <CatalogMenuPreview categories={categories} items={items} />
+          </div>
+        )}
+      </div>
       </>
       )}
 
@@ -459,6 +556,17 @@ export function CatalogClient({ categories, items, canWrite }: CatalogClientProp
           }}
         />
       )}
+
+      <CatalogAssistantPanel
+        canWrite={canWrite}
+        items={items}
+        open={assistantOpen}
+        onClose={() => setAssistantOpen(false)}
+        onHighlightNoPhoto={() => {
+          setOnlyNoPhoto(true);
+          setTab('products');
+        }}
+      />
     </div>
   );
 }

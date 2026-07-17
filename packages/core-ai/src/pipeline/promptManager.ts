@@ -139,6 +139,21 @@ Réponds UNIQUEMENT en JSON:
     temperature: 0.3,
     jsonMode: true,
   },
+  'catalog.translate': {
+    version: '1.0',
+    system: `${BASE_SYSTEM} Tu es traducteur professionnel de menus et catalogues. Tu traduis noms, descriptions, groupes d'options et libellés de choix. Tu NE MODIFIES JAMAIS les prix, devises, IDs, SKU, ni la structure. Conserve le ton marketing court. Si un texte est déjà dans la langue cible, renvoie-le tel quel.`,
+    userTemplate: `Langue cible (code BCP-47 court): {{locale}}
+Établissement: {{establishmentType}}
+
+Catalogue à traduire (JSON):
+{{catalogJson}}
+
+Réponds UNIQUEMENT en JSON avec les mêmes id:
+{"locale":"{{locale}}","categories":[{"id":"string","name":"string","description":"string"}],"items":[{"id":"string","name":"string","description":"string","options":[{"id":"string","name":"string","choices":[{"id":"string","label":"string"}]}]}]}`,
+    maxTokens: 3200,
+    temperature: 0.2,
+    jsonMode: true,
+  },
   'campaign.promotion.suggest': {
     version: '1.0',
     system: `${BASE_SYSTEM} Tu suggères des promotions data-driven pour restaurants.`,

@@ -250,6 +250,32 @@ export async function handleAIRoute(
 
 
 
+    case '/ai/catalog/translate': {
+
+      const result = await automation.translateCatalog({
+
+        locale: (body.locale as string) ?? 'en',
+
+        establishmentType: body.establishmentType as string | undefined,
+
+        catalog: (body.catalog as {
+          categories: { id: string; name: string; description?: string }[];
+          items: {
+            id: string;
+            name: string;
+            description?: string;
+            options?: { id: string; name: string; choices: { id: string; label: string }[] }[];
+          }[];
+        }) ?? { categories: [], items: [] },
+
+      });
+
+      return { status: 200, data: result };
+
+    }
+
+
+
     case '/ai/catalog/variants': {
 
       const result = await automation.suggestVariants({

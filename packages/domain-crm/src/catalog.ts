@@ -169,12 +169,31 @@ export async function getCatalogItem(
   return (data as CatalogItem | null) ?? null;
 }
 
-function buildMetadata(input: { options?: unknown }): Record<string, unknown> {
-  const metadata: Record<string, unknown> = {};
-  if (Array.isArray(input.options) && input.options.length > 0) {
-    metadata.options = input.options;
+/** Merge options into existing metadata without dropping i18n / future keys. */
+export function mergeItemMetadata(
+  existing: Record<string, unknown> | null | undefined,
+  patch: { options?: unknown; translations?: unknown; [key: string]: unknown }
+): Record<string, unknown> {
+  const metadata: Record<string, unknown> = { ...(existing ?? {}) };
+  if (patch.options !== undefined) {
+    if (Array.isArray(patch.options) && patch.options.length > 0) {
+      metadata.options = patch.options;
+    } else {
+      delete metadata.options;
+    }
+  }
+  if (patch.translations !== undefined) {
+    metadata.translations = patch.translations;
+  }
+  for (const [k, v] of Object.entries(patch)) {
+    if (k === 'options' || k === 'translations') continue;
+    if (v !== undefined) metadata[k] = v;
   }
   return metadata;
+}
+
+function buildMetadata(input: { options?: unknown }): Record<string, unknown> {
+  return mergeItemMetadata({}, { options: input.options });
 }
 
 function itemInsertPayload(
@@ -233,7 +252,11 @@ export async function updateCatalogItem(
   if (input.photoUrl !== undefined) payload.photo_url = input.photoUrl?.trim() || null;
   if (input.durationMinutes !== undefined) payload.duration_minutes = input.durationMinutes ?? null;
   if (input.stock !== undefined) payload.stock = input.stock ?? null;
-  if (input.options !== undefined) payload.metadata = buildMetadata(input);
+
+  if (input.options !== undefined) {
+    const existing = await getCatalogItem(supabase, organizationId, itemId);
+    payload.metadata = mergeItemMetadata(existing?.metadata, { options: input.options });
+  }
 
   const { data, error } = await supabase
     .from('catalog_items')

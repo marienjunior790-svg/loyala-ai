@@ -11,6 +11,7 @@ export type AIUseCase =
   | 'catalog.generate'
   | 'catalog.import'
   | 'catalog.variants'
+  | 'catalog.translate'
   | 'inbox.reply.generate'
   | 'inbox.message.classify'
   | 'inbox.reply.suggest'

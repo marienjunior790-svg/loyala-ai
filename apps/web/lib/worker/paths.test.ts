@@ -10,6 +10,7 @@ describe('worker paths', () => {
     expect(isAllowedAiPath('catalog/generate')).toBe(true);
     expect(isAllowedAiPath('catalog/import')).toBe(true);
     expect(isAllowedAiPath('catalog/variants')).toBe(true);
+    expect(isAllowedAiPath('catalog/translate')).toBe(true);
     expect(isAllowedAiPath('catalog/image')).toBe(true);
   });
 

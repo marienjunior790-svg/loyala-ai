@@ -11,8 +11,10 @@ import { generateImages, buildProductImagePrompt } from './image-generation';
 import {
   catalogGenerateSchema,
   variantSuggestSchema,
+  catalogTranslateSchema,
   type CatalogGenerate,
   type VariantSuggest,
+  type CatalogTranslate,
 } from '../schemas/outputs';
 import type { ClientRFMInput } from '../rfm/scoring';
 import type { BirthdayClient, LoyaltyClient } from '../engines/campaign-engine';
@@ -183,6 +185,40 @@ export class AutomationService {
       skipGuard: true,
     });
     return variantSuggestSchema.parse(response.parsed ?? { items: [] });
+  }
+
+  /**
+   * 8e. Traduction catalogue (catégories, produits, descriptions, variantes).
+   * Conserve structure, IDs et prix. Réutilisable pour QR menu multilingue.
+   */
+  async translateCatalog(request: {
+    locale: string;
+    establishmentType?: string;
+    catalog: {
+      categories: { id: string; name: string; description?: string }[];
+      items: {
+        id: string;
+        name: string;
+        description?: string;
+        options?: { id: string; name: string; choices: { id: string; label: string }[] }[];
+      }[];
+    };
+  }): Promise<CatalogTranslate> {
+    const locale = request.locale.trim().slice(0, 8) || 'en';
+    const catalogJson = JSON.stringify(request.catalog).slice(0, 28_000);
+    const response = await orchestrate({
+      organizationId: this.tenantId,
+      useCase: 'catalog.translate',
+      input: {
+        locale,
+        establishmentType: request.establishmentType?.trim() || 'Restaurant',
+        catalogJson,
+      },
+      jsonSchema: catalogTranslateSchema,
+      skipCache: true,
+      skipGuard: true,
+    });
+    return catalogTranslateSchema.parse(response.parsed ?? { locale, categories: [], items: [] });
   }
 
   /** 8c. Génération d'images produit (IA) — contexte-aware, plusieurs variantes. */

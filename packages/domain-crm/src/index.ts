@@ -17,6 +17,8 @@ export * from './visits';
 export * from './catalog';
 export * from './catalog-options';
 export * from './catalog-suggestions';
+export * from './catalog-quality';
+export * from './catalog-publication';
 export * from './availability';
 export * from './purchase-insights';
 export * from './affinity-segments';
