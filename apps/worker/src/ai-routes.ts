@@ -224,6 +224,32 @@ export async function handleAIRoute(
 
 
 
+    case '/ai/catalog/import': {
+
+      const result = await automation.importCatalog({
+
+        rawText: (body.rawText as string) ?? '',
+
+        images: Array.isArray(body.images) ? (body.images as string[]) : undefined,
+
+        establishmentType: body.establishmentType as string | undefined,
+
+        currency: body.currency as string | undefined,
+
+        existingCategories: Array.isArray(body.existingCategories)
+
+          ? (body.existingCategories as string[])
+
+          : undefined,
+
+      });
+
+      return { status: 200, data: result };
+
+    }
+
+
+
     case '/ai/campaigns/promotions': {
 
       const context = (body.context as Record<string, unknown>) ?? {};

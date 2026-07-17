@@ -39,6 +39,7 @@ export async function routeProvider(
             maxTokens: prompt.maxTokens,
             temperature: prompt.temperature,
             jsonMode: prompt.jsonMode,
+            images: prompt.images,
           }),
         { maxAttempts: ctx.maxRetries }
       );

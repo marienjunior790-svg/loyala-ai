@@ -18,6 +18,18 @@ export interface CatalogGenerateRequest {
   existingCategories?: string[];
 }
 
+export interface CatalogImportRequest {
+  rawText?: string;
+  /** Base64 data URLs for photo/scan (vision OCR) imports. */
+  images?: string[];
+  establishmentType?: string;
+  currency?: string;
+  existingCategories?: string[];
+}
+
+/** Max characters of imported content sent to the model (token budget guard). */
+const CATALOG_IMPORT_MAX_CHARS = 14_000;
+
 export class AutomationService {
   private readonly rfm: ReturnType<typeof createRFMEngine>;
   private readonly classification: ReturnType<typeof createClassificationPipeline>;
@@ -92,6 +104,34 @@ export class AutomationService {
       },
       jsonSchema: catalogGenerateSchema,
       skipCache: true,
+    });
+    return catalogGenerateSchema.parse(response.parsed ?? { currency, categories: [] });
+  }
+
+  /** 8b. Import intelligent: structure un menu brut (PDF/image/tableur/URL) sans inventer. */
+  async importCatalog(request: CatalogImportRequest): Promise<CatalogGenerate> {
+    const currency = request.currency?.trim() || 'XOF';
+    const rawText = (request.rawText ?? '').slice(0, CATALOG_IMPORT_MAX_CHARS);
+    const images = request.images?.filter(Boolean) ?? [];
+    if (!rawText.trim() && images.length === 0) {
+      return { currency, categories: [] };
+    }
+    const response = await orchestrate({
+      organizationId: this.tenantId,
+      useCase: 'catalog.import',
+      input: {
+        rawText: rawText.trim() || '(voir la ou les images jointes — lis le menu par OCR)',
+        establishmentType: request.establishmentType?.trim() || 'Restaurant',
+        currency,
+        existingCategories:
+          request.existingCategories && request.existingCategories.length > 0
+            ? request.existingCategories.join(', ')
+            : 'aucune',
+      },
+      images: images.length > 0 ? images : undefined,
+      jsonSchema: catalogGenerateSchema,
+      skipCache: true,
+      skipGuard: true,
     });
     return catalogGenerateSchema.parse(response.parsed ?? { currency, categories: [] });
   }

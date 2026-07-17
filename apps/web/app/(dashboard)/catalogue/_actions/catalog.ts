@@ -230,6 +230,153 @@ export async function generateCatalogAction(input: {
   }
 }
 
+/** Max photos accepted per image import (token/cost guard). */
+const MAX_IMPORT_IMAGES = 4;
+/** ~8 MB per base64 data URL guard. */
+const MAX_IMAGE_DATA_URL_LEN = 8_000_000;
+
+/** Shared runner: sends raw content (text and/or images) to the AI import route. */
+async function runCatalogImport(
+  organizationId: string,
+  input: { rawText?: string; images?: string[]; establishmentType?: string }
+): Promise<CatalogAiState> {
+  const cleaned = (input.rawText ?? '').trim();
+  const images = (input.images ?? []).filter(
+    (img) => typeof img === 'string' && img.startsWith('data:image/')
+  );
+  if (cleaned.length < 10 && images.length === 0) {
+    return { error: 'Contenu trop court à importer. Ajoutez le menu (texte, image, tableau ou lien).' };
+  }
+  if (images.some((img) => img.length > MAX_IMAGE_DATA_URL_LEN)) {
+    return { error: 'Image trop volumineuse (max ~6 Mo). Réduisez la taille et réessayez.' };
+  }
+
+  const supabase = await createClient();
+  const [org, categories] = await Promise.all([
+    getOrganization(supabase, organizationId),
+    listCatalogCategories(supabase, organizationId),
+  ]);
+
+  const result = await proxyToWorker<unknown>('catalog/import', {
+    method: 'POST',
+    organizationId,
+    body: {
+      rawText: cleaned.slice(0, 16_000),
+      images: images.slice(0, MAX_IMPORT_IMAGES),
+      establishmentType: input.establishmentType?.trim() || org?.name || 'Restaurant',
+      currency: 'XOF',
+      existingCategories: categories.map((c) => c.name),
+    },
+  });
+
+  if (!result.ok) return { error: result.error ?? 'Import IA indisponible' };
+
+  const parsed = generatedCatalogSchema.safeParse(result.data);
+  if (!parsed.success) {
+    return { error: "L'IA n'a pas pu structurer ce contenu. Vérifiez le format et réessayez." };
+  }
+
+  const totalItems = parsed.data.categories.reduce((n, c) => n + c.items.length, 0);
+  if (totalItems === 0) {
+    return { error: 'Aucun produit détecté dans le contenu importé.' };
+  }
+
+  return { preview: parsed.data };
+}
+
+/** Import from pasted menu text (or content extracted client-side from PDF/CSV/Excel). */
+export async function importCatalogFromTextAction(input: {
+  rawText: string;
+  establishmentType?: string;
+}): Promise<CatalogAiState> {
+  try {
+    const ctx = await requireAuthPermission(WRITE);
+    return await runCatalogImport(ctx.organizationId, {
+      rawText: input.rawText ?? '',
+      establishmentType: input.establishmentType,
+    });
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Erreur d'import" };
+  }
+}
+
+/** Import from menu photos / scans (OCR + Vision AI). */
+export async function importCatalogFromImageAction(input: {
+  images: string[];
+  establishmentType?: string;
+}): Promise<CatalogAiState> {
+  try {
+    const ctx = await requireAuthPermission(WRITE);
+    const images = Array.isArray(input.images) ? input.images : [];
+    if (images.length === 0) return { error: 'Ajoutez au moins une photo du menu.' };
+    return await runCatalogImport(ctx.organizationId, {
+      images,
+      establishmentType: input.establishmentType,
+    });
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Erreur d'import image" };
+  }
+}
+
+const PRIVATE_HOST = /^(localhost|127\.|10\.|192\.168\.|169\.254\.|::1|0\.0\.0\.0)|\.local$/i;
+
+function stripHtml(html: string): string {
+  return html
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&[a-z]+;/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/** Import from a public menu URL (fetched server-side, HTML stripped, then AI-structured). */
+export async function importCatalogFromUrlAction(input: {
+  url: string;
+}): Promise<CatalogAiState> {
+  try {
+    const ctx = await requireAuthPermission(WRITE);
+    const raw = (input.url ?? '').trim();
+
+    let url: URL;
+    try {
+      url = new URL(raw);
+    } catch {
+      return { error: 'URL invalide' };
+    }
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+      return { error: 'Seules les URL http(s) sont autorisées' };
+    }
+    if (PRIVATE_HOST.test(url.hostname)) {
+      return { error: 'Cette adresse n\u2019est pas autorisée' };
+    }
+
+    let res: Response;
+    try {
+      res = await fetch(url.toString(), {
+        redirect: 'follow',
+        signal: AbortSignal.timeout(12_000),
+        headers: { 'User-Agent': 'LoyalaAI-CatalogImporter/1.0' },
+      });
+    } catch {
+      return { error: 'Impossible de récupérer cette page' };
+    }
+    if (!res.ok) return { error: `La page a répondu ${res.status}` };
+
+    const html = (await res.text()).slice(0, 400_000);
+    const text = stripHtml(html);
+    if (text.length < 40) {
+      return { error: 'Aucun contenu exploitable trouvé sur cette page' };
+    }
+
+    return await runCatalogImport(ctx.organizationId, { rawText: text });
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Erreur d'import URL" };
+  }
+}
+
 export type CatalogApplyState = {
   error?: string;
   success?: string;

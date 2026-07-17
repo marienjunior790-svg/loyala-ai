@@ -8,6 +8,7 @@ describe('worker paths', () => {
     expect(isAllowedAiPath('campaigns/birthday')).toBe(true);
     expect(isAllowedAiPath('campaigns/affinity')).toBe(true);
     expect(isAllowedAiPath('catalog/generate')).toBe(true);
+    expect(isAllowedAiPath('catalog/import')).toBe(true);
   });
 
   it('rejects unknown paths', () => {

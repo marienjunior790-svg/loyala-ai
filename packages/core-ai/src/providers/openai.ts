@@ -6,13 +6,23 @@ export function createOpenAIProvider(apiKey: string): AIProvider {
     id: 'openai',
     async complete(params: AICompletionParams): Promise<AIProviderResult> {
       const model = getModelForProvider('openai');
+      const userContent =
+        params.images && params.images.length > 0
+          ? [
+              { type: 'text', text: params.user },
+              ...params.images.map((url) => ({
+                type: 'image_url',
+                image_url: { url },
+              })),
+            ]
+          : params.user;
       const body: Record<string, unknown> = {
         model: model.id,
         max_tokens: params.maxTokens,
         temperature: params.temperature,
         messages: [
           { role: 'system', content: params.system },
-          { role: 'user', content: params.user },
+          { role: 'user', content: userContent },
         ],
       };
 

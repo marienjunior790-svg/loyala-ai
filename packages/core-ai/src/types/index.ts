@@ -9,6 +9,7 @@ export type AIUseCase =
   | 'campaign.affinity.generate'
   | 'campaign.promotion.suggest'
   | 'catalog.generate'
+  | 'catalog.import'
   | 'inbox.reply.generate'
   | 'inbox.message.classify'
   | 'inbox.reply.suggest'
@@ -32,6 +33,10 @@ export interface OrchestrateInput {
   temperature?: number;
   jsonSchema?: z.ZodType;
   skipCache?: boolean;
+  /** Base64 data URLs for multimodal (vision) requests, e.g. menu photos. */
+  images?: string[];
+  /** Skip the hallucination guard — for extractive/generative content (menus). */
+  skipGuard?: boolean;
 }
 
 /** Legacy request shape — engines & worker */
@@ -45,6 +50,8 @@ export interface AIRequest {
   jsonSchema?: z.ZodType;
   skipCache?: boolean;
   actorId?: string;
+  images?: string[];
+  skipGuard?: boolean;
 }
 
 export interface AIUsage {
@@ -70,6 +77,7 @@ export interface BuiltPrompt {
   maxTokens: number;
   temperature: number;
   jsonMode: boolean;
+  images?: string[];
 }
 
 export interface AICompletionParams {
@@ -78,6 +86,7 @@ export interface AICompletionParams {
   maxTokens: number;
   temperature: number;
   jsonMode?: boolean;
+  images?: string[];
 }
 
 export interface AIProviderResult {

@@ -6,12 +6,27 @@ export function createAnthropicProvider(apiKey: string): AIProvider {
     id: 'anthropic',
     async complete(params: AICompletionParams): Promise<AIProviderResult> {
       const model = getModelForProvider('anthropic');
+      const userContent =
+        params.images && params.images.length > 0
+          ? [
+              { type: 'text' as const, text: params.user },
+              ...params.images.map((dataUrl) => {
+                const match = /^data:(.+?);base64,(.*)$/s.exec(dataUrl);
+                const mediaType = match?.[1] ?? 'image/jpeg';
+                const data = match?.[2] ?? dataUrl;
+                return {
+                  type: 'image' as const,
+                  source: { type: 'base64' as const, media_type: mediaType, data },
+                };
+              }),
+            ]
+          : params.user;
       const body = {
         model: model.id,
         max_tokens: params.maxTokens,
         temperature: params.temperature,
         system: params.system + (params.jsonMode ? '\nRespond with valid JSON only.' : ''),
-        messages: [{ role: 'user' as const, content: params.user }],
+        messages: [{ role: 'user' as const, content: userContent }],
       };
 
       const res = await fetch('https://api.anthropic.com/v1/messages', {

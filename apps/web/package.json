@@ -12,8 +12,8 @@
   "dependencies": {
     "@loyala/core-iam": "workspace:*",
     "@loyala/db": "workspace:*",
-    "@loyala/domain-crm": "workspace:*",
     "@loyala/domain-billing": "workspace:*",
+    "@loyala/domain-crm": "workspace:*",
     "@loyala/events": "workspace:*",
     "@loyala/integrations": "workspace:*",
     "@loyala/ui": "workspace:*",
@@ -25,11 +25,14 @@
     "@supabase/ssr": "^0.5.2",
     "@supabase/supabase-js": "^2.49.1",
     "class-variance-authority": "^0.7.1",
+    "jsqr": "1.4.0",
     "lucide-react": "^1.23.0",
     "next": "^15.1.3",
+    "pdfjs-dist": "4.7.76",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "tailwindcss-animate": "^1.0.7"
+    "tailwindcss-animate": "^1.0.7",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@types/node": "^22.10.5",

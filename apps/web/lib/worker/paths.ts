@@ -9,6 +9,7 @@ export const WORKER_AI_PATHS = [
   'campaigns/affinity',
   'campaigns/promotions',
   'catalog/generate',
+  'catalog/import',
   'inbox/reply',
   'inbox/classify',
   'rfm/score',

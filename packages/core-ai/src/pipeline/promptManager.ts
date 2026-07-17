@@ -108,6 +108,22 @@ Réponds UNIQUEMENT en JSON: {"currency":"{{currency}}","categories":[{"name":"s
     temperature: 0.6,
     jsonMode: true,
   },
+  'catalog.import': {
+    version: '1.0',
+    system: `${BASE_SYSTEM} Tu es expert en extraction et structuration de menus/catalogues importés (PDF, image, tableur, page web). Si une ou plusieurs images sont jointes, lis-les par OCR pour en extraire le menu. Tu N'INVENTES JAMAIS de produit absent du contenu fourni. Conserve les prix exacts trouvés. Déduis la devise du contenu. Regroupe en catégories cohérentes. Si une description manque, tu peux en proposer une très courte. Ignore le texte parasite (adresses, horaires, mentions légales, numéros de téléphone).`,
+    userTemplate: `Établissement: {{establishmentType}}
+Devise probable: {{currency}}
+Catégories déjà existantes (réutilise le même nom si pertinent): {{existingCategories}}
+
+Contenu importé à structurer (menu brut):
+{{rawText}}
+
+Extrais UNIQUEMENT les produits/services réellement présents ci-dessus, avec leur prix exact.
+Réponds UNIQUEMENT en JSON: {"currency":"string","categories":[{"name":"string","description":"string","items":[{"name":"string","description":"string","price":number,"type":"product|service|rental"}]}]}`,
+    maxTokens: 3200,
+    temperature: 0.2,
+    jsonMode: true,
+  },
   'campaign.promotion.suggest': {
     version: '1.0',
     system: `${BASE_SYSTEM} Tu suggères des promotions data-driven pour restaurants.`,

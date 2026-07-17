@@ -40,6 +40,8 @@ function toOrchestrateInput(input: OrchestrateInput | AIRequest): OrchestrateInp
     temperature: input.temperature,
     jsonSchema: input.jsonSchema,
     skipCache: input.skipCache,
+    images: input.images,
+    skipGuard: input.skipGuard,
   };
 }
 
@@ -68,6 +70,7 @@ export async function orchestrate(input: OrchestrateInput | AIRequest): Promise<
   if (normalized.maxTokens) prompt.maxTokens = normalized.maxTokens;
   if (normalized.temperature !== undefined) prompt.temperature = normalized.temperature;
   if (normalized.jsonSchema) prompt.jsonMode = true;
+  if (normalized.images && normalized.images.length > 0) prompt.images = normalized.images;
 
   const allowedFacts = extractAllowedFacts(normalized.variables);
 
@@ -79,7 +82,9 @@ export async function orchestrate(input: OrchestrateInput | AIRequest): Promise<
     });
 
     const validated = validateResponse(routed, normalized.jsonSchema);
-    const safe = hallucinationGuard(validated, allowedFacts);
+    const safe = normalized.skipGuard
+      ? validated
+      : hallucinationGuard(validated, allowedFacts);
 
     const costUsd = estimateCost(
       routed.model,
