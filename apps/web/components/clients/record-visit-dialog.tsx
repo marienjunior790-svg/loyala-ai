@@ -2,10 +2,18 @@
 
 import { useActionState, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { CalendarPlus, X, Plus, Minus, Trash2, Search } from 'lucide-react';
+import { CalendarPlus, X, Plus, Minus, Trash2, Search, SlidersHorizontal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { recordVisitAction, type VisitActionState } from '@/app/(dashboard)/clients/_actions/visits';
+import {
+  computeItemUnitPrice,
+  summarizeSelections,
+  defaultSelections,
+  validateSelections,
+  type OptionGroup,
+  type OptionSelections,
+} from '@loyala/domain-crm';
 
 const initial: VisitActionState = {};
 
@@ -20,6 +28,7 @@ export interface CatalogPickerItem {
   currency: string;
   type: 'product' | 'service' | 'rental';
   categoryName: string | null;
+  options?: OptionGroup[];
 }
 
 interface SaleLine {
@@ -49,12 +58,17 @@ export function RecordVisitDialog({ clientId, clientName, catalogItems }: Record
   const [state, formAction, pending] = useActionState(recordVisitAction, initial);
   const [lines, setLines] = useState<SaleLine[]>([]);
   const [search, setSearch] = useState('');
+  const [configuring, setConfiguring] = useState<{
+    item: CatalogPickerItem;
+    selections: OptionSelections;
+  } | null>(null);
 
   useEffect(() => {
     if (state.success) {
       dialogRef.current?.close();
       setLines([]);
       setSearch('');
+      setConfiguring(null);
       router.refresh();
     }
   }, [state.success, router]);
@@ -73,28 +87,66 @@ export function RecordVisitDialog({ clientId, clientName, catalogItems }: Record
       .slice(0, 8);
   }, [catalogItems, search]);
 
-  function addItem(item: CatalogPickerItem) {
+  function pushLine(item: CatalogPickerItem, name: string, unitPrice: number, mergeable: boolean) {
     setLines((prev) => {
-      const existing = prev.find((l) => l.catalogItemId === item.id);
-      if (existing) {
-        return prev.map((l) =>
-          l.catalogItemId === item.id ? { ...l, quantity: l.quantity + 1 } : l
-        );
+      if (mergeable) {
+        const existing = prev.find((l) => l.catalogItemId === item.id && l.name === name);
+        if (existing) {
+          return prev.map((l) => (l.key === existing.key ? { ...l, quantity: l.quantity + 1 } : l));
+        }
       }
       return [
         ...prev,
         {
-          key: `${item.id}-${Date.now()}`,
+          key: `${item.id}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
           catalogItemId: item.id,
-          name: item.name,
+          name,
           categoryName: item.categoryName,
           itemType: item.type,
           quantity: 1,
-          unitPrice: Number(item.price),
+          unitPrice,
         },
       ];
     });
+  }
+
+  function addItem(item: CatalogPickerItem) {
+    if (item.options && item.options.length > 0) {
+      setConfiguring({ item, selections: defaultSelections(item.options) });
+      setSearch('');
+      return;
+    }
+    pushLine(item, item.name, Number(item.price), true);
     setSearch('');
+  }
+
+  function confirmConfigured() {
+    if (!configuring) return;
+    const { item, selections } = configuring;
+    const groups = item.options ?? [];
+    const err = validateSelections(groups, selections);
+    if (err) return;
+    const summary = summarizeSelections(groups, selections);
+    const name = summary ? `${item.name} (${summary})` : item.name;
+    const unitPrice = computeItemUnitPrice(Number(item.price), groups, selections);
+    pushLine(item, name, unitPrice, false);
+    setConfiguring(null);
+  }
+
+  function toggleChoice(group: OptionGroup, choiceId: string) {
+    setConfiguring((prev) => {
+      if (!prev) return prev;
+      const current = prev.selections[group.id] ?? [];
+      let next: string[];
+      if (group.selection === 'single') {
+        next = [choiceId];
+      } else {
+        next = current.includes(choiceId)
+          ? current.filter((id) => id !== choiceId)
+          : [...current, choiceId];
+      }
+      return { ...prev, selections: { ...prev.selections, [group.id]: next } };
+    });
   }
 
   function updateLine(key: string, patch: Partial<SaleLine>) {
@@ -317,7 +369,116 @@ export function RecordVisitDialog({ clientId, clientName, catalogItems }: Record
             </Button>
           </div>
         </form>
+
+        {configuring && (
+          <VariantConfigurator
+            item={configuring.item}
+            selections={configuring.selections}
+            onToggle={toggleChoice}
+            onCancel={() => setConfiguring(null)}
+            onConfirm={confirmConfigured}
+          />
+        )}
       </dialog>
     </>
+  );
+}
+
+function VariantConfigurator({
+  item,
+  selections,
+  onToggle,
+  onCancel,
+  onConfirm,
+}: {
+  item: CatalogPickerItem;
+  selections: OptionSelections;
+  onToggle: (group: OptionGroup, choiceId: string) => void;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  const groups = item.options ?? [];
+  const unitPrice = computeItemUnitPrice(Number(item.price), groups, selections);
+  const error = validateSelections(groups, selections);
+
+  return (
+    <div
+      className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-4"
+      onClick={onCancel}
+    >
+      <div
+        className="flex max-h-[85vh] w-[min(100%,26rem)] flex-col overflow-hidden rounded-xl border border-border bg-card text-foreground shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between border-b border-border px-4 py-3">
+          <div className="flex min-w-0 items-center gap-2">
+            <SlidersHorizontal className="h-4 w-4 shrink-0 text-primary" />
+            <h4 className="truncate text-sm font-semibold">{item.name}</h4>
+          </div>
+          <button
+            type="button"
+            onClick={onCancel}
+            className="rounded-md p-1 text-muted-foreground hover:bg-secondary"
+            aria-label="Fermer"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="flex-1 space-y-4 overflow-y-auto px-4 py-4">
+          {groups.map((group) => (
+            <div key={group.id}>
+              <p className="mb-1.5 text-xs font-medium text-muted-foreground">
+                {group.name}
+                {group.required && <span className="text-destructive"> *</span>}
+                {group.selection === 'multiple' && (
+                  <span className="ml-1 font-normal">(plusieurs)</span>
+                )}
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {group.choices.map((choice) => {
+                  const active = (selections[group.id] ?? []).includes(choice.id);
+                  return (
+                    <button
+                      key={choice.id}
+                      type="button"
+                      onClick={() => onToggle(group, choice.id)}
+                      className={`rounded-lg border px-2.5 py-1.5 text-xs transition ${
+                        active
+                          ? 'border-primary bg-primary/10 text-foreground'
+                          : 'border-border text-muted-foreground hover:border-primary/40'
+                      }`}
+                    >
+                      {group.kind === 'removable' ? `Sans ${choice.label}` : choice.label}
+                      {choice.priceDelta !== 0 && (
+                        <span className="ml-1 text-muted-foreground">
+                          {choice.priceDelta > 0 ? '+' : ''}
+                          {formatMoney(choice.priceDelta, item.currency)}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="border-t border-border px-4 py-3">
+          <div className="mb-2 flex items-center justify-between text-sm">
+            <span className="text-muted-foreground">Prix unitaire</span>
+            <span className="font-semibold text-primary">{formatMoney(unitPrice, item.currency)}</span>
+          </div>
+          <div className="flex gap-2">
+            <Button type="button" variant="outline" className="flex-1" onClick={onCancel}>
+              Annuler
+            </Button>
+            <Button type="button" className="flex-1" disabled={!!error} onClick={onConfirm}>
+              {error ?? 'Ajouter'}
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }

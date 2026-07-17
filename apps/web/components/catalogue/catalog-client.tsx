@@ -20,7 +20,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import type { CatalogCategory, CatalogItem, CatalogItemType } from '@loyala/domain-crm';
+import type { CatalogCategory, CatalogItem, CatalogItemType, OptionGroup } from '@loyala/domain-crm';
+import { getItemOptions } from '@loyala/domain-crm';
 import {
   createItemAction,
   updateItemAction,
@@ -36,6 +37,7 @@ import {
 } from '@/app/(dashboard)/catalogue/_actions/images';
 import { CatalogAiPanel } from '@/components/catalogue/catalog-ai-create';
 import { ProductImagePicker } from '@/components/catalogue/product-image-picker';
+import { CatalogOptionsEditor } from '@/components/catalogue/catalog-options-editor';
 
 type Tab = 'products' | 'services' | 'categories';
 
@@ -291,7 +293,6 @@ export function CatalogClient({ categories, items, canWrite }: CatalogClientProp
                 >
                   <div className="relative mb-3 aspect-video overflow-hidden rounded-lg border border-border bg-secondary/30">
                     {item.photo_url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
                       <img
                         src={item.photo_url}
                         alt={item.name}
@@ -337,6 +338,19 @@ export function CatalogClient({ categories, items, canWrite }: CatalogClientProp
 
                   {item.description && (
                     <p className="mt-2 line-clamp-2 text-xs text-muted-foreground">{item.description}</p>
+                  )}
+
+                  {getItemOptions(item).length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-1">
+                      {getItemOptions(item).slice(0, 3).map((g) => (
+                        <span
+                          key={g.id}
+                          className="rounded-full bg-secondary px-2 py-0.5 text-[10px] text-muted-foreground"
+                        >
+                          {g.name}
+                        </span>
+                      ))}
+                    </div>
                   )}
 
                   <div className="mt-3 flex items-center justify-between">
@@ -565,6 +579,8 @@ function ItemDialog({
   const [name, setName] = useState(item?.name ?? '');
   const [photoUrl, setPhotoUrl] = useState(item?.photo_url ?? '');
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [options, setOptions] = useState<OptionGroup[]>(item ? getItemOptions(item) : []);
+  const cleanOptions = options.filter((g) => g.name.trim() && g.choices.some((c) => c.label.trim()));
 
   return (
     <DialogShell title={item ? "Modifier l'article" : 'Nouvel article'} onClose={onClose}>
@@ -696,7 +712,6 @@ function ItemDialog({
               </Button>
             </div>
             {photoUrl && (
-              // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={photoUrl}
                 alt=""
@@ -729,6 +744,20 @@ function ItemDialog({
             className={inputClass}
           />
         </div>
+
+        <div className="rounded-lg border border-border p-3">
+          <CatalogOptionsEditor value={options} onChange={setOptions} />
+        </div>
+        <input
+          type="hidden"
+          name="optionsJson"
+          value={JSON.stringify(
+            cleanOptions.map((g) => ({
+              ...g,
+              choices: g.choices.filter((c) => c.label.trim()),
+            }))
+          )}
+        />
 
         <label className="flex items-center gap-2 text-sm">
           <input

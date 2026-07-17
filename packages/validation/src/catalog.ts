@@ -17,6 +17,36 @@ export const updateCatalogCategorySchema = createCatalogCategorySchema.partial()
   isActive: z.boolean().optional(),
 });
 
+// ─── Variantes & options ──────────────────────────────────────────────────────
+export const optionGroupKindSchema = z.enum([
+  'size',
+  'portion',
+  'cooking',
+  'flavor',
+  'spice',
+  'supplement',
+  'removable',
+  'custom',
+]);
+
+export const optionChoiceSchema = z.object({
+  id: z.string().min(1).max(48),
+  label: z.string().min(1, 'Libellé requis').max(80),
+  priceDelta: z.coerce.number().default(0),
+  isDefault: z.boolean().optional(),
+});
+
+export const optionGroupSchema = z.object({
+  id: z.string().min(1).max(48),
+  name: z.string().min(1, 'Nom requis').max(80),
+  kind: optionGroupKindSchema.default('custom'),
+  selection: z.enum(['single', 'multiple']).default('single'),
+  required: z.boolean().default(false),
+  choices: z.array(optionChoiceSchema).min(1).max(40),
+});
+
+export const itemOptionsSchema = z.array(optionGroupSchema).max(20);
+
 // ─── Articles ────────────────────────────────────────────────────────────────
 export const createCatalogItemSchema = z.object({
   name: z.string().min(1, 'Nom requis').max(160),
@@ -31,6 +61,7 @@ export const createCatalogItemSchema = z.object({
   photoUrl: z.string().url().optional().or(z.literal('')),
   durationMinutes: optionalNumber.pipe(z.number().int().min(0).optional()),
   stock: optionalNumber.pipe(z.number().int().optional()),
+  options: itemOptionsSchema.optional(),
 });
 
 export const updateCatalogItemSchema = createCatalogItemSchema.partial();
@@ -64,6 +95,10 @@ export const visitItemSchema = z.object({
   unitPrice: z.coerce.number().min(0, 'Prix invalide'),
 });
 
+export type OptionGroupKind = z.infer<typeof optionGroupKindSchema>;
+export type OptionChoiceInput = z.infer<typeof optionChoiceSchema>;
+export type OptionGroupInput = z.infer<typeof optionGroupSchema>;
+export type ItemOptionsInput = z.infer<typeof itemOptionsSchema>;
 export type CatalogItemTypeValue = z.infer<typeof catalogItemTypeSchema>;
 export type CreateCatalogCategoryInput = z.infer<typeof createCatalogCategorySchema>;
 export type UpdateCatalogCategoryInput = z.infer<typeof updateCatalogCategorySchema>;

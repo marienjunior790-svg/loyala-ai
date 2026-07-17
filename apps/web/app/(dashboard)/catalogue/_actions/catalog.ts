@@ -92,6 +92,17 @@ export async function deleteCategoryAction(categoryId: string): Promise<CatalogA
 }
 
 // ─── Articles ────────────────────────────────────────────────────────────────
+function parseOptionsField(formData: FormData): unknown {
+  const raw = formData.get('optionsJson');
+  if (typeof raw !== 'string' || !raw.trim()) return undefined;
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 function parseItemForm(formData: FormData) {
   return {
     name: formData.get('name'),
@@ -106,6 +117,7 @@ function parseItemForm(formData: FormData) {
     photoUrl: formData.get('photoUrl') || undefined,
     durationMinutes: formData.get('durationMinutes') || undefined,
     stock: formData.get('stock') || undefined,
+    options: parseOptionsField(formData),
   };
 }
 

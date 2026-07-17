@@ -169,6 +169,14 @@ export async function getCatalogItem(
   return (data as CatalogItem | null) ?? null;
 }
 
+function buildMetadata(input: { options?: unknown }): Record<string, unknown> {
+  const metadata: Record<string, unknown> = {};
+  if (Array.isArray(input.options) && input.options.length > 0) {
+    metadata.options = input.options;
+  }
+  return metadata;
+}
+
 function itemInsertPayload(
   organizationId: string,
   input: CreateCatalogItemInput
@@ -187,6 +195,7 @@ function itemInsertPayload(
     photo_url: input.photoUrl?.trim() || null,
     duration_minutes: input.durationMinutes ?? null,
     stock: input.stock ?? null,
+    metadata: buildMetadata(input),
   };
 }
 
@@ -224,6 +233,7 @@ export async function updateCatalogItem(
   if (input.photoUrl !== undefined) payload.photo_url = input.photoUrl?.trim() || null;
   if (input.durationMinutes !== undefined) payload.duration_minutes = input.durationMinutes ?? null;
   if (input.stock !== undefined) payload.stock = input.stock ?? null;
+  if (input.options !== undefined) payload.metadata = buildMetadata(input);
 
   const { data, error } = await supabase
     .from('catalog_items')

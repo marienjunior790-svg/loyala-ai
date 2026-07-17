@@ -9,6 +9,7 @@ import {
   listClientPurchases,
   listCatalogItems,
   computeClientPurchaseInsights,
+  getItemOptions,
 } from '@loyala/domain-crm';
 import { DeleteClientButton } from './delete-client-button';
 import { WhatsAppRelaunchButton } from '@/components/clients/whatsapp-relaunch-button';
@@ -64,6 +65,7 @@ export default async function ClientDetailPage({
     currency: i.currency,
     type: i.type,
     categoryName: i.catalog_categories?.name ?? null,
+    options: getItemOptions(i),
   }));
 
   return (

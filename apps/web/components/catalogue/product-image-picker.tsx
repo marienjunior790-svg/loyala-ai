@@ -301,7 +301,6 @@ function ChoiceTile({
       onClick={onSelect}
       className="group relative aspect-square overflow-hidden rounded-xl border border-border bg-secondary/30 transition hover:border-primary disabled:opacity-60"
     >
-      {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={src}
         alt=""
@@ -359,7 +358,6 @@ function UploadPane({
       {preview ? (
         <div className="space-y-3">
           <div className="mx-auto aspect-video max-h-64 overflow-hidden rounded-xl border border-border">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={preview} alt="Aperçu" className="h-full w-full object-contain" />
           </div>
           <div className="flex gap-2">
