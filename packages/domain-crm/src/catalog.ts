@@ -335,6 +335,10 @@ export async function bulkCreateCatalog(
         price: Number(item.price ?? 0),
         currency,
         is_active: true,
+        metadata:
+          Array.isArray(item.options) && item.options.length > 0
+            ? { options: item.options }
+            : {},
       });
     }
   }

@@ -124,6 +124,21 @@ Réponds UNIQUEMENT en JSON: {"currency":"string","categories":[{"name":"string"
     temperature: 0.2,
     jsonMode: true,
   },
+  'catalog.variants': {
+    version: '1.0',
+    system: `${BASE_SYSTEM} Tu es expert en configuration de produits pour la restauration et le commerce (comparable à Uber Eats, Deliveroo, Toast, Square). Pour chaque produit fourni, tu proposes les variantes et suppléments PERTINENTS selon son type, et RIEN d'autre. N'INVENTE PAS de produit. Utilise la devise indiquée pour les suppléments de prix (priceDelta), avec 0 pour l'option par défaut. Règles: Pizza → Taille (Petite/Moyenne/Grande) + Suppléments (fromage, bacon, champignons…). Burger → Cuisson (Saignant/À point/Bien cuit) + Suppléments (double steak, œuf, bacon…). Café → Taille + Lait (entier, avoine, soja…). Cocktail → Taille (Verre/Pichet) + alcool en supplément. Dessert → Taille + nappage/glace. Boisson → Volume (33 cl/50 cl/1 L). Plat/portion → Portion (Simple/Double/Familiale). Ne propose des variantes que si elles sont vraiment utiles; sinon renvoie groups vide pour ce produit. Groupes de suppléments = selection "multiple". Groupes de type taille/portion/cuisson = selection "single", required true.`,
+    userTemplate: `Établissement: {{establishmentType}}
+Devise: {{currency}}
+
+Produits à enrichir (ne change ni le nom ni le prix de base, propose seulement des variantes):
+{{products}}
+
+Réponds UNIQUEMENT en JSON:
+{"items":[{"name":"nom exact du produit","groups":[{"name":"string","kind":"size|portion|cooking|flavor|temperature|spice|supplement|removable|custom","selection":"single|multiple","required":boolean,"choices":[{"label":"string","priceDelta":number}]}]}]}`,
+    maxTokens: 2600,
+    temperature: 0.3,
+    jsonMode: true,
+  },
   'campaign.promotion.suggest': {
     version: '1.0',
     system: `${BASE_SYSTEM} Tu suggères des promotions data-driven pour restaurants.`,

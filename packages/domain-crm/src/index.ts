@@ -16,6 +16,8 @@ export * from './message-template-catalog';
 export * from './visits';
 export * from './catalog';
 export * from './catalog-options';
+export * from './catalog-suggestions';
+export * from './availability';
 export * from './purchase-insights';
 export * from './affinity-segments';
 export * from './client-history';

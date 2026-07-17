@@ -10,6 +10,7 @@ export type AIUseCase =
   | 'campaign.promotion.suggest'
   | 'catalog.generate'
   | 'catalog.import'
+  | 'catalog.variants'
   | 'inbox.reply.generate'
   | 'inbox.message.classify'
   | 'inbox.reply.suggest'

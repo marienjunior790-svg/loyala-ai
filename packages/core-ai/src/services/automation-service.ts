@@ -8,7 +8,12 @@ import { generateAutoReply } from '../engines/auto-reply';
 import { analyzeInactiveClient, type InactiveClient } from '../engines/inactive-detection';
 import { orchestrate } from '../orchestrator/orchestrate';
 import { generateImages, buildProductImagePrompt } from './image-generation';
-import { catalogGenerateSchema, type CatalogGenerate } from '../schemas/outputs';
+import {
+  catalogGenerateSchema,
+  variantSuggestSchema,
+  type CatalogGenerate,
+  type VariantSuggest,
+} from '../schemas/outputs';
 import type { ClientRFMInput } from '../rfm/scoring';
 import type { BirthdayClient, LoyaltyClient } from '../engines/campaign-engine';
 
@@ -27,6 +32,15 @@ export interface CatalogImportRequest {
   currency?: string;
   existingCategories?: string[];
 }
+
+export interface VariantSuggestRequest {
+  items: { name: string; category?: string; type?: string }[];
+  establishmentType?: string;
+  currency?: string;
+}
+
+/** Max products enriched per model call (token budget guard). */
+const VARIANT_SUGGEST_MAX_ITEMS = 40;
 
 /** Max characters of imported content sent to the model (token budget guard). */
 const CATALOG_IMPORT_MAX_CHARS = 14_000;
@@ -135,6 +149,40 @@ export class AutomationService {
       skipGuard: true,
     });
     return catalogGenerateSchema.parse(response.parsed ?? { currency, categories: [] });
+  }
+
+  /**
+   * 8d. Suggestion de variantes/suppléments par IA pour un lot de produits.
+   * Réutilise le pipeline orchestrate existant. Réutilisable plus tard par le POS,
+   * les commandes en ligne, les promotions et les menus combinés.
+   */
+  async suggestVariants(request: VariantSuggestRequest): Promise<VariantSuggest> {
+    const currency = request.currency?.trim() || 'XOF';
+    const items = request.items.filter((i) => i.name?.trim()).slice(0, VARIANT_SUGGEST_MAX_ITEMS);
+    if (items.length === 0) return { items: [] };
+
+    const products = items
+      .map((i) => {
+        const bits = [i.name.trim()];
+        if (i.category) bits.push(`catégorie: ${i.category}`);
+        if (i.type) bits.push(`type: ${i.type}`);
+        return `- ${bits.join(' — ')}`;
+      })
+      .join('\n');
+
+    const response = await orchestrate({
+      organizationId: this.tenantId,
+      useCase: 'catalog.variants',
+      input: {
+        establishmentType: request.establishmentType?.trim() || 'Restaurant',
+        currency,
+        products,
+      },
+      jsonSchema: variantSuggestSchema,
+      skipCache: true,
+      skipGuard: true,
+    });
+    return variantSuggestSchema.parse(response.parsed ?? { items: [] });
   }
 
   /** 8c. Génération d'images produit (IA) — contexte-aware, plusieurs variantes. */

@@ -11,8 +11,11 @@ import {
   summarizeSelections,
   defaultSelections,
   validateSelections,
+  filterAvailableGroups,
+  effectiveMax,
   type OptionGroup,
   type OptionSelections,
+  type OptionQuantities,
 } from '@loyala/domain-crm';
 
 const initial: VisitActionState = {};
@@ -60,7 +63,9 @@ export function RecordVisitDialog({ clientId, clientName, catalogItems }: Record
   const [search, setSearch] = useState('');
   const [configuring, setConfiguring] = useState<{
     item: CatalogPickerItem;
+    groups: OptionGroup[];
     selections: OptionSelections;
+    quantities: OptionQuantities;
   } | null>(null);
 
   useEffect(() => {
@@ -111,8 +116,10 @@ export function RecordVisitDialog({ clientId, clientName, catalogItems }: Record
   }
 
   function addItem(item: CatalogPickerItem) {
-    if (item.options && item.options.length > 0) {
-      setConfiguring({ item, selections: defaultSelections(item.options) });
+    // Hide options that are unavailable right now (rupture / off-hours / off-days).
+    const groups = filterAvailableGroups(item.options ?? []);
+    if (groups.length > 0) {
+      setConfiguring({ item, groups, selections: defaultSelections(groups), quantities: {} });
       setSearch('');
       return;
     }
@@ -122,13 +129,12 @@ export function RecordVisitDialog({ clientId, clientName, catalogItems }: Record
 
   function confirmConfigured() {
     if (!configuring) return;
-    const { item, selections } = configuring;
-    const groups = item.options ?? [];
+    const { item, groups, selections, quantities } = configuring;
     const err = validateSelections(groups, selections);
     if (err) return;
-    const summary = summarizeSelections(groups, selections);
+    const summary = summarizeSelections(groups, selections, quantities);
     const name = summary ? `${item.name} (${summary})` : item.name;
-    const unitPrice = computeItemUnitPrice(Number(item.price), groups, selections);
+    const unitPrice = computeItemUnitPrice(Number(item.price), groups, selections, quantities);
     pushLine(item, name, unitPrice, false);
     setConfiguring(null);
   }
@@ -137,15 +143,26 @@ export function RecordVisitDialog({ clientId, clientName, catalogItems }: Record
     setConfiguring((prev) => {
       if (!prev) return prev;
       const current = prev.selections[group.id] ?? [];
+      const max = effectiveMax(group);
       let next: string[];
-      if (group.selection === 'single') {
+      if (max <= 1) {
         next = [choiceId];
+      } else if (current.includes(choiceId)) {
+        next = current.filter((id) => id !== choiceId);
+      } else if (current.length >= max) {
+        // At max choices: replace the oldest selection with the new one.
+        next = [...current.slice(1), choiceId];
       } else {
-        next = current.includes(choiceId)
-          ? current.filter((id) => id !== choiceId)
-          : [...current, choiceId];
+        next = [...current, choiceId];
       }
       return { ...prev, selections: { ...prev.selections, [group.id]: next } };
+    });
+  }
+
+  function setChoiceQty(choiceId: string, qty: number) {
+    setConfiguring((prev) => {
+      if (!prev) return prev;
+      return { ...prev, quantities: { ...prev.quantities, [choiceId]: Math.max(1, qty) } };
     });
   }
 
@@ -373,8 +390,11 @@ export function RecordVisitDialog({ clientId, clientName, catalogItems }: Record
         {configuring && (
           <VariantConfigurator
             item={configuring.item}
+            groups={configuring.groups}
             selections={configuring.selections}
+            quantities={configuring.quantities}
             onToggle={toggleChoice}
+            onQty={setChoiceQty}
             onCancel={() => setConfiguring(null)}
             onConfirm={confirmConfigured}
           />
@@ -386,19 +406,24 @@ export function RecordVisitDialog({ clientId, clientName, catalogItems }: Record
 
 function VariantConfigurator({
   item,
+  groups,
   selections,
+  quantities,
   onToggle,
+  onQty,
   onCancel,
   onConfirm,
 }: {
   item: CatalogPickerItem;
+  groups: OptionGroup[];
   selections: OptionSelections;
+  quantities: OptionQuantities;
   onToggle: (group: OptionGroup, choiceId: string) => void;
+  onQty: (choiceId: string, qty: number) => void;
   onCancel: () => void;
   onConfirm: () => void;
 }) {
-  const groups = item.options ?? [];
-  const unitPrice = computeItemUnitPrice(Number(item.price), groups, selections);
+  const unitPrice = computeItemUnitPrice(Number(item.price), groups, selections, quantities);
   const error = validateSelections(groups, selections);
 
   return (
@@ -426,42 +451,78 @@ function VariantConfigurator({
         </div>
 
         <div className="flex-1 space-y-4 overflow-y-auto px-4 py-4">
-          {groups.map((group) => (
-            <div key={group.id}>
-              <p className="mb-1.5 text-xs font-medium text-muted-foreground">
-                {group.name}
-                {group.required && <span className="text-destructive"> *</span>}
-                {group.selection === 'multiple' && (
-                  <span className="ml-1 font-normal">(plusieurs)</span>
-                )}
-              </p>
-              <div className="flex flex-wrap gap-1.5">
-                {group.choices.map((choice) => {
-                  const active = (selections[group.id] ?? []).includes(choice.id);
-                  return (
-                    <button
-                      key={choice.id}
-                      type="button"
-                      onClick={() => onToggle(group, choice.id)}
-                      className={`rounded-lg border px-2.5 py-1.5 text-xs transition ${
-                        active
-                          ? 'border-primary bg-primary/10 text-foreground'
-                          : 'border-border text-muted-foreground hover:border-primary/40'
-                      }`}
-                    >
-                      {group.kind === 'removable' ? `Sans ${choice.label}` : choice.label}
-                      {choice.priceDelta !== 0 && (
-                        <span className="ml-1 text-muted-foreground">
-                          {choice.priceDelta > 0 ? '+' : ''}
-                          {formatMoney(choice.priceDelta, item.currency)}
-                        </span>
-                      )}
-                    </button>
-                  );
-                })}
+          {groups.map((group) => {
+            const max = effectiveMax(group);
+            const hint =
+              max > 1 && Number.isFinite(max)
+                ? `(jusqu'à ${max})`
+                : max > 1
+                  ? '(plusieurs)'
+                  : null;
+            return (
+              <div key={group.id}>
+                <p className="mb-1.5 text-xs font-medium text-muted-foreground">
+                  {group.name}
+                  {group.required && <span className="text-destructive"> *</span>}
+                  {hint && <span className="ml-1 font-normal">{hint}</span>}
+                </p>
+                <div className="flex flex-col gap-1.5">
+                  {group.choices.map((choice) => {
+                    const active = (selections[group.id] ?? []).includes(choice.id);
+                    const canQty =
+                      active && group.kind === 'supplement' && (choice.maxQuantity ?? 1) > 1;
+                    const qty = quantities[choice.id] ?? 1;
+                    return (
+                      <div key={choice.id} className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => onToggle(group, choice.id)}
+                          className={`flex-1 rounded-lg border px-2.5 py-1.5 text-left text-xs transition ${
+                            active
+                              ? 'border-primary bg-primary/10 text-foreground'
+                              : 'border-border text-muted-foreground hover:border-primary/40'
+                          }`}
+                        >
+                          {group.kind === 'removable' ? `Sans ${choice.label}` : choice.label}
+                          {choice.priceDelta !== 0 && (
+                            <span className="ml-1 text-muted-foreground">
+                              {choice.priceDelta > 0 ? '+' : ''}
+                              {formatMoney(choice.priceDelta, item.currency)}
+                            </span>
+                          )}
+                        </button>
+                        {canQty && (
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => onQty(choice.id, qty - 1)}
+                              disabled={qty <= 1}
+                              className="rounded-md border border-border p-1 hover:bg-secondary disabled:opacity-40"
+                              aria-label="Diminuer"
+                            >
+                              <Minus className="h-3 w-3" />
+                            </button>
+                            <span className="w-6 text-center text-xs">{qty}</span>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                onQty(choice.id, Math.min(choice.maxQuantity ?? 99, qty + 1))
+                              }
+                              disabled={qty >= (choice.maxQuantity ?? 99)}
+                              className="rounded-md border border-border p-1 hover:bg-secondary disabled:opacity-40"
+                              aria-label="Augmenter"
+                            >
+                              <Plus className="h-3 w-3" />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         <div className="border-t border-border px-4 py-3">

@@ -64,6 +64,7 @@ const AI_ROUTES = [
   '/ai/campaigns/promotions',
   '/ai/catalog/generate',
   '/ai/catalog/import',
+  '/ai/catalog/variants',
   '/ai/catalog/image',
   '/ai/inbox/reply',
   '/ai/inbox/classify',

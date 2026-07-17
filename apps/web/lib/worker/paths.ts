@@ -10,6 +10,7 @@ export const WORKER_AI_PATHS = [
   'campaigns/promotions',
   'catalog/generate',
   'catalog/import',
+  'catalog/variants',
   'catalog/image',
   'inbox/reply',
   'inbox/classify',

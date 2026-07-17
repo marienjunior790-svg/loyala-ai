@@ -21,6 +21,9 @@ import {
   Send,
   Upload,
   Download,
+  SlidersHorizontal,
+  ChevronDown,
+  ChevronRight,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -30,9 +33,12 @@ import {
   importCatalogFromUrlAction,
   importCatalogFromImageAction,
   applyGeneratedCatalogAction,
+  suggestVariantsAction,
   type CatalogAiState,
 } from '@/app/(dashboard)/catalogue/_actions/catalog';
+import { CatalogOptionsEditor } from '@/components/catalogue/catalog-options-editor';
 import { CATALOG_TEMPLATES } from '@/lib/catalogue/templates';
+import type { OptionGroup } from '@loyala/domain-crm';
 import {
   fileToDataUrl,
   spreadsheetToText,
@@ -250,6 +256,19 @@ function SmartCatalogDialog({
   const [error, setError] = useState<string | null>(null);
   const [busy, startBusy] = useTransition();
   const [applying, startApply] = useTransition();
+  const [, startSuggest] = useTransition();
+  const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
+  const [suggestingKey, setSuggestingKey] = useState<string | null>(null);
+  const [bulkSuggest, setBulkSuggest] = useState<{ done: number; total: number } | null>(null);
+
+  function toggleItemVariants(key: string) {
+    setExpandedItems((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }
 
   function handleResult(res: CatalogAiState) {
     if (res.error) setError(res.error);
@@ -347,13 +366,99 @@ function SmartCatalogDialog({
 
   const totalItems = preview?.categories.reduce((n, c) => n + c.items.length, 0) ?? 0;
 
-  function updateItem(ci: number, ii: number, patch: { name?: string; price?: number }) {
+  function updateItem(
+    ci: number,
+    ii: number,
+    patch: { name?: string; price?: number; options?: OptionGroup[] }
+  ) {
     setPreview((prev) => {
       if (!prev) return prev;
       const categories = prev.categories.map((c, i) =>
         i === ci ? { ...c, items: c.items.map((it, j) => (j === ii ? { ...it, ...patch } : it)) } : c
       );
       return { ...prev, categories };
+    });
+  }
+
+  /** Merge suggested groups into an item, skipping groups it already has (by name). */
+  function mergeItemOptions(ci: number, ii: number, groups: OptionGroup[]) {
+    setPreview((prev) => {
+      if (!prev) return prev;
+      const categories = prev.categories.map((c, i) => {
+        if (i !== ci) return c;
+        return {
+          ...c,
+          items: c.items.map((it, j) => {
+            if (j !== ii) return it;
+            const existing = (it.options as OptionGroup[] | undefined) ?? [];
+            const existingNames = new Set(existing.map((g) => g.name.toLowerCase()));
+            const toAdd = groups.filter((g) => !existingNames.has(g.name.toLowerCase()));
+            return { ...it, options: [...existing, ...toAdd] };
+          }),
+        };
+      });
+      return { ...prev, categories };
+    });
+    setExpandedItems((prev) => new Set(prev).add(`${ci}-${ii}`));
+  }
+
+  /** AI suggestion for a single product. */
+  function suggestForItem(ci: number, ii: number) {
+    if (!preview) return;
+    const cat = preview.categories[ci];
+    const item = cat?.items[ii];
+    if (!item) return;
+    const key = `${ci}-${ii}`;
+    setSuggestingKey(key);
+    setError(null);
+    startSuggest(async () => {
+      const res = await suggestVariantsAction({
+        items: [{ name: item.name, category: cat.name, type: item.type }],
+      });
+      setSuggestingKey(null);
+      if (res.error) return setError(res.error);
+      const groups = res.suggestions?.[item.name.trim()] ?? [];
+      if (groups.length === 0) return setError('Aucune variante pertinente pour ce produit.');
+      mergeItemOptions(ci, ii, groups);
+    });
+  }
+
+  /** AI suggestion for every product still missing variants. */
+  function suggestForAll() {
+    if (!preview) return;
+    setError(null);
+    const targets: { ci: number; ii: number; name: string; category: string; type: string }[] = [];
+    preview.categories.forEach((cat, ci) => {
+      cat.items.forEach((item, ii) => {
+        const has = ((item.options as OptionGroup[] | undefined) ?? []).length > 0;
+        if (!has && item.name.trim()) {
+          targets.push({ ci, ii, name: item.name.trim(), category: cat.name, type: item.type });
+        }
+      });
+    });
+    if (targets.length === 0) {
+      setError('Tous les produits ont déjà des variantes.');
+      return;
+    }
+    setBulkSuggest({ done: 0, total: targets.length });
+    startSuggest(async () => {
+      // One batched call (server caps the batch); results keyed by product name.
+      const res = await suggestVariantsAction({
+        items: targets.map((t) => ({ name: t.name, category: t.category, type: t.type })),
+      });
+      if (res.error) {
+        setBulkSuggest(null);
+        return setError(res.error);
+      }
+      const suggestions = res.suggestions ?? {};
+      let done = 0;
+      for (const t of targets) {
+        const groups = suggestions[t.name] ?? [];
+        if (groups.length > 0) mergeItemOptions(t.ci, t.ii, groups);
+        done += 1;
+        setBulkSuggest({ done, total: targets.length });
+      }
+      setBulkSuggest(null);
     });
   }
 
@@ -584,45 +689,125 @@ function SmartCatalogDialog({
           {/* ── Editable preview (shared by every mode) ── */}
           {preview && !busy && (
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="text-sm font-medium">
                   {preview.categories.length} catégorie(s) · {totalItems} article(s)
                 </p>
-                <span className="text-xs text-muted-foreground">Modifiez ou supprimez avant d'ajouter</span>
+                <button
+                  type="button"
+                  onClick={suggestForAll}
+                  disabled={!!bulkSuggest}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/5 px-3 py-1 text-xs font-medium text-primary transition hover:bg-primary/10 disabled:opacity-60"
+                >
+                  {bulkSuggest ? (
+                    <>
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      Variantes… {bulkSuggest.done}/{bulkSuggest.total}
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="h-3.5 w-3.5" />
+                      Suggérer des variantes pour tout le catalogue
+                    </>
+                  )}
+                </button>
               </div>
+              {bulkSuggest && (
+                <div className="h-1.5 w-full overflow-hidden rounded-full bg-secondary">
+                  <div
+                    className="h-full rounded-full bg-primary transition-all"
+                    style={{
+                      width: `${Math.round((bulkSuggest.done / Math.max(1, bulkSuggest.total)) * 100)}%`,
+                    }}
+                  />
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground">
+                Modifiez, ajoutez des variantes, puis validez. Rien n'est enregistré avant « Ajouter au catalogue ».
+              </p>
               {preview.categories.map((cat, ci) => (
                 <div key={`${cat.name}-${ci}`} className="rounded-xl border border-border">
                   <div className="border-b border-border bg-secondary/40 px-4 py-2 text-sm font-medium">
                     {cat.name}
                   </div>
                   <div className="divide-y divide-border">
-                    {cat.items.map((item, ii) => (
-                      <div key={`${item.name}-${ii}`} className="flex items-center gap-2 px-3 py-2">
-                        <input
-                          value={item.name}
-                          onChange={(e) => updateItem(ci, ii, { name: e.target.value })}
-                          className="min-w-0 flex-1 rounded-md border border-transparent bg-transparent px-2 py-1 text-sm outline-none hover:border-border focus:border-primary"
-                        />
-                        <input
-                          type="number"
-                          min={0}
-                          value={item.price}
-                          onChange={(e) => updateItem(ci, ii, { price: Number(e.target.value) })}
-                          className="w-24 rounded-md border border-input bg-background px-2 py-1 text-right text-sm outline-none focus:ring-2 focus:ring-ring"
-                        />
-                        <span className="w-12 text-xs text-muted-foreground">
-                          {CURRENCY_LABEL(preview.currency)}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => removeItem(ci, ii)}
-                          className="rounded-md p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-                          aria-label="Retirer"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                    ))}
+                    {cat.items.map((item, ii) => {
+                      const key = `${ci}-${ii}`;
+                      const groups = (item.options as OptionGroup[] | undefined) ?? [];
+                      const open = expandedItems.has(key);
+                      const isSuggesting = suggestingKey === key;
+                      return (
+                        <div key={`${item.name}-${ii}`} className="px-3 py-2">
+                          <div className="flex items-center gap-2">
+                            <input
+                              value={item.name}
+                              onChange={(e) => updateItem(ci, ii, { name: e.target.value })}
+                              className="min-w-0 flex-1 rounded-md border border-transparent bg-transparent px-2 py-1 text-sm outline-none hover:border-border focus:border-primary"
+                            />
+                            <input
+                              type="number"
+                              min={0}
+                              value={item.price}
+                              onChange={(e) => updateItem(ci, ii, { price: Number(e.target.value) })}
+                              className="w-24 rounded-md border border-input bg-background px-2 py-1 text-right text-sm outline-none focus:ring-2 focus:ring-ring"
+                            />
+                            <span className="w-12 text-xs text-muted-foreground">
+                              {CURRENCY_LABEL(preview.currency)}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => suggestForItem(ci, ii)}
+                              disabled={isSuggesting}
+                              className="inline-flex items-center gap-1 rounded-md border border-border px-1.5 py-1 text-xs text-muted-foreground transition hover:border-primary/50 hover:text-primary disabled:opacity-60"
+                              title="Suggérer des variantes (IA)"
+                            >
+                              {isSuggesting ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <Sparkles className="h-3.5 w-3.5" />
+                              )}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => toggleItemVariants(key)}
+                              className={`inline-flex items-center gap-1 rounded-md border px-1.5 py-1 text-xs transition ${
+                                groups.length > 0
+                                  ? 'border-primary/40 text-primary'
+                                  : 'border-border text-muted-foreground hover:text-foreground'
+                              }`}
+                              title="Variantes & options"
+                            >
+                              <SlidersHorizontal className="h-3.5 w-3.5" />
+                              {groups.length > 0 && <span>{groups.length}</span>}
+                              {open ? (
+                                <ChevronDown className="h-3 w-3" />
+                              ) : (
+                                <ChevronRight className="h-3 w-3" />
+                              )}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => removeItem(ci, ii)}
+                              className="rounded-md p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                              aria-label="Retirer"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                          {open && (
+                            <div className="mt-2 rounded-lg border border-border bg-background/60 p-3">
+                              <CatalogOptionsEditor
+                                value={groups}
+                                onChange={(g) => updateItem(ci, ii, { options: g })}
+                                currencyLabel={CURRENCY_LABEL(preview.currency)}
+                                itemName={item.name}
+                                itemCategory={cat.name}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               ))}

@@ -49,6 +49,44 @@ export const catalogGenerateSchema = z.object({
   categories: z.array(catalogGenerateCategorySchema).max(24).default([]),
 });
 
+// ─── Suggestion de variantes (IA) ────────────────────────────────────────────
+export const variantSuggestChoiceSchema = z.object({
+  label: z.string().min(1).max(80),
+  priceDelta: z.coerce.number().default(0),
+});
+
+export const variantSuggestGroupSchema = z.object({
+  name: z.string().min(1).max(80),
+  kind: z
+    .enum([
+      'size',
+      'portion',
+      'cooking',
+      'flavor',
+      'temperature',
+      'spice',
+      'supplement',
+      'removable',
+      'custom',
+    ])
+    .default('custom'),
+  selection: z.enum(['single', 'multiple']).default('single'),
+  required: z.boolean().default(false),
+  choices: z.array(variantSuggestChoiceSchema).min(1).max(40),
+});
+
+export const variantSuggestSchema = z.object({
+  items: z
+    .array(
+      z.object({
+        name: z.string().min(1).max(160),
+        groups: z.array(variantSuggestGroupSchema).max(8).default([]),
+      })
+    )
+    .max(60)
+    .default([]),
+});
+
 export const promotionSuggestSchema = z.object({
   promotions: z.array(
     z.object({
@@ -82,5 +120,7 @@ export type CatalogGenerate = z.infer<typeof catalogGenerateSchema>;
 export type CatalogGenerateCategory = z.infer<typeof catalogGenerateCategorySchema>;
 export type CatalogGenerateItem = z.infer<typeof catalogGenerateItemSchema>;
 export type PromotionSuggest = z.infer<typeof promotionSuggestSchema>;
+export type VariantSuggest = z.infer<typeof variantSuggestSchema>;
+export type VariantSuggestGroup = z.infer<typeof variantSuggestGroupSchema>;
 export type MessageClassification = z.infer<typeof messageClassifySchema>;
 export type AutoReply = z.infer<typeof autoReplySchema>;

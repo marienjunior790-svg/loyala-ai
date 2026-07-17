@@ -746,7 +746,12 @@ function ItemDialog({
         </div>
 
         <div className="rounded-lg border border-border p-3">
-          <CatalogOptionsEditor value={options} onChange={setOptions} />
+          <CatalogOptionsEditor
+            value={options}
+            onChange={setOptions}
+            itemName={name}
+            itemCategory={categories.find((c) => c.id === item?.category_id)?.name}
+          />
         </div>
         <input
           type="hidden"

@@ -14,6 +14,8 @@ import {
   bulkCreateCatalog,
   listCatalogCategories,
   getOrganization,
+  suggestVariants as suggestVariantsByRule,
+  type OptionGroup,
 } from '@loyala/domain-crm';
 import {
   createCatalogCategorySchema,
@@ -419,5 +421,129 @@ export async function applyGeneratedCatalogAction(
     };
   } catch (e) {
     return { error: e instanceof Error ? e.message : 'Erreur ajout du catalogue' };
+  }
+}
+
+// ─── Suggestion de variantes (IA + repli par règles) ──────────────────────────
+export type VariantSuggestInput = { name: string; category?: string; type?: string };
+export type VariantSuggestState = {
+  error?: string;
+  /** Groupes suggérés, indexés par nom de produit. */
+  suggestions?: Record<string, OptionGroup[]>;
+  source?: 'ai' | 'rules';
+};
+
+/** Max produits enrichis par appel (garde-fou coût/latence). */
+const MAX_SUGGEST_ITEMS = 40;
+
+function genOptId(prefix: string): string {
+  const rnd = globalThis.crypto?.randomUUID?.().slice(0, 8) ?? Math.random().toString(36).slice(2, 10);
+  return `${prefix}-${rnd}`;
+}
+
+const OPTION_KINDS = new Set([
+  'size',
+  'portion',
+  'cooking',
+  'flavor',
+  'temperature',
+  'spice',
+  'supplement',
+  'removable',
+  'custom',
+]);
+
+/** Maps an AI group (no ids) to a domain OptionGroup with generated ids. */
+function mapAiGroup(raw: unknown): OptionGroup | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const g = raw as Record<string, unknown>;
+  const name = typeof g.name === 'string' ? g.name.trim() : '';
+  const choicesRaw = Array.isArray(g.choices) ? g.choices : [];
+  if (!name || choicesRaw.length === 0) return null;
+  const kind = typeof g.kind === 'string' && OPTION_KINDS.has(g.kind) ? (g.kind as OptionGroup['kind']) : 'custom';
+  const selection = g.selection === 'multiple' ? 'multiple' : 'single';
+  const choices = choicesRaw
+    .map((c) => {
+      if (!c || typeof c !== 'object') return null;
+      const cc = c as Record<string, unknown>;
+      const label = typeof cc.label === 'string' ? cc.label.trim() : '';
+      if (!label) return null;
+      return { id: genOptId('c'), label, priceDelta: Number(cc.priceDelta) || 0 };
+    })
+    .filter((c): c is { id: string; label: string; priceDelta: number } => c !== null)
+    .slice(0, 40);
+  if (choices.length === 0) return null;
+  return {
+    id: genOptId('g'),
+    name,
+    kind,
+    selection,
+    required: Boolean(g.required),
+    choices,
+  };
+}
+
+/**
+ * Suggests variants/supplements for a batch of products via the AI pipeline,
+ * with a deterministic rule-based fallback so the feature always returns
+ * something usable. Nothing is persisted — the caller edits then applies.
+ */
+export async function suggestVariantsAction(
+  input: { items: VariantSuggestInput[]; establishmentType?: string }
+): Promise<VariantSuggestState> {
+  try {
+    const ctx = await requireAuthPermission(WRITE);
+    const items = (input.items ?? [])
+      .filter((i) => i?.name?.trim())
+      .slice(0, MAX_SUGGEST_ITEMS);
+    if (items.length === 0) return { suggestions: {} };
+
+    const supabase = await createClient();
+    const org = await getOrganization(supabase, ctx.organizationId);
+
+    const suggestions: Record<string, OptionGroup[]> = {};
+
+    const result = await proxyToWorker<{ items?: { name?: string; groups?: unknown[] }[] }>(
+      'catalog/variants',
+      {
+        method: 'POST',
+        organizationId: ctx.organizationId,
+        body: {
+          items,
+          establishmentType: input.establishmentType?.trim() || org?.name || 'Restaurant',
+          currency: 'XOF',
+        },
+      }
+    );
+
+    if (result.ok && Array.isArray(result.data?.items)) {
+      for (const it of result.data.items) {
+        const name = typeof it?.name === 'string' ? it.name.trim() : '';
+        if (!name) continue;
+        const groups = (it.groups ?? [])
+          .map(mapAiGroup)
+          .filter((g): g is OptionGroup => g !== null);
+        if (groups.length > 0) suggestions[name] = groups;
+      }
+    }
+
+    // Rule-based fallback for any item the AI left empty (or if the AI failed).
+    let usedRules = false;
+    for (const item of items) {
+      const key = item.name.trim();
+      if (suggestions[key]?.length) continue;
+      const rule = suggestVariantsByRule(key, item.category);
+      if (rule.length > 0) {
+        suggestions[key] = rule;
+        usedRules = true;
+      }
+    }
+
+    return {
+      suggestions,
+      source: result.ok && Object.keys(suggestions).length > 0 && !usedRules ? 'ai' : 'rules',
+    };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : 'Erreur suggestion de variantes' };
   }
 }

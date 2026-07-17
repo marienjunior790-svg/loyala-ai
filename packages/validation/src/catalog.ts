@@ -17,12 +17,24 @@ export const updateCatalogCategorySchema = createCatalogCategorySchema.partial()
   isActive: z.boolean().optional(),
 });
 
+// ─── Disponibilité (partagée : variantes, suppléments, produits) ───────────────
+export const availabilityStatusSchema = z.enum(['available', 'unavailable', 'scheduled']);
+
+export const availabilitySchema = z.object({
+  status: availabilityStatusSchema.default('available'),
+  // 0 = dimanche … 6 = samedi
+  days: z.array(z.number().int().min(0).max(6)).max(7).optional(),
+  timeStart: z.string().regex(/^\d{2}:\d{2}$/, 'HH:MM').optional(),
+  timeEnd: z.string().regex(/^\d{2}:\d{2}$/, 'HH:MM').optional(),
+});
+
 // ─── Variantes & options ──────────────────────────────────────────────────────
 export const optionGroupKindSchema = z.enum([
   'size',
   'portion',
   'cooking',
   'flavor',
+  'temperature',
   'spice',
   'supplement',
   'removable',
@@ -34,6 +46,12 @@ export const optionChoiceSchema = z.object({
   label: z.string().min(1, 'Libellé requis').max(80),
   priceDelta: z.coerce.number().default(0),
   isDefault: z.boolean().optional(),
+  // Sprint 4 — attributs par variante/supplément (tous optionnels, rétrocompatibles)
+  sku: z.string().max(64).optional().or(z.literal('')),
+  imageUrl: z.string().url().optional().or(z.literal('')),
+  prepTimeMinutes: z.coerce.number().int().min(0).max(600).optional(),
+  maxQuantity: z.coerce.number().int().min(1).max(99).optional(),
+  availability: availabilitySchema.optional(),
 });
 
 export const optionGroupSchema = z.object({
@@ -42,10 +60,13 @@ export const optionGroupSchema = z.object({
   kind: optionGroupKindSchema.default('custom'),
   selection: z.enum(['single', 'multiple']).default('single'),
   required: z.boolean().default(false),
-  choices: z.array(optionChoiceSchema).min(1).max(40),
+  // Sprint 4 — bornes explicites de sélection (prioritaires sur selection/required)
+  minChoices: z.coerce.number().int().min(0).max(40).optional(),
+  maxChoices: z.coerce.number().int().min(1).max(40).optional(),
+  choices: z.array(optionChoiceSchema).min(1).max(80),
 });
 
-export const itemOptionsSchema = z.array(optionGroupSchema).max(20);
+export const itemOptionsSchema = z.array(optionGroupSchema).max(30);
 
 // ─── Articles ────────────────────────────────────────────────────────────────
 export const createCatalogItemSchema = z.object({
@@ -72,6 +93,7 @@ export const generatedCatalogItemSchema = z.object({
   description: z.string().max(1000).optional().default(''),
   price: z.coerce.number().min(0).default(0),
   type: catalogItemTypeSchema.default('product'),
+  options: itemOptionsSchema.optional(),
 });
 
 export const generatedCatalogCategorySchema = z.object({
@@ -95,6 +117,8 @@ export const visitItemSchema = z.object({
   unitPrice: z.coerce.number().min(0, 'Prix invalide'),
 });
 
+export type AvailabilityStatus = z.infer<typeof availabilityStatusSchema>;
+export type AvailabilityInput = z.infer<typeof availabilitySchema>;
 export type OptionGroupKind = z.infer<typeof optionGroupKindSchema>;
 export type OptionChoiceInput = z.infer<typeof optionChoiceSchema>;
 export type OptionGroupInput = z.infer<typeof optionGroupSchema>;

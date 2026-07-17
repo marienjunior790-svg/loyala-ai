@@ -87,4 +87,33 @@ describe('catalog-options', () => {
     expect(getItemOptions({ metadata: {} })).toEqual([]);
     expect(getItemOptions({ metadata: null })).toEqual([]);
   });
+
+  it('applies supplement quantities to price and summary', () => {
+    const sel = { size: ['s'], sup: ['bacon'], rm: [] };
+    const qty = { bacon: 3 };
+    expect(computeOptionsPriceDelta(groups, sel, qty)).toBe(700 * 3);
+    expect(summarizeSelections(groups, sel, qty)).toBe('Petite · Bacon ×3');
+  });
+
+  it('enforces min/max choices when provided', () => {
+    const minMax: OptionGroup[] = [
+      {
+        id: 'drink',
+        name: 'Boisson',
+        kind: 'custom',
+        selection: 'multiple',
+        required: false,
+        minChoices: 1,
+        maxChoices: 2,
+        choices: [
+          { id: 'a', label: 'Coca', priceDelta: 0 },
+          { id: 'b', label: 'Fanta', priceDelta: 0 },
+          { id: 'c', label: 'Sprite', priceDelta: 0 },
+        ],
+      },
+    ];
+    expect(validateSelections(minMax, { drink: [] })).toMatch(/au moins 1|requis/i);
+    expect(validateSelections(minMax, { drink: ['a', 'b', 'c'] })).toMatch(/Maximum 2/);
+    expect(validateSelections(minMax, { drink: ['a'] })).toBeNull();
+  });
 });

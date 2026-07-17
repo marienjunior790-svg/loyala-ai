@@ -250,6 +250,28 @@ export async function handleAIRoute(
 
 
 
+    case '/ai/catalog/variants': {
+
+      const result = await automation.suggestVariants({
+
+        items: Array.isArray(body.items)
+
+          ? (body.items as { name: string; category?: string; type?: string }[])
+
+          : [],
+
+        establishmentType: body.establishmentType as string | undefined,
+
+        currency: body.currency as string | undefined,
+
+      });
+
+      return { status: 200, data: result };
+
+    }
+
+
+
     case '/ai/catalog/image': {
 
       const result = await automation.generateProductImages({
