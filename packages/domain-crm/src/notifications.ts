@@ -53,16 +53,28 @@ export async function createNotification(
     link?: string;
   }
 ): Promise<void> {
-  const { error } = await supabase.from('notifications').insert({
+  const row = {
     organization_id: input.organizationId,
     user_id: input.userId,
     title: input.title,
     body: input.body,
     type: input.type ?? 'info',
     link: input.link ?? null,
-  });
+  };
 
-  if (error) throw new Error(error.message);
+  const { error } = await supabase.from('notifications').insert(row);
+  if (!error) return;
+
+  // Legacy Prisma dual-column: tenant_id NOT NULL while app writes organization_id.
+  if (/tenant_id/i.test(error.message)) {
+    const retry = await supabase
+      .from('notifications')
+      .insert({ ...row, tenant_id: input.organizationId });
+    if (retry.error) throw new Error(retry.error.message);
+    return;
+  }
+
+  throw new Error(error.message);
 }
 
 export async function markNotificationRead(

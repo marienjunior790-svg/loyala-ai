@@ -104,15 +104,20 @@ export async function persistCampaignPlans(
         : 'Relances inactifs prêtes';
   const body = `${eligible.length} message(s) généré(s) par l'IA — consultez Relances pour envoyer`;
 
+  // Notifications are best-effort: never let them discard a created campaign.
   for (const userId of notifyIds) {
-    await createNotification(supabase, {
-      organizationId: params.organizationId,
-      userId,
-      title,
-      body,
-      type: 'campaign',
-      link: '/relances',
-    });
+    try {
+      await createNotification(supabase, {
+        organizationId: params.organizationId,
+        userId,
+        title,
+        body,
+        type: 'campaign',
+        link: '/relances',
+      });
+    } catch {
+      // Ignore — campaign + sends are already persisted.
+    }
   }
 
   return { campaignId: campaign.id, sendCount: eligible.length };
