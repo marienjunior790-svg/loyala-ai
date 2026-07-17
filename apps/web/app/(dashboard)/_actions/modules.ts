@@ -204,7 +204,9 @@ export async function generateAffinityCampaignAction(
 
     const candidates = clients.filter((c) => c.opt_in_whatsapp && c.phone);
     if (candidates.length === 0) {
-      return { error: noEligible };
+      return {
+        error: `${noEligible} Aucun client avec opt-in WhatsApp et numéro de téléphone.`,
+      };
     }
 
     const insightsMap = await getClientsPurchaseInsights(
@@ -221,7 +223,21 @@ export async function generateAffinityCampaignAction(
     );
 
     if (targets.length === 0) {
-      return { error: noEligible };
+      const now = Date.now();
+      const dormant = candidates.filter(
+        (c) =>
+          !c.last_visit_at ||
+          (now - new Date(c.last_visit_at).getTime()) / 86_400_000 >= 30
+      ).length;
+      const withFavorite = candidates.filter(
+        (c) => insightsMap.get(c.id)?.favoriteProduct
+      ).length;
+      return {
+        error:
+          `${noEligible} Sur ${candidates.length} client(s) opt-in : ` +
+          `${dormant} sans achat depuis 30 jours, ${withFavorite} avec un produit préféré identifié. ` +
+          `Enregistrez des visites avec des articles du catalogue pour activer la relance par affinité.`,
+      };
     }
 
     const workerResult = await proxyToWorker<{ campaigns?: CampaignPlanPayload[] }>(
