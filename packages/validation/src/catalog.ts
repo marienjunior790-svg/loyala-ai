@@ -35,6 +35,25 @@ export const createCatalogItemSchema = z.object({
 
 export const updateCatalogItemSchema = createCatalogItemSchema.partial();
 
+// ─── Import / génération IA d'un catalogue complet ────────────────────────────
+export const generatedCatalogItemSchema = z.object({
+  name: z.string().min(1, 'Nom requis').max(160),
+  description: z.string().max(1000).optional().default(''),
+  price: z.coerce.number().min(0).default(0),
+  type: catalogItemTypeSchema.default('product'),
+});
+
+export const generatedCatalogCategorySchema = z.object({
+  name: z.string().min(1, 'Nom requis').max(120),
+  description: z.string().max(500).optional().default(''),
+  items: z.array(generatedCatalogItemSchema).max(100).default([]),
+});
+
+export const generatedCatalogSchema = z.object({
+  currency: z.string().min(1).max(8).default('XOF'),
+  categories: z.array(generatedCatalogCategorySchema).max(40).default([]),
+});
+
 // ─── Ligne d'achat (visite) ──────────────────────────────────────────────────
 export const visitItemSchema = z.object({
   catalogItemId: z.string().uuid().optional().or(z.literal('')),
@@ -51,3 +70,6 @@ export type UpdateCatalogCategoryInput = z.infer<typeof updateCatalogCategorySch
 export type CreateCatalogItemInput = z.infer<typeof createCatalogItemSchema>;
 export type UpdateCatalogItemInput = z.infer<typeof updateCatalogItemSchema>;
 export type VisitItemInput = z.infer<typeof visitItemSchema>;
+export type GeneratedCatalogInput = z.infer<typeof generatedCatalogSchema>;
+export type GeneratedCatalogCategoryInput = z.infer<typeof generatedCatalogCategorySchema>;
+export type GeneratedCatalogItemInput = z.infer<typeof generatedCatalogItemSchema>;

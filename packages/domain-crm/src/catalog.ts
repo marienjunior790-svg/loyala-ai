@@ -4,6 +4,7 @@ import type {
   UpdateCatalogCategoryInput,
   CreateCatalogItemInput,
   UpdateCatalogItemInput,
+  GeneratedCatalogInput,
 } from '@loyala/validation';
 
 export type CatalogItemType = 'product' | 'service' | 'rental';
@@ -263,4 +264,75 @@ export async function deleteCatalogItem(
     .eq('organization_id', organizationId);
 
   assertOk(error);
+}
+
+// ─── Import / génération IA en lot ────────────────────────────────────────────
+
+export interface BulkCreateCatalogResult {
+  categoriesCreated: number;
+  itemsCreated: number;
+}
+
+/**
+ * Bulk-creates an AI-generated (or imported) catalog. Categories are matched
+ * case-insensitively against existing ones to avoid duplicates; only new
+ * categories are inserted. Every item is attached to its resolved category.
+ */
+export async function bulkCreateCatalog(
+  supabase: SupabaseClient,
+  organizationId: string,
+  payload: GeneratedCatalogInput
+): Promise<BulkCreateCatalogResult> {
+  const currency = payload.currency?.trim() || 'XOF';
+
+  const existing = await listCatalogCategories(supabase, organizationId);
+  const categoryIdByName = new Map<string, string>();
+  for (const c of existing) categoryIdByName.set(c.name.trim().toLowerCase(), c.id);
+
+  let categoriesCreated = 0;
+  let sortOrder = existing.length;
+
+  // Create missing categories first so items can reference them.
+  const uniqueNames = new Map<string, { name: string; description: string }>();
+  for (const cat of payload.categories) {
+    const key = cat.name.trim().toLowerCase();
+    if (!key || categoryIdByName.has(key) || uniqueNames.has(key)) continue;
+    uniqueNames.set(key, { name: cat.name.trim(), description: cat.description ?? '' });
+  }
+
+  for (const [key, cat] of uniqueNames) {
+    const created = await createCatalogCategory(supabase, organizationId, {
+      name: cat.name,
+      description: cat.description || undefined,
+      sortOrder: sortOrder++,
+    });
+    categoryIdByName.set(key, created.id);
+    categoriesCreated += 1;
+  }
+
+  // Insert items in a single batch, resolving category ids.
+  const rows: Record<string, unknown>[] = [];
+  for (const cat of payload.categories) {
+    const categoryId = categoryIdByName.get(cat.name.trim().toLowerCase()) ?? null;
+    for (const item of cat.items) {
+      if (!item.name?.trim()) continue;
+      rows.push({
+        organization_id: organizationId,
+        category_id: categoryId,
+        name: item.name.trim(),
+        description: item.description?.trim() || null,
+        type: item.type ?? 'product',
+        price: Number(item.price ?? 0),
+        currency,
+        is_active: true,
+      });
+    }
+  }
+
+  if (rows.length > 0) {
+    const { error } = await supabase.from('catalog_items').insert(rows);
+    assertOk(error);
+  }
+
+  return { categoriesCreated, itemsCreated: rows.length };
 }

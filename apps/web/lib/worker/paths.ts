@@ -8,6 +8,7 @@ export const WORKER_AI_PATHS = [
   'campaigns/loyalty',
   'campaigns/affinity',
   'campaigns/promotions',
+  'catalog/generate',
   'inbox/reply',
   'inbox/classify',
   'rfm/score',

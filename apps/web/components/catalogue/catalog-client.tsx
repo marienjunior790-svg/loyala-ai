@@ -26,6 +26,7 @@ import {
   updateCategoryAction,
   deleteCategoryAction,
 } from '@/app/(dashboard)/catalogue/_actions/catalog';
+import { CatalogAiPanel } from '@/components/catalogue/catalog-ai-create';
 
 type Tab = 'products' | 'services' | 'categories';
 
@@ -99,8 +100,26 @@ export function CatalogClient({ categories, items, canWrite }: CatalogClientProp
     { id: 'categories', label: 'Catégories', icon: Tags },
   ];
 
+  const isEmpty = items.length === 0 && categories.length === 0;
+
   return (
     <div className="space-y-5">
+      <CatalogAiPanel canWrite={canWrite} isEmpty={isEmpty} onManual={openNewItem} />
+
+      {message && (
+        <div
+          className={`rounded-lg border px-3 py-2 text-sm ${
+            message.kind === 'error'
+              ? 'border-destructive/40 bg-destructive/10 text-destructive'
+              : 'border-emerald-500/40 bg-emerald-500/10 text-emerald-400'
+          }`}
+        >
+          {message.text}
+        </div>
+      )}
+
+      {isEmpty ? null : (
+      <>
       <div className="flex flex-wrap items-center gap-2 border-b border-border pb-3">
         {tabs.map((t) => {
           const Icon = t.icon;
@@ -122,18 +141,6 @@ export function CatalogClient({ categories, items, canWrite }: CatalogClientProp
           );
         })}
       </div>
-
-      {message && (
-        <div
-          className={`rounded-lg border px-3 py-2 text-sm ${
-            message.kind === 'error'
-              ? 'border-destructive/40 bg-destructive/10 text-destructive'
-              : 'border-emerald-500/40 bg-emerald-500/10 text-emerald-400'
-          }`}
-        >
-          {message.text}
-        </div>
-      )}
 
       {tab === 'categories' ? (
         <CategoriesPanel
@@ -257,6 +264,8 @@ export function CatalogClient({ categories, items, canWrite }: CatalogClientProp
             </div>
           )}
         </>
+      )}
+      </>
       )}
 
       {itemDialogOpen && (

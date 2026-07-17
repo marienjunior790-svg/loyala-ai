@@ -11,13 +11,19 @@ import {
   updateCatalogItem,
   deleteCatalogItem,
   setCatalogItemActive,
+  bulkCreateCatalog,
+  listCatalogCategories,
+  getOrganization,
 } from '@loyala/domain-crm';
 import {
   createCatalogCategorySchema,
   updateCatalogCategorySchema,
   createCatalogItemSchema,
   updateCatalogItemSchema,
+  generatedCatalogSchema,
+  type GeneratedCatalogInput,
 } from '@loyala/validation';
+import { proxyToWorker } from '@/lib/worker/client';
 
 export type CatalogActionState = { error?: string; success?: string };
 
@@ -164,5 +170,95 @@ export async function deleteItemAction(itemId: string): Promise<CatalogActionSta
     return { success: 'Article supprimé' };
   } catch (e) {
     return { error: e instanceof Error ? e.message : 'Erreur suppression article' };
+  }
+}
+
+// ─── Génération / assistant IA ────────────────────────────────────────────────
+export type CatalogAiState = {
+  error?: string;
+  preview?: GeneratedCatalogInput;
+};
+
+/**
+ * Generates a full catalog (or an incremental set of items via the AI assistant)
+ * from a natural-language brief. Returns an editable preview — nothing is
+ * persisted until the user validates via `applyGeneratedCatalogAction`.
+ */
+export async function generateCatalogAction(input: {
+  brief: string;
+  establishmentType?: string;
+}): Promise<CatalogAiState> {
+  try {
+    const ctx = await requireAuthPermission(WRITE);
+    const brief = input.brief?.trim();
+    if (!brief) return { error: 'Décrivez ce que vous souhaitez générer.' };
+
+    const supabase = await createClient();
+    const [org, categories] = await Promise.all([
+      getOrganization(supabase, ctx.organizationId),
+      listCatalogCategories(supabase, ctx.organizationId),
+    ]);
+
+    const result = await proxyToWorker<unknown>('catalog/generate', {
+      method: 'POST',
+      organizationId: ctx.organizationId,
+      body: {
+        brief,
+        establishmentType: input.establishmentType?.trim() || org?.name || 'Restaurant',
+        currency: 'XOF',
+        existingCategories: categories.map((c) => c.name),
+      },
+    });
+
+    if (!result.ok) {
+      return { error: result.error ?? 'Assistant IA indisponible' };
+    }
+
+    const parsed = generatedCatalogSchema.safeParse(result.data);
+    if (!parsed.success) {
+      return { error: "L'IA n'a pas renvoyé un catalogue exploitable. Réessayez." };
+    }
+
+    const totalItems = parsed.data.categories.reduce((n, c) => n + c.items.length, 0);
+    if (totalItems === 0) {
+      return { error: 'Aucun article généré. Précisez votre demande et réessayez.' };
+    }
+
+    return { preview: parsed.data };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : 'Erreur génération IA' };
+  }
+}
+
+export type CatalogApplyState = {
+  error?: string;
+  success?: string;
+  categoriesCreated?: number;
+  itemsCreated?: number;
+};
+
+/** Persists a (possibly user-edited) generated catalog. */
+export async function applyGeneratedCatalogAction(
+  payload: GeneratedCatalogInput
+): Promise<CatalogApplyState> {
+  try {
+    const ctx = await requireAuthPermission(WRITE);
+    const parsed = generatedCatalogSchema.safeParse(payload);
+    if (!parsed.success) return { error: 'Catalogue invalide' };
+
+    const supabase = await createClient();
+    const { categoriesCreated, itemsCreated } = await bulkCreateCatalog(
+      supabase,
+      ctx.organizationId,
+      parsed.data
+    );
+    revalidateCatalog();
+    return {
+      success: `${itemsCreated} article(s) et ${categoriesCreated} catégorie(s) ajouté(s)`,
+      categoriesCreated,
+      itemsCreated,
+    };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : 'Erreur ajout du catalogue' };
   }
 }

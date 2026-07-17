@@ -200,6 +200,30 @@ export async function handleAIRoute(
 
 
 
+    case '/ai/catalog/generate': {
+
+      const result = await automation.generateCatalog({
+
+        brief: (body.brief as string) ?? '',
+
+        establishmentType: body.establishmentType as string | undefined,
+
+        currency: body.currency as string | undefined,
+
+        existingCategories: Array.isArray(body.existingCategories)
+
+          ? (body.existingCategories as string[])
+
+          : undefined,
+
+      });
+
+      return { status: 200, data: result };
+
+    }
+
+
+
     case '/ai/campaigns/promotions': {
 
       const context = (body.context as Record<string, unknown>) ?? {};

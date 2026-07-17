@@ -8,6 +8,7 @@ export type AIUseCase =
   | 'campaign.loyalty.generate'
   | 'campaign.affinity.generate'
   | 'campaign.promotion.suggest'
+  | 'catalog.generate'
   | 'inbox.reply.generate'
   | 'inbox.message.classify'
   | 'inbox.reply.suggest'

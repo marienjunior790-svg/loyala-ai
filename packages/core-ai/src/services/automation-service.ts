@@ -6,8 +6,17 @@ import { createClassificationPipeline } from '../pipeline/classificationPipeline
 import { createCampaignOrchestrator } from '../campaign/campaignEngine';
 import { generateAutoReply } from '../engines/auto-reply';
 import { analyzeInactiveClient, type InactiveClient } from '../engines/inactive-detection';
+import { orchestrate } from '../orchestrator/orchestrate';
+import { catalogGenerateSchema, type CatalogGenerate } from '../schemas/outputs';
 import type { ClientRFMInput } from '../rfm/scoring';
 import type { BirthdayClient, LoyaltyClient } from '../engines/campaign-engine';
+
+export interface CatalogGenerateRequest {
+  brief: string;
+  establishmentType?: string;
+  currency?: string;
+  existingCategories?: string[];
+}
 
 export class AutomationService {
   private readonly rfm: ReturnType<typeof createRFMEngine>;
@@ -64,6 +73,27 @@ export class AutomationService {
   /** 5. Suggestions promotions */
   suggestPromotions(context: Record<string, unknown>) {
     return this.campaigns.suggestPromotions(context);
+  }
+
+  /** 8. Génération de catalogue par IA (création complète ou assistant conversationnel) */
+  async generateCatalog(request: CatalogGenerateRequest): Promise<CatalogGenerate> {
+    const currency = request.currency?.trim() || 'XOF';
+    const response = await orchestrate({
+      organizationId: this.tenantId,
+      useCase: 'catalog.generate',
+      input: {
+        brief: request.brief,
+        establishmentType: request.establishmentType?.trim() || 'Restaurant',
+        currency,
+        existingCategories:
+          request.existingCategories && request.existingCategories.length > 0
+            ? request.existingCategories.join(', ')
+            : 'aucune',
+      },
+      jsonSchema: catalogGenerateSchema,
+      skipCache: true,
+    });
+    return catalogGenerateSchema.parse(response.parsed ?? { currency, categories: [] });
   }
 
   /** 6. Réponses automatiques */

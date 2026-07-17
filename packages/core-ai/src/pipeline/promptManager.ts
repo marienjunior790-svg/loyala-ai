@@ -94,6 +94,20 @@ JSON: {"message":"max 300 chars","offer":"offre courte et concrète","urgency":"
     temperature: 0.5,
     jsonMode: true,
   },
+  'catalog.generate': {
+    version: '1.0',
+    system: `${BASE_SYSTEM} Tu es expert en menus et catalogues pour restaurants, bars, hôtels, cafés, boulangeries, salons, spas et commerces. Tu génères des catalogues réalistes, complets et bien organisés. Prix cohérents avec le marché local et la devise demandée. Descriptions marketing courtes et appétissantes (max ~120 caractères). N'invente jamais de numéros de téléphone ni d'identifiants.`,
+    userTemplate: `Établissement: {{establishmentType}}
+Devise: {{currency}}
+Catégories déjà existantes (ne pas dupliquer): {{existingCategories}}
+Demande de l'utilisateur: {{brief}}
+
+Génère un catalogue structuré en catégories et articles. Chaque article a un nom, une description marketing courte, un prix estimé dans la devise indiquée, et un type (product|service|rental).
+Réponds UNIQUEMENT en JSON: {"currency":"{{currency}}","categories":[{"name":"string","description":"string","items":[{"name":"string","description":"string","price":number,"type":"product|service|rental"}]}]}`,
+    maxTokens: 2200,
+    temperature: 0.6,
+    jsonMode: true,
+  },
   'campaign.promotion.suggest': {
     version: '1.0',
     system: `${BASE_SYSTEM} Tu suggères des promotions data-driven pour restaurants.`,
