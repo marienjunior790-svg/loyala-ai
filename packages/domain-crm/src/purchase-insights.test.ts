@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { computeClientPurchaseInsights } from './purchase-insights';
+import { computeClientPurchaseInsights, isAffinityEligible } from './purchase-insights';
 import type { ClientVisitWithItems } from './visits';
 
 function visit(
@@ -84,5 +84,68 @@ describe('computeClientPurchaseInsights', () => {
     ]);
     expect(r.bestMonth?.month).toBe('2026-03');
     expect(r.bestMonth?.total).toBe(10000);
+  });
+});
+
+describe('isAffinityEligible', () => {
+  const now = new Date('2026-07-17T00:00:00.000Z').getTime();
+  const fortyDaysAgo = new Date('2026-06-07T00:00:00.000Z').toISOString();
+  const tenDaysAgo = new Date('2026-07-07T00:00:00.000Z').toISOString();
+  const fav = { favoriteProduct: { name: 'Pizza', quantity: 5 } };
+
+  it('is eligible when opt-in, phone, dormant and a favorite product exist', () => {
+    expect(
+      isAffinityEligible(
+        { opt_in_whatsapp: true, phone: '+2250700', last_visit_at: fortyDaysAgo },
+        fav,
+        now
+      )
+    ).toBe(true);
+  });
+
+  it('is eligible when the client never visited', () => {
+    expect(
+      isAffinityEligible({ opt_in_whatsapp: true, phone: '+2250700', last_visit_at: null }, fav, now)
+    ).toBe(true);
+  });
+
+  it('rejects clients without WhatsApp opt-in', () => {
+    expect(
+      isAffinityEligible(
+        { opt_in_whatsapp: false, phone: '+2250700', last_visit_at: fortyDaysAgo },
+        fav,
+        now
+      )
+    ).toBe(false);
+  });
+
+  it('rejects clients without a phone number', () => {
+    expect(
+      isAffinityEligible(
+        { opt_in_whatsapp: true, phone: null, last_visit_at: fortyDaysAgo },
+        fav,
+        now
+      )
+    ).toBe(false);
+  });
+
+  it('rejects clients seen within the dormant window', () => {
+    expect(
+      isAffinityEligible(
+        { opt_in_whatsapp: true, phone: '+2250700', last_visit_at: tenDaysAgo },
+        fav,
+        now
+      )
+    ).toBe(false);
+  });
+
+  it('rejects clients without an identifiable favorite product', () => {
+    expect(
+      isAffinityEligible(
+        { opt_in_whatsapp: true, phone: '+2250700', last_visit_at: fortyDaysAgo },
+        { favoriteProduct: null },
+        now
+      )
+    ).toBe(false);
   });
 });

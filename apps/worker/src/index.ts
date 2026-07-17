@@ -60,6 +60,7 @@ const AI_ROUTES = [
   '/ai/inactive/analyze',
   '/ai/campaigns/birthday',
   '/ai/campaigns/loyalty',
+  '/ai/campaigns/affinity',
   '/ai/campaigns/promotions',
   '/ai/inbox/reply',
   '/ai/inbox/classify',

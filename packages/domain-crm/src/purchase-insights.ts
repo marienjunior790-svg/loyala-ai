@@ -107,6 +107,28 @@ export function computeClientPurchaseInsights(
   };
 }
 
+export const AFFINITY_DORMANT_DAYS = 30;
+
+/**
+ * Eligibility for an affinity re-engagement campaign. Mirrors the worker rules:
+ * opt-in WhatsApp + phone + dormant (>= dormantDays or never) + a known favorite product.
+ * Pure and deterministic for testing.
+ */
+export function isAffinityEligible(
+  client: { opt_in_whatsapp?: boolean | null; phone?: string | null; last_visit_at?: string | null },
+  insights: Pick<ClientPurchaseInsights, 'favoriteProduct'> | undefined,
+  now: number = Date.now(),
+  dormantDays: number = AFFINITY_DORMANT_DAYS
+): boolean {
+  if (!client.opt_in_whatsapp) return false;
+  if (!client.phone) return false;
+  if (!insights?.favoriteProduct?.name) return false;
+
+  if (!client.last_visit_at) return true;
+  const daysSinceVisit = (now - new Date(client.last_visit_at).getTime()) / 86_400_000;
+  return daysSinceVisit >= dormantDays;
+}
+
 /** Fetch + compute purchase insights for several clients at once. */
 export async function getClientsPurchaseInsights(
   supabase: SupabaseClient,

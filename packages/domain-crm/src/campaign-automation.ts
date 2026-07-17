@@ -42,7 +42,7 @@ export async function persistCampaignPlans(
   params: {
     organizationId: string;
     restaurantName: string;
-    campaignType: 'inactive' | 'birthday' | 'loyalty';
+    campaignType: 'inactive' | 'birthday' | 'loyalty' | 'promotion';
     campaignName: string;
     plans: CampaignPlanPayload[];
     clients: ClientForCampaign[];
@@ -99,7 +99,9 @@ export async function persistCampaignPlans(
   const title =
     params.campaignType === 'birthday'
       ? 'Campagnes anniversaire prêtes'
-      : 'Relances inactifs prêtes';
+      : params.campaignType === 'promotion'
+        ? 'Relances par affinité prêtes'
+        : 'Relances inactifs prêtes';
   const body = `${eligible.length} message(s) généré(s) par l'IA — consultez Relances pour envoyer`;
 
   for (const userId of notifyIds) {

@@ -6,6 +6,8 @@ import {
   ArrowRight,
   Cake,
   Copy,
+  Heart,
+  Loader2,
   Pencil,
   Pause,
   Play,
@@ -21,6 +23,7 @@ import { WorkerIntegrationStatus } from '@/components/worker/worker-integration-
 import {
   generateInactiveCampaignAction,
   generateBirthdayCampaignAction,
+  generateAffinityCampaignAction,
   type ModuleActionState,
 } from '@/app/(dashboard)/_actions/modules';
 import {
@@ -84,6 +87,10 @@ export function CampaignsPageClient({
   );
   const [birthdayState, birthdayAction, birthdayPending] = useActionState(
     generateBirthdayCampaignAction,
+    initialModule
+  );
+  const [affinityState, affinityAction, affinityPending] = useActionState(
+    generateAffinityCampaignAction,
     initialModule
   );
   const [createState, createAction, createPending] = useActionState(
@@ -157,7 +164,7 @@ export function CampaignsPageClient({
         </Card>
       )}
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-3">
         <Card className="border-primary/20 bg-gradient-to-b from-primary/5 to-transparent">
           <CardContent className="space-y-4 p-6">
             <div className="flex items-center gap-2 text-primary">
@@ -200,6 +207,56 @@ export function CampaignsPageClient({
             )}
             {birthdayState.success && (
               <p className="text-sm text-emerald-400">{birthdayState.success}</p>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="border-rose-500/20 bg-gradient-to-b from-rose-500/5 to-transparent">
+          <CardContent className="space-y-4 p-6">
+            <div className="flex items-center gap-2 text-rose-600 dark:text-rose-400">
+              <Heart className="h-4 w-4" />
+              <span className="text-sm font-medium">Relance par affinité</span>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Offres personnalisées basées sur le produit/catégorie préféré des clients dormants
+              (30+ jours, opt-in WhatsApp).
+            </p>
+            <form
+              action={affinityAction}
+              onSubmit={(e) => {
+                if (
+                  typeof window !== 'undefined' &&
+                  !window.confirm(
+                    'Voulez-vous générer une campagne de relance basée sur les préférences d\u2019achat des clients inactifs ?'
+                  )
+                ) {
+                  e.preventDefault();
+                }
+              }}
+            >
+              <Button
+                type="submit"
+                variant="outline"
+                disabled={affinityPending || !canWrite}
+              >
+                {affinityPending ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Génération en cours…
+                  </>
+                ) : (
+                  <>
+                    <Heart className="h-4 w-4" />
+                    Lancer une relance affinité
+                  </>
+                )}
+              </Button>
+            </form>
+            {affinityState.error && (
+              <p className="text-sm text-destructive break-words">{affinityState.error}</p>
+            )}
+            {affinityState.success && (
+              <p className="text-sm text-emerald-400">{affinityState.success}</p>
             )}
           </CardContent>
         </Card>

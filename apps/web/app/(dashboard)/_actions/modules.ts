@@ -10,6 +10,8 @@ import {
   syncClientSegments,
   getOrganization,
   persistCampaignPlans,
+  getClientsPurchaseInsights,
+  isAffinityEligible,
   type CampaignPlanPayload,
 } from '@loyala/domain-crm';
 import { notifyCampaignReadyByEmail } from '@loyala/integrations';
@@ -21,7 +23,7 @@ function canRunCampaigns(role: OrgRole): boolean {
   return CAMPAIGN_WRITE_ROLES.includes(role);
 }
 
-export type ModuleActionState = { error?: string; success?: string };
+export type ModuleActionState = { error?: string; success?: string; campaignId?: string };
 
 async function generateLoyaltyCampaign(
   ctx: Awaited<ReturnType<typeof requireAuth>>,
@@ -175,6 +177,138 @@ export async function generateBirthdayCampaignAction(
     );
   } catch (e) {
     return { error: e instanceof Error ? e.message : 'Erreur génération anniversaires' };
+  }
+}
+
+/**
+ * Manual affinity re-engagement trigger. Reuses the exact worker AI logic
+ * (`automation.runAffinityRelances` via the `campaigns/affinity` route) instead
+ * of duplicating message generation. Eligibility (opt-in, dormant >= 30 days,
+ * identifiable favorite product) is enforced against the RLS-scoped org data.
+ */
+export async function generateAffinityCampaignAction(
+  _prev: ModuleActionState,
+  _formData: FormData
+): Promise<ModuleActionState> {
+  const ctx = await requireAuth();
+  if (!canRunCampaigns(ctx.role)) {
+    return { error: 'Permission insuffisante — rôle lecture seule (org_viewer)' };
+  }
+
+  const noEligible = 'Aucun client éligible pour une relance affinité actuellement.';
+
+  try {
+    const supabase = await createClient();
+    const org = await getOrganization(supabase, ctx.organizationId);
+    const clients = await listClients(supabase, ctx.organizationId);
+
+    const candidates = clients.filter((c) => c.opt_in_whatsapp && c.phone);
+    if (candidates.length === 0) {
+      return { error: noEligible };
+    }
+
+    const insightsMap = await getClientsPurchaseInsights(
+      supabase,
+      ctx.organizationId,
+      candidates.map((c) => c.id)
+    );
+
+    const targets = candidates.filter((c) =>
+      isAffinityEligible(
+        { opt_in_whatsapp: c.opt_in_whatsapp, phone: c.phone, last_visit_at: c.last_visit_at },
+        insightsMap.get(c.id)
+      )
+    );
+
+    if (targets.length === 0) {
+      return { error: noEligible };
+    }
+
+    const workerResult = await proxyToWorker<{ campaigns?: CampaignPlanPayload[] }>(
+      'campaigns/affinity',
+      {
+        method: 'POST',
+        organizationId: ctx.organizationId,
+        body: {
+          clients: targets.map((c) => {
+            const i = insightsMap.get(c.id);
+            return {
+              clientId: c.id,
+              fullName: c.full_name,
+              loyaltyPoints: c.loyalty_points,
+              lastVisit: c.last_visit_at ?? new Date(0).toISOString(),
+              insights: i
+                ? {
+                    favoriteProduct: i.favoriteProduct?.name ?? null,
+                    favoriteCategory: i.favoriteCategory?.name ?? null,
+                    averageBasket: i.averageBasket,
+                    totalSpent: i.totalSpent,
+                    bestMonth: i.bestMonth?.month ?? null,
+                    isVip: i.isVipCandidate,
+                  }
+                : undefined,
+            };
+          }),
+        },
+      }
+    );
+
+    if (!workerResult.ok) {
+      return { error: workerResult.error ?? 'Worker IA indisponible' };
+    }
+
+    const plans = workerResult.data.campaigns ?? [];
+    if (plans.length === 0) {
+      return { error: noEligible };
+    }
+
+    const campaignName = `Relance affinité — ${new Date().toLocaleDateString('fr-FR')}`;
+    const { campaignId, sendCount } = await persistCampaignPlans(supabase, {
+      organizationId: ctx.organizationId,
+      restaurantName: org?.name ?? 'Restaurant',
+      campaignType: 'promotion',
+      campaignName,
+      plans,
+      clients: targets.map((c) => ({
+        id: c.id,
+        full_name: c.full_name,
+        phone: c.phone,
+        opt_in_whatsapp: c.opt_in_whatsapp,
+      })),
+      createdBy: ctx.userId,
+      source: 'manual',
+    });
+
+    if (sendCount === 0) {
+      return {
+        error:
+          'Aucune relance enregistrée (clients sans opt-in WhatsApp ou numéro manquant)',
+      };
+    }
+
+    const session = await getSession();
+    if (session?.email) {
+      try {
+        await notifyCampaignReadyByEmail({
+          to: session.email,
+          restaurantName: org?.name ?? 'Restaurant',
+          count: sendCount,
+          campaignType: 'affinité',
+        });
+      } catch {
+        // Email is optional — in-app notification already created
+      }
+    }
+
+    revalidatePath('/campaigns');
+    revalidatePath('/relances');
+    revalidatePath('/notifications');
+    return {
+      success: `Campagne « ${campaignName} » créée : ${sendCount} client(s) ciblé(s) — ${plans.length} message(s) généré(s). Consultez Relances pour envoyer.`,
+      campaignId,
+    };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : 'Erreur génération relance affinité' };
   }
 }
 

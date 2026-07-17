@@ -6,6 +6,7 @@ export const WORKER_AI_PATHS = [
   'inactive/analyze',
   'campaigns/birthday',
   'campaigns/loyalty',
+  'campaigns/affinity',
   'campaigns/promotions',
   'inbox/reply',
   'inbox/classify',
