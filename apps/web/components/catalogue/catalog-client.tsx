@@ -12,6 +12,10 @@ import {
   Wrench,
   Tags,
   X,
+  ImageIcon,
+  Images,
+  Loader2,
+  Sparkles,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -26,7 +30,12 @@ import {
   updateCategoryAction,
   deleteCategoryAction,
 } from '@/app/(dashboard)/catalogue/_actions/catalog';
+import {
+  searchFreeImagesAction,
+  saveProductImageAction,
+} from '@/app/(dashboard)/catalogue/_actions/images';
 import { CatalogAiPanel } from '@/components/catalogue/catalog-ai-create';
+import { ProductImagePicker } from '@/components/catalogue/product-image-picker';
 
 type Tab = 'products' | 'services' | 'categories';
 
@@ -58,6 +67,8 @@ export function CatalogClient({ categories, items, canWrite }: CatalogClientProp
   const [editingCategory, setEditingCategory] = useState<CatalogCategory | null>(null);
   const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
   const [message, setMessage] = useState<{ kind: 'error' | 'success'; text: string } | null>(null);
+  const [pickerItem, setPickerItem] = useState<CatalogItem | null>(null);
+  const [batch, setBatch] = useState<{ total: number; done: number } | null>(null);
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -92,6 +103,48 @@ export function CatalogClient({ categories, items, canWrite }: CatalogClientProp
   function openEditItem(item: CatalogItem) {
     setEditingItem(item);
     setItemDialogOpen(true);
+  }
+
+  const missingPhotoCount = useMemo(
+    () => items.filter((i) => !i.photo_url).length,
+    [items]
+  );
+
+  async function illustrateMissing() {
+    const targets = items.filter((i) => !i.photo_url);
+    if (targets.length === 0) return;
+    if (
+      !confirm(
+        `Rechercher automatiquement une image libre de droits pour ${targets.length} produit(s) sans photo ?`
+      )
+    ) {
+      return;
+    }
+    setMessage(null);
+    setBatch({ total: targets.length, done: 0 });
+    let filled = 0;
+    for (const item of targets) {
+      try {
+        const query = item.catalog_categories?.name
+          ? `${item.name} ${item.catalog_categories.name}`
+          : item.name;
+        const search = await searchFreeImagesAction({ query });
+        const first = search.results?.[0];
+        if (first) {
+          const saved = await saveProductImageAction({ itemId: item.id, externalUrl: first.url });
+          if (!saved.error) filled += 1;
+        }
+      } catch {
+        // best-effort — continue with the next product
+      }
+      setBatch((prev) => (prev ? { ...prev, done: prev.done + 1 } : prev));
+    }
+    setBatch(null);
+    setMessage({
+      kind: 'success',
+      text: `${filled} produit(s) illustré(s) sur ${targets.length}.`,
+    });
+    router.refresh();
   }
 
   const tabs: { id: Tab; label: string; icon: typeof Package }[] = [
@@ -185,6 +238,27 @@ export function CatalogClient({ categories, items, canWrite }: CatalogClientProp
                 </option>
               ))}
             </select>
+            {canWrite && missingPhotoCount > 0 && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={illustrateMissing}
+                disabled={batch !== null || pending}
+                title="Rechercher automatiquement des images libres de droits"
+              >
+                {batch !== null ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Illustration {batch.done}/{batch.total}
+                  </>
+                ) : (
+                  <>
+                    <Images className="h-4 w-4" />
+                    Illustrer ({missingPhotoCount})
+                  </>
+                )}
+              </Button>
+            )}
             {canWrite && (
               <Button type="button" onClick={openNewItem}>
                 <Plus className="h-4 w-4" />
@@ -192,6 +266,15 @@ export function CatalogClient({ categories, items, canWrite }: CatalogClientProp
               </Button>
             )}
           </div>
+
+          {batch !== null && (
+            <div className="h-1.5 w-full overflow-hidden rounded-full bg-secondary">
+              <div
+                className="h-full rounded-full bg-primary transition-all"
+                style={{ width: `${Math.round((batch.done / Math.max(batch.total, 1)) * 100)}%` }}
+              />
+            </div>
+          )}
 
           {filtered.length === 0 ? (
             <div className="rounded-lg border border-dashed border-border py-12 text-center text-sm text-muted-foreground">
@@ -206,6 +289,40 @@ export function CatalogClient({ categories, items, canWrite }: CatalogClientProp
                     item.is_active ? '' : 'opacity-60'
                   }`}
                 >
+                  <div className="relative mb-3 aspect-video overflow-hidden rounded-lg border border-border bg-secondary/30">
+                    {item.photo_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={item.photo_url}
+                        alt={item.name}
+                        loading="lazy"
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-full w-full flex-col items-center justify-center gap-1 text-muted-foreground">
+                        <ImageIcon className="h-6 w-6" />
+                        <span className="text-[11px]">Sans image</span>
+                      </div>
+                    )}
+                    {canWrite && (
+                      <button
+                        type="button"
+                        onClick={() => setPickerItem(item)}
+                        className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-md bg-black/55 px-2 py-1 text-[11px] font-medium text-white backdrop-blur transition hover:bg-primary"
+                      >
+                        {item.photo_url ? (
+                          <>
+                            <Pencil className="h-3 w-3" /> Changer
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles className="h-3 w-3" /> Ajouter
+                          </>
+                        )}
+                      </button>
+                    )}
+                  </div>
+
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
                       <p className="truncate font-medium">{item.name}</p>
@@ -266,6 +383,21 @@ export function CatalogClient({ categories, items, canWrite }: CatalogClientProp
         </>
       )}
       </>
+      )}
+
+      {pickerItem && (
+        <ProductImagePicker
+          productName={pickerItem.name}
+          category={pickerItem.catalog_categories?.name ?? undefined}
+          type={pickerItem.type}
+          itemId={pickerItem.id}
+          onClose={() => setPickerItem(null)}
+          onDone={() => {
+            setPickerItem(null);
+            setMessage({ kind: 'success', text: 'Image mise à jour.' });
+            router.refresh();
+          }}
+        />
       )}
 
       {itemDialogOpen && (
@@ -430,6 +562,9 @@ function ItemDialog({
   onSubmit: (formData: FormData) => void;
 }) {
   const [type, setType] = useState<CatalogItemType>(item?.type ?? defaultType);
+  const [name, setName] = useState(item?.name ?? '');
+  const [photoUrl, setPhotoUrl] = useState(item?.photo_url ?? '');
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   return (
     <DialogShell title={item ? "Modifier l'article" : 'Nouvel article'} onClose={onClose}>
@@ -442,7 +577,13 @@ function ItemDialog({
       >
         <div>
           <label className="text-sm text-muted-foreground">Nom *</label>
-          <input name="name" required defaultValue={item?.name ?? ''} className={inputClass} />
+          <input
+            name="name"
+            required
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className={inputClass}
+          />
         </div>
 
         <div className="grid grid-cols-2 gap-3">
@@ -534,10 +675,50 @@ function ItemDialog({
             </div>
           )}
           <div>
-            <label className="text-sm text-muted-foreground">Photo (URL)</label>
-            <input name="photoUrl" defaultValue={item?.photo_url ?? ''} className={inputClass} />
+            <label className="text-sm text-muted-foreground">Photo</label>
+            <div className="mt-1 flex items-center gap-2">
+              <input
+                name="photoUrl"
+                value={photoUrl}
+                onChange={(e) => setPhotoUrl(e.target.value)}
+                placeholder="URL ou générer/importer"
+                className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={name.trim().length < 2}
+                onClick={() => setPickerOpen(true)}
+                title={name.trim().length < 2 ? "Saisissez d'abord le nom" : 'Choisir une image'}
+              >
+                <ImageIcon className="h-4 w-4" />
+              </Button>
+            </div>
+            {photoUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={photoUrl}
+                alt=""
+                loading="lazy"
+                className="mt-2 h-20 w-full rounded-lg border border-border object-cover"
+              />
+            )}
           </div>
         </div>
+
+        {pickerOpen && (
+          <ProductImagePicker
+            productName={name.trim()}
+            type={type}
+            itemId={item?.id}
+            onClose={() => setPickerOpen(false)}
+            onDone={(url) => {
+              setPhotoUrl(url);
+              setPickerOpen(false);
+            }}
+          />
+        )}
 
         <div>
           <label className="text-sm text-muted-foreground">Description</label>

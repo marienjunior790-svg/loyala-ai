@@ -14,6 +14,7 @@ export {
   bootstrapAI,
 } from './services/ai-service';
 export { AutomationService, createAutomationService } from './services/automation-service';
+export { generateImages, buildProductImagePrompt } from './services/image-generation';
 
 // ─── Pipeline ───────────────────────────────────────────────
 export { promptManager, PromptManager } from './pipeline/promptManager';

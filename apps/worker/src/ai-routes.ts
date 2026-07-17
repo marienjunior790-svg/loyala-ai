@@ -250,6 +250,28 @@ export async function handleAIRoute(
 
 
 
+    case '/ai/catalog/image': {
+
+      const result = await automation.generateProductImages({
+
+        name: (body.name as string) ?? '',
+
+        category: body.category as string | undefined,
+
+        type: body.type as string | undefined,
+
+        establishment: body.establishment as string | undefined,
+
+        count: typeof body.count === 'number' ? (body.count as number) : undefined,
+
+      });
+
+      return { status: 200, data: result };
+
+    }
+
+
+
     case '/ai/campaigns/promotions': {
 
       const context = (body.context as Record<string, unknown>) ?? {};

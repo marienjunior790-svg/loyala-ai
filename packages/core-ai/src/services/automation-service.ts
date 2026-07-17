@@ -7,6 +7,7 @@ import { createCampaignOrchestrator } from '../campaign/campaignEngine';
 import { generateAutoReply } from '../engines/auto-reply';
 import { analyzeInactiveClient, type InactiveClient } from '../engines/inactive-detection';
 import { orchestrate } from '../orchestrator/orchestrate';
+import { generateImages, buildProductImagePrompt } from './image-generation';
 import { catalogGenerateSchema, type CatalogGenerate } from '../schemas/outputs';
 import type { ClientRFMInput } from '../rfm/scoring';
 import type { BirthdayClient, LoyaltyClient } from '../engines/campaign-engine';
@@ -134,6 +135,24 @@ export class AutomationService {
       skipGuard: true,
     });
     return catalogGenerateSchema.parse(response.parsed ?? { currency, categories: [] });
+  }
+
+  /** 8c. Génération d'images produit (IA) — contexte-aware, plusieurs variantes. */
+  async generateProductImages(input: {
+    name: string;
+    category?: string;
+    type?: string;
+    establishment?: string;
+    count?: number;
+  }): Promise<{ images: string[] }> {
+    const prompt = buildProductImagePrompt({
+      name: input.name,
+      category: input.category,
+      type: input.type,
+      establishment: input.establishment,
+    });
+    const images = await generateImages({ prompt, count: input.count });
+    return { images };
   }
 
   /** 6. Réponses automatiques */
