@@ -21,6 +21,7 @@ export const inngest = new Inngest({
 export const INNGEST_EVENTS = {
   BIRTHDAY_RUN: 'loyala/campaign.birthday.run',
   INACTIVE_RUN: 'loyala/campaign.inactive.run',
+  AFFINITY_RUN: 'loyala/campaign.affinity.run',
   DISPATCH_DAILY: 'loyala/cron.daily.dispatch',
   SCHEDULED_RUN: 'loyala/campaign.scheduled.run',
   /** Bridge from domain_events audit → async consumers */

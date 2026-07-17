@@ -6,6 +6,7 @@ export type AIUseCase =
   | 'client.inactive.analyze'
   | 'campaign.birthday.generate'
   | 'campaign.loyalty.generate'
+  | 'campaign.affinity.generate'
   | 'campaign.promotion.suggest'
   | 'inbox.reply.generate'
   | 'inbox.message.classify'

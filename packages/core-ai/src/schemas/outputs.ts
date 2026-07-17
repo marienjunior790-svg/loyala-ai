@@ -25,6 +25,12 @@ export const loyaltyCampaignSchema = z.object({
   urgency: z.enum(['low', 'medium', 'high']),
 });
 
+export const affinityCampaignSchema = z.object({
+  message: z.string().max(300),
+  offer: z.string().max(100),
+  urgency: z.enum(['low', 'medium', 'high']),
+});
+
 export const promotionSuggestSchema = z.object({
   promotions: z.array(
     z.object({
@@ -53,6 +59,7 @@ export type SegmentResult = z.infer<typeof segmentSchema>;
 export type InactiveAnalysis = z.infer<typeof inactiveAnalysisSchema>;
 export type BirthdayCampaign = z.infer<typeof birthdayCampaignSchema>;
 export type LoyaltyCampaign = z.infer<typeof loyaltyCampaignSchema>;
+export type AffinityCampaign = z.infer<typeof affinityCampaignSchema>;
 export type PromotionSuggest = z.infer<typeof promotionSuggestSchema>;
 export type MessageClassification = z.infer<typeof messageClassifySchema>;
 export type AutoReply = z.infer<typeof autoReplySchema>;

@@ -188,6 +188,18 @@ export async function handleAIRoute(
 
 
 
+    case '/ai/campaigns/affinity': {
+
+      const clients = body.clients as Parameters<typeof automation.runAffinityRelances>[0];
+
+      const plans = await automation.runAffinityRelances(clients);
+
+      return { status: 200, data: { campaigns: plans } };
+
+    }
+
+
+
     case '/ai/campaigns/promotions': {
 
       const context = (body.context as Record<string, unknown>) ?? {};

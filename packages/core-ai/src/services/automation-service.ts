@@ -52,6 +52,11 @@ export class AutomationService {
     return this.campaigns.runLoyaltyBatch(clients);
   }
 
+  /** 4b. Relance par affinité produit/catégorie */
+  runAffinityRelances(clients: LoyaltyClient[]) {
+    return this.campaigns.runAffinityBatch(clients);
+  }
+
   planLoyaltyFromInactive(inactive: InactiveClient[], inactiveDays = 14) {
     return this.campaigns.planLoyaltyRelances(inactive, inactiveDays);
   }

@@ -54,6 +54,17 @@ export class CampaignOrchestrator {
     });
   }
 
+  /** Affinity relances — only clients with a known favorite product are eligible. */
+  async runAffinityBatch(
+    clients: Parameters<CampaignEngine['generateAffinityRelance']>[0][],
+    concurrency = 3
+  ) {
+    const eligible = clients.filter((c) => Boolean(c.insights?.favoriteProduct));
+    return processBatch(eligible, (c) => this.engine.generateAffinityRelance(c), {
+      concurrency,
+    });
+  }
+
   suggestPromotions(context: Record<string, unknown>) {
     return this.engine.suggestPromotions(context);
   }

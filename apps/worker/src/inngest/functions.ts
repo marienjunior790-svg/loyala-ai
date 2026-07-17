@@ -3,6 +3,7 @@ import {
   listActiveOrganizations,
   runBirthdayCampaignForOrg,
   runInactiveRelaunchForOrg,
+  runAffinityCampaignForOrg,
 } from '../jobs/campaign-jobs.js';
 import { runAllDueScheduledCampaigns } from '../jobs/scheduled-campaign-jobs.js';
 
@@ -31,6 +32,14 @@ export const dailyCampaignDispatcher = inngest.createFunction(
       orgs.map((org) => ({
         name: INNGEST_EVENTS.INACTIVE_RUN,
         data: { organizationId: org.id, inactiveDays: 14 },
+      }))
+    );
+
+    await step.sendEvent(
+      'fan-out-affinity',
+      orgs.map((org) => ({
+        name: INNGEST_EVENTS.AFFINITY_RUN,
+        data: { organizationId: org.id, inactiveDays: 30 },
       }))
     );
 
@@ -84,6 +93,32 @@ export const inactiveRelaunchJob = inngest.createFunction(
 
     const result = await step.run(`inactive-${organizationId}`, () =>
       runInactiveRelaunchForOrg(organizationId, inactiveDays ?? 14)
+    );
+
+    return result;
+  }
+);
+
+/** Per-tenant affinity re-engagement — personalized offers by favorite product */
+export const affinityCampaignJob = inngest.createFunction(
+  {
+    id: 'loyala-affinity-campaign',
+    retries: 3,
+    concurrency: { limit: BATCH_SIZE },
+  },
+  { event: INNGEST_EVENTS.AFFINITY_RUN },
+  async ({ event, step }) => {
+    const { organizationId, inactiveDays } = event.data as {
+      organizationId: string;
+      inactiveDays?: number;
+    };
+
+    if (!organizationId) {
+      throw new Error('organizationId required');
+    }
+
+    const result = await step.run(`affinity-${organizationId}`, () =>
+      runAffinityCampaignForOrg(organizationId, inactiveDays ?? 30)
     );
 
     return result;
@@ -156,6 +191,7 @@ export const inngestFunctions = [
   dailyCampaignDispatcher,
   birthdayCampaignJob,
   inactiveRelaunchJob,
+  affinityCampaignJob,
   scheduledCampaignExecutor,
   domainEventConsumer,
   billingPaymentPollJob,

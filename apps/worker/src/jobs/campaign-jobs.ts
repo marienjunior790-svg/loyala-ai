@@ -353,3 +353,94 @@ export async function runInactiveRelaunchForOrg(organizationId: string, inactive
     autoSend,
   };
 }
+
+/**
+ * Affinity re-engagement: targets long-dormant, opted-in clients that have a
+ * clear favorite product/category, and generates a personalized offer built
+ * around what they love. Defaults to a 30-day window to avoid overlapping with
+ * the 14-day inactive relaunch.
+ */
+export async function runAffinityCampaignForOrg(organizationId: string, inactiveDays = 30) {
+  const rawClients = await fetchInactiveClientsForRelaunch(organizationId, inactiveDays);
+
+  const optedIn = rawClients.filter((c) => c.optInWhatsapp && c.phone);
+  if (optedIn.length === 0) {
+    return { organizationId, campaigns: [], skipped: true, reason: 'no_opted_in_clients' };
+  }
+
+  const loyaltyClients = optedIn.map((c) => ({
+    clientId: c.clientId,
+    fullName: c.fullName,
+    loyaltyPoints: c.loyaltyPoints,
+    lastVisit: c.lastVisit,
+  }));
+
+  const enriched = await enrichWithInsights(organizationId, loyaltyClients);
+  const withAffinity = enriched.filter((c) => Boolean(c.insights?.favoriteProduct));
+  if (withAffinity.length === 0) {
+    return { organizationId, campaigns: [], skipped: true, reason: 'no_affinity_data' };
+  }
+
+  const automation = createAutomationService(organizationId);
+  const campaigns = await automation.runAffinityRelances(withAffinity);
+  if (campaigns.length === 0) {
+    return { organizationId, campaigns: [], skipped: true, reason: 'no_affinity_data' };
+  }
+
+  const admin = getWorkerAdminClient();
+  const org = await admin
+    .from('organizations')
+    .select('name')
+    .eq('id', organizationId)
+    .maybeSingle();
+  const restaurantName = String(org.data?.name ?? 'Restaurant');
+
+  const { campaignId, sendCount } = await persistCampaignPlans(admin, {
+    organizationId,
+    restaurantName,
+    campaignType: 'promotion',
+    campaignName: `Relance affinité — ${new Date().toLocaleDateString('fr-FR')}`,
+    plans: campaigns as CampaignPlanPayload[],
+    clients: withAffinity.map((c) => {
+      const raw = rawClients.find((r) => r.clientId === c.clientId)!;
+      return {
+        id: c.clientId,
+        full_name: c.fullName,
+        phone: raw.phone,
+        opt_in_whatsapp: raw.optInWhatsapp,
+      };
+    }),
+    source: 'cron',
+  });
+
+  if (sendCount > 0) {
+    await notifyAdminsByEmail(organizationId, restaurantName, sendCount, 'affinité');
+  }
+
+  const autoSend =
+    campaignId && sendCount > 0
+      ? await autoSendCampaignForTestClient(admin, {
+          organizationId,
+          campaignId,
+          intent: 'promo',
+          restaurantName,
+        })
+      : { attempted: false, sent: false, skippedReason: 'no_campaign_sends' };
+
+  logStructured({
+    level: 'info',
+    service: 'worker',
+    message: 'Affinity campaign persisted',
+    context: { organizationId, campaignId, sendCount, autoSend },
+  });
+
+  return {
+    organizationId,
+    campaigns,
+    count: campaigns.length,
+    campaignId,
+    sendCount,
+    affinityTargets: withAffinity.length,
+    autoSend,
+  };
+}

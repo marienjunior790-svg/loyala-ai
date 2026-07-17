@@ -80,6 +80,20 @@ JSON: {"message":"max 300 chars","incentive":"string","urgency":"low|medium|high
     temperature: 0.4,
     jsonMode: true,
   },
+  'campaign.affinity.generate': {
+    version: '1.0',
+    system: `${BASE_SYSTEM} Tu crées une offre WhatsApp personnalisée autour du produit ou de la catégorie préféré du client pour l'inciter à revenir. Reste concret et chaleureux.`,
+    userTemplate: `Client: {{clientName}}
+Produit préféré: {{favoriteProduct}}
+Catégorie préférée: {{favoriteCategory}}
+Dernière visite: {{lastVisit}}
+Historique: {{insights}}
+Rédige une relance centrée sur ce que le client aime.
+JSON: {"message":"max 300 chars","offer":"offre courte et concrète","urgency":"low|medium|high"}`,
+    maxTokens: 220,
+    temperature: 0.5,
+    jsonMode: true,
+  },
   'campaign.promotion.suggest': {
     version: '1.0',
     system: `${BASE_SYSTEM} Tu suggères des promotions data-driven pour restaurants.`,

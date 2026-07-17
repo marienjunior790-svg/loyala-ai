@@ -2,11 +2,13 @@ import { orchestrate } from '../orchestrator/orchestrate';
 import {
   birthdayCampaignSchema,
   loyaltyCampaignSchema,
+  affinityCampaignSchema,
   promotionSuggestSchema,
 } from '../schemas/outputs';
 import type {
   BirthdayCampaign,
   LoyaltyCampaign,
+  AffinityCampaign,
   PromotionSuggest,
 } from '../schemas/outputs';
 import { detectInactiveClients, type InactiveClient } from './inactive-detection';
@@ -29,7 +31,7 @@ export interface LoyaltyClient {
 
 export interface CampaignPlan<T> {
   clientId: string;
-  type: 'birthday' | 'loyalty' | 'promotion';
+  type: 'birthday' | 'loyalty' | 'promotion' | 'affinity';
   content: T;
   scheduledAt?: string;
 }
@@ -79,6 +81,27 @@ export class CampaignEngine {
       clientId: client.clientId,
       type: 'loyalty',
       content: response.parsed as LoyaltyCampaign,
+    };
+  }
+
+  async generateAffinityRelance(client: LoyaltyClient): Promise<CampaignPlan<AffinityCampaign>> {
+    const response = await orchestrate({
+      organizationId: this.organizationId,
+      useCase: 'campaign.affinity.generate',
+      input: {
+        clientName: client.fullName,
+        favoriteProduct: client.insights?.favoriteProduct ?? '',
+        favoriteCategory: client.insights?.favoriteCategory ?? '',
+        lastVisit: client.lastVisit,
+        insights: formatClientInsights(client.insights) || "Pas d'historique d'achat",
+      },
+      jsonSchema: affinityCampaignSchema,
+    });
+
+    return {
+      clientId: client.clientId,
+      type: 'affinity',
+      content: response.parsed as AffinityCampaign,
     };
   }
 
