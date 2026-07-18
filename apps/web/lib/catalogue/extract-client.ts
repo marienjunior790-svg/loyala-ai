@@ -22,26 +22,61 @@ export async function spreadsheetToText(file: File): Promise<string> {
   return wb.SheetNames.map((name) => XLSX.utils.sheet_to_csv(wb.Sheets[name]!)).join('\n');
 }
 
+async function loadPdfJs() {
+  const pdfjs = await import('pdfjs-dist');
+  // Prefer same-origin worker (copied to /public) — CDN often blocked on mobile.
+  if (typeof window !== 'undefined') {
+    pdfjs.GlobalWorkerOptions.workerSrc = `/pdf.worker.min.mjs`;
+  }
+  return pdfjs;
+}
+
 /** Extract selectable text from a PDF (digital menus) via pdf.js. */
 export async function pdfToText(file: File): Promise<string> {
-  const pdfjs = await import('pdfjs-dist');
-  // Match the worker to the installed build to avoid version mismatches.
-  pdfjs.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
-
+  const pdfjs = await loadPdfJs();
   const data = new Uint8Array(await file.arrayBuffer());
   const doc = await pdfjs.getDocument({ data }).promise;
-  const pages: string[] = [];
-  const maxPages = Math.min(doc.numPages, 20);
-  for (let i = 1; i <= maxPages; i++) {
-    const page = await doc.getPage(i);
-    const content = await page.getTextContent();
-    const text = content.items
-      .map((item) => ('str' in item ? item.str : ''))
-      .join(' ');
-    pages.push(text);
+  try {
+    const pages: string[] = [];
+    const maxPages = Math.min(doc.numPages, 20);
+    for (let i = 1; i <= maxPages; i++) {
+      const page = await doc.getPage(i);
+      const content = await page.getTextContent();
+      const text = content.items.map((item) => ('str' in item ? item.str : '')).join(' ');
+      pages.push(text);
+    }
+    return pages.join('\n').replace(/\s+\n/g, '\n').trim();
+  } finally {
+    await doc.destroy();
   }
-  await doc.destroy();
-  return pages.join('\n').replace(/\s+\n/g, '\n').trim();
+}
+
+/**
+ * Rasterize PDF pages to JPEG data URLs for Vision/OCR when the PDF has no
+ * selectable text (scanned menus).
+ */
+export async function pdfToImages(file: File, maxPages = 4): Promise<string[]> {
+  const pdfjs = await loadPdfJs();
+  const data = new Uint8Array(await file.arrayBuffer());
+  const doc = await pdfjs.getDocument({ data }).promise;
+  try {
+    const images: string[] = [];
+    const limit = Math.min(doc.numPages, maxPages);
+    for (let i = 1; i <= limit; i++) {
+      const page = await doc.getPage(i);
+      const viewport = page.getViewport({ scale: 1.6 });
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.ceil(viewport.width);
+      canvas.height = Math.ceil(viewport.height);
+      const ctx = canvas.getContext('2d');
+      if (!ctx) continue;
+      await page.render({ canvasContext: ctx, viewport }).promise;
+      images.push(canvas.toDataURL('image/jpeg', 0.85));
+    }
+    return images;
+  } finally {
+    await doc.destroy();
+  }
 }
 
 /** Decode a QR code from an image file → returns the encoded text (often a URL). */
@@ -70,7 +105,7 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => resolve(img);
-    img.onerror = () => reject(new Error("Image illisible"));
+    img.onerror = () => reject(new Error('Image illisible'));
     img.src = src;
   });
 }

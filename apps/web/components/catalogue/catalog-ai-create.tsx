@@ -43,6 +43,7 @@ import {
   fileToDataUrl,
   spreadsheetToText,
   pdfToText,
+  pdfToImages,
   decodeQrFromImage,
 } from '@/lib/catalogue/extract-client';
 import type { GeneratedCatalogInput } from '@loyala/validation';
@@ -158,13 +159,13 @@ const METHODS: {
   action: MethodAction;
   primary?: boolean;
 }[] = [
-  { id: 'ai', label: 'Créer avec l\u2019IA', desc: 'Décrivez votre activité, l\u2019IA génère tout', icon: Wand2, action: 'generate', primary: true },
-  { id: 'template', label: 'Utiliser un modèle', desc: 'Modèles prêts à l\u2019emploi par secteur', icon: LayoutTemplate, action: 'template' },
+  { id: 'ai', label: "Créer avec l'IA", desc: "Décrivez votre activité, l'IA génère tout", icon: Wand2, action: 'generate', primary: true },
+  { id: 'template', label: 'Utiliser un modèle', desc: "Modèles prêts à l'emploi par secteur", icon: LayoutTemplate, action: 'template' },
   { id: 'pdf', label: 'Importer un PDF', desc: 'Menu PDF — texte extrait puis analysé', icon: FileText, action: 'import-file' },
   { id: 'image', label: 'Importer une image', desc: 'Photo / scan — OCR + Vision IA', icon: ImageIcon, action: 'import-image' },
   { id: 'file', label: 'Importer Excel / CSV', desc: 'Depuis un tableur (.xlsx, .csv)', icon: Table2, action: 'import-file' },
   { id: 'web', label: 'Importer depuis une URL', desc: 'Lien vers votre menu en ligne', icon: Globe, action: 'import-url' },
-  { id: 'qr', label: 'Scanner un QR Code', desc: 'Image d\u2019un QR de menu existant', icon: QrCode, action: 'import-qr' },
+  { id: 'qr', label: 'Scanner un QR Code', desc: "Image d'un QR de menu existant", icon: QrCode, action: 'import-qr' },
   { id: 'paste', label: 'Coller le menu', desc: 'Copier-coller depuis un doc', icon: ClipboardPaste, action: 'import-text' },
   { id: 'copy', label: 'Copier un catalogue', desc: 'Depuis un autre établissement', icon: Copy, action: 'soon' },
   { id: 'manual', label: 'Commencer manuellement', desc: 'Ajouter les articles un par un', icon: Pencil, action: 'manual' },
@@ -179,8 +180,8 @@ function CreationLauncher({ onPick }: { onPick: (action: MethodAction, label: st
         </div>
         <h3 className="mt-4 text-xl font-semibold">Créez votre catalogue en moins de 5 minutes</h3>
         <p className="mt-1 text-sm text-muted-foreground">
-          Ne partez jamais d\u2019une page vide. Générez avec l\u2019IA, importez un menu existant, ou
-          partez d\u2019un modèle — puis validez.
+          Ne partez jamais d'une page vide. Générez avec l'IA, importez un menu existant, ou
+          partez d'un modèle — puis validez.
         </p>
       </div>
 
@@ -223,7 +224,7 @@ function CreationLauncher({ onPick }: { onPick: (action: MethodAction, label: st
 }
 
 const DIALOG_TITLE: Record<DialogMode, string> = {
-  generate: 'Créer avec l\u2019IA',
+  generate: "Créer avec l'IA",
   'import-text': 'Coller un menu',
   'import-url': 'Importer depuis une URL',
   'import-file': 'Importer un fichier (PDF, Excel, CSV)',
@@ -257,9 +258,11 @@ function SmartCatalogDialog({
   const [busy, startBusy] = useTransition();
   const [applying, startApply] = useTransition();
   const [, startSuggest] = useTransition();
+  const [extracting, setExtracting] = useState(false);
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const [suggestingKey, setSuggestingKey] = useState<string | null>(null);
   const [bulkSuggest, setBulkSuggest] = useState<{ done: number; total: number } | null>(null);
+  const loading = busy || extracting;
 
   function toggleItemVariants(key: string) {
     setExpandedItems((prev) => {
@@ -296,22 +299,55 @@ function SmartCatalogDialog({
   async function handleFile(file: File) {
     setError(null);
     setFileName(file.name);
+    setExtracting(true);
     const isPdf = /\.pdf$/i.test(file.name) || file.type === 'application/pdf';
     try {
-      const text = isPdf ? await pdfToText(file) : await spreadsheetToText(file);
-      if (text.trim().length < 10) {
-        setError(
-          isPdf
-            ? 'Ce PDF ne contient pas de texte sélectionnable (menu scanné ?). Utilisez plutôt « Importer une image ».'
-            : 'Fichier vide ou illisible.'
+      if (isPdf) {
+        let text = '';
+        try {
+          text = await pdfToText(file);
+        } catch {
+          // Worker/pdf.js failure — fall through to image OCR.
+          text = '';
+        }
+        if (text.trim().length >= 10) {
+          setExtracting(false);
+          startBusy(async () =>
+            handleResult(await importCatalogFromTextAction({ rawText: text, establishmentType }))
+          );
+          return;
+        }
+        // Scanned / image-only PDF → rasterize pages and use Vision OCR.
+        const images = await pdfToImages(file, 4);
+        setExtracting(false);
+        if (images.length === 0) {
+          setError(
+            'Impossible de lire ce PDF. Essayez « Importer une image » (photo du menu) ou un PDF avec texte sélectionnable.'
+          );
+          return;
+        }
+        startBusy(async () =>
+          handleResult(await importCatalogFromImageAction({ images, establishmentType }))
         );
+        return;
+      }
+
+      const text = await spreadsheetToText(file);
+      setExtracting(false);
+      if (text.trim().length < 10) {
+        setError('Fichier vide ou illisible.');
         return;
       }
       startBusy(async () =>
         handleResult(await importCatalogFromTextAction({ rawText: text, establishmentType }))
       );
-    } catch {
-      setError('Impossible de lire ce fichier. Formats acceptés : .pdf, .xlsx, .xls, .csv');
+    } catch (e) {
+      setExtracting(false);
+      setError(
+        e instanceof Error
+          ? `Impossible de lire ce fichier : ${e.message}`
+          : 'Impossible de lire ce fichier. Formats acceptés : .pdf, .xlsx, .xls, .csv'
+      );
     }
   }
 
@@ -473,7 +509,16 @@ function SmartCatalogDialog({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+      onClick={() => {
+        // On mobile, returning from the native file picker often fires a click
+        // on the backdrop and closes the dialog before analysis starts.
+        if (mode === 'import-file' || mode === 'import-image' || mode === 'import-qr') return;
+        if (loading) return;
+        onClose();
+      }}
+    >
       <div
         className="flex max-h-[92vh] w-[min(100%,46rem)] flex-col overflow-hidden rounded-2xl border border-border bg-card text-foreground shadow-2xl"
         onClick={(e) => e.stopPropagation()}
@@ -562,20 +607,26 @@ function SmartCatalogDialog({
                 className="hidden"
                 onChange={(e) => {
                   const f = e.target.files?.[0];
+                  // Allow selecting the same file again later.
+                  e.target.value = '';
                   if (f) void handleFile(f);
                 }}
               />
               <button
                 type="button"
                 onClick={() => fileRef.current?.click()}
-                className="flex w-full flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-background py-10 text-sm text-muted-foreground transition hover:border-primary/40 hover:text-foreground"
+                disabled={loading}
+                className="flex w-full flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-background py-10 text-sm text-muted-foreground transition hover:border-primary/40 hover:text-foreground disabled:opacity-60"
               >
-                <Download className="h-6 w-6" />
-                {fileName ? `Fichier : ${fileName}` : 'Cliquez pour choisir un fichier .pdf, .xlsx, .xls ou .csv'}
+                {loading ? <Loader2 className="h-6 w-6 animate-spin" /> : <Download className="h-6 w-6" />}
+                {loading
+                  ? 'Analyse du fichier…'
+                  : fileName
+                    ? `Fichier : ${fileName}`
+                    : 'Cliquez pour choisir un fichier .pdf, .xlsx, .xls ou .csv'}
               </button>
               <p className="mt-2 text-xs text-muted-foreground">
-                PDF : le texte est extrait automatiquement. Tableur : une colonne par nom, catégorie,
-                prix et description donne les meilleurs résultats.
+                PDF texte ou scanné (OCR). Tableur : colonnes nom, catégorie, prix, description.
               </p>
             </div>
           )}
@@ -680,15 +731,15 @@ function SmartCatalogDialog({
             </div>
           )}
 
-          {busy && (
+          {loading && (
             <div className="flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-6 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin text-primary" />
-              {mode === 'generate' ? 'L\u2019IA génère votre catalogue…' : 'Analyse du contenu en cours…'}
+              {mode === 'generate' ? "L'IA génère votre catalogue…" : 'Analyse du contenu en cours…'}
             </div>
           )}
 
           {/* ── Editable preview (shared by every mode) ── */}
-          {preview && !busy && (
+          {preview && !loading && (
             <div className="space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="text-sm font-medium">
@@ -840,7 +891,7 @@ function SmartCatalogDialog({
             <p className="text-xs text-muted-foreground">Sélectionnez un modèle pour continuer.</p>
           ) : mode === 'import-file' || mode === 'import-image' || mode === 'import-qr' ? (
             <p className="text-xs text-muted-foreground">
-              {busy ? 'Analyse en cours…' : 'Choisissez un fichier pour lancer l\u2019analyse.'}
+              {loading ? 'Analyse en cours…' : "Choisissez un fichier pour lancer l'analyse."}
             </p>
           ) : (
             <Button
