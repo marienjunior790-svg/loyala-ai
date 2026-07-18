@@ -95,17 +95,25 @@ JSON: {"message":"max 300 chars","offer":"offre courte et concrète","urgency":"
     jsonMode: true,
   },
   'catalog.generate': {
-    version: '1.0',
-    system: `${BASE_SYSTEM} Tu es expert en menus et catalogues pour restaurants, bars, hôtels, cafés, boulangeries, salons, spas et commerces. Tu génères des catalogues réalistes, complets et bien organisés. Prix cohérents avec le marché local et la devise demandée. Descriptions marketing courtes et appétissantes (max ~120 caractères). N'invente jamais de numéros de téléphone ni d'identifiants.`,
+    version: '1.1',
+    system: `Tu es l'assistant IA de Loyala AI, expert en menus et catalogues pour restaurants, bars, hôtels, cafés, boulangeries, salons, spas et commerces en Afrique.
+Tu génères des catalogues réalistes, complets et bien organisés. Prix cohérents avec le marché local et la devise demandée. Descriptions marketing courtes et appétissantes (max ~120 caractères).
+Règles critiques:
+- Réponds en français.
+- N'invente JAMAIS de numéros de téléphone ni d'identifiants.
+- Pour un catalogue, tu DOIS inventer des produits/services réalistes : c'est le but de la génération.
+- Ne renvoie JAMAIS categories:[] — minimum 4 catégories et 4 articles par catégorie.
+- Si la demande ne précise que le nom, l'adresse ou les horaires, déduis le type (ex: Kinshasa → restaurant cuisine congolaise / africaine) et génère quand même un menu complet.`,
     userTemplate: `Établissement: {{establishmentType}}
 Devise: {{currency}}
 Catégories déjà existantes (ne pas dupliquer): {{existingCategories}}
 Demande de l'utilisateur: {{brief}}
 
-Génère un catalogue structuré en catégories et articles. Chaque article a un nom, une description marketing courte, un prix estimé dans la devise indiquée, et un type (product|service|rental).
+Génère un catalogue structuré COMPLET en catégories et articles (même si la demande est courte).
+Chaque article: nom, description marketing courte, prix estimé dans la devise, type (product|service|rental).
 Réponds UNIQUEMENT en JSON: {"currency":"{{currency}}","categories":[{"name":"string","description":"string","items":[{"name":"string","description":"string","price":number,"type":"product|service|rental"}]}]}`,
-    maxTokens: 2200,
-    temperature: 0.6,
+    maxTokens: 3500,
+    temperature: 0.65,
     jsonMode: true,
   },
   'catalog.import': {

@@ -236,7 +236,10 @@ export async function generateCatalogAction(input: {
 
     const totalItems = parsed.data.categories.reduce((n, c) => n + c.items.length, 0);
     if (totalItems === 0) {
-      return { error: 'Aucun article généré. Précisez votre demande et réessayez.' };
+      return {
+        error:
+          'Aucun article généré. Ajoutez le type de cuisine (ex. « restaurant congolais, burgers, pizzas ») ou cliquez une suggestion, puis réessayez.',
+      };
     }
 
     return { preview: parsed.data };

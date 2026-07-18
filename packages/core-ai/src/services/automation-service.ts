@@ -49,6 +49,21 @@ const VARIANT_SUGGEST_MAX_ITEMS = 40;
 /** Max characters of imported content sent to the model (token budget guard). */
 const CATALOG_IMPORT_MAX_CHARS = 14_000;
 
+const MENU_SIGNAL =
+  /menu|burger|pizza|plat|entr[eé]e|dessert|boisson|restaurant|salon|bar|lounge|boulang|p[aâ]tiss|cocktail|soin|prestation|carte|grill|sushi|africain|congol|ivoir|s[eé]n[eé]gal|caf[eé]|h[oô]tel|spa/i;
+
+/** If the user only pasted name/address/hours, force a full generative brief. */
+export function enrichCatalogGenerateBrief(brief: string): string {
+  const trimmed = (brief ?? '').trim();
+  if (!trimmed) {
+    return 'Génère un catalogue restaurant complet : entrées, plats, accompagnements, desserts et boissons. Prix réalistes.';
+  }
+  if (MENU_SIGNAL.test(trimmed) && trimmed.length >= 40) return trimmed;
+  return `${trimmed}
+
+Consignes: à partir de ces informations, génère un catalogue COMPLET et réaliste pour cet établissement (minimum 5 catégories, 5 articles chacune : entrées, plats signature, accompagnements, desserts, boissons). Si le type de cuisine n'est pas précisé, déduis-le du nom et de la ville (ex: Kinshasa → cuisine congolaise / africaine). Prix cohérents avec le marché local. Ne renvoie jamais de liste vide.`;
+}
+
 export class AutomationService {
   private readonly rfm: ReturnType<typeof createRFMEngine>;
   private readonly classification: ReturnType<typeof createClassificationPipeline>;
@@ -109,11 +124,12 @@ export class AutomationService {
   /** 8. Génération de catalogue par IA (création complète ou assistant conversationnel) */
   async generateCatalog(request: CatalogGenerateRequest): Promise<CatalogGenerate> {
     const currency = request.currency?.trim() || 'XOF';
+    const brief = enrichCatalogGenerateBrief(request.brief);
     const response = await orchestrate({
       organizationId: this.tenantId,
       useCase: 'catalog.generate',
       input: {
-        brief: request.brief,
+        brief,
         establishmentType: request.establishmentType?.trim() || 'Restaurant',
         currency,
         existingCategories:
@@ -123,6 +139,8 @@ export class AutomationService {
       },
       jsonSchema: catalogGenerateSchema,
       skipCache: true,
+      skipGuard: true,
+      maxTokens: 3500,
     });
     return catalogGenerateSchema.parse(response.parsed ?? { currency, categories: [] });
   }

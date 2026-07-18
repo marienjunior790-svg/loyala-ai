@@ -4,7 +4,7 @@ import { isAllowedAiPath, toWorkerAiPath } from './paths';
 export { isAllowedAiPath, WORKER_AI_PATHS } from './paths';
 export { getWorkerConfig, isWorkerConfigured } from './config';
 
-const REQUEST_TIMEOUT_MS = 30_000;
+const REQUEST_TIMEOUT_MS = 90_000;
 
 export interface WorkerHealth {
   configured: boolean;
