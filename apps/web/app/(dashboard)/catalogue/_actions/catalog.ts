@@ -26,6 +26,7 @@ import {
   type GeneratedCatalogInput,
 } from '@loyala/validation';
 import { proxyToWorker } from '@/lib/worker/client';
+import { fetchMenuUrlContent } from '@/lib/catalogue/fetch-menu-url';
 
 export type CatalogActionState = { error?: string; success?: string };
 
@@ -334,19 +335,7 @@ export async function importCatalogFromImageAction(input: {
 
 const PRIVATE_HOST = /^(localhost|127\.|10\.|192\.168\.|169\.254\.|::1|0\.0\.0\.0)|\.local$/i;
 
-function stripHtml(html: string): string {
-  return html
-    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
-    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/&nbsp;/gi, ' ')
-    .replace(/&amp;/gi, '&')
-    .replace(/&[a-z]+;/gi, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
-/** Import from a public menu URL (fetched server-side, HTML stripped, then AI-structured). */
+/** Import from a public menu URL (HTML, DigiMenu QR API, or JSON — then AI-structured). */
 export async function importCatalogFromUrlAction(input: {
   url: string;
 }): Promise<CatalogAiState> {
@@ -367,25 +356,10 @@ export async function importCatalogFromUrlAction(input: {
       return { error: 'Cette adresse n\u2019est pas autorisée' };
     }
 
-    let res: Response;
-    try {
-      res = await fetch(url.toString(), {
-        redirect: 'follow',
-        signal: AbortSignal.timeout(12_000),
-        headers: { 'User-Agent': 'LoyalaAI-CatalogImporter/1.0' },
-      });
-    } catch {
-      return { error: 'Impossible de récupérer cette page' };
-    }
-    if (!res.ok) return { error: `La page a répondu ${res.status}` };
+    const fetched = await fetchMenuUrlContent(raw);
+    if (!fetched.ok) return { error: fetched.error };
 
-    const html = (await res.text()).slice(0, 400_000);
-    const text = stripHtml(html);
-    if (text.length < 40) {
-      return { error: 'Aucun contenu exploitable trouvé sur cette page' };
-    }
-
-    return await runCatalogImport(ctx.organizationId, { rawText: text });
+    return await runCatalogImport(ctx.organizationId, { rawText: fetched.text });
   } catch (e) {
     return { error: e instanceof Error ? e.message : "Erreur d'import URL" };
   }

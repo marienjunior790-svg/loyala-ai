@@ -543,11 +543,12 @@ function SmartCatalogDialog({
               <Input
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
-                placeholder="https://mon-restaurant.com/menu"
+                placeholder="https://qr.mydigimenu.com/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
                 className="mt-1"
               />
               <p className="mt-2 text-xs text-muted-foreground">
-                L'IA lit la page publique et en extrait les produits et prix.
+                DigiMenu QR, page menu HTML ou JSON. Collez l’URL complète (pas tronquée). Si le site
+                bloque l’accès, importez une image ou un PDF.
               </p>
             </div>
           )}
