@@ -13,9 +13,39 @@ const PRIVATE_HOST =
   /^(localhost|127\.|10\.|192\.168\.|169\.254\.|::1|0\.0\.0\.0)|\.local$/i;
 const MAX_IMAGE_BYTES = 8_000_000;
 
+/** Map raw OpenAI/worker errors to actionable French messages. */
+export function humanizeImageGenerateError(raw: string): string {
+  const t = (raw || '').toLowerCase();
+  if (
+    t.includes('billing_hard_limit') ||
+    t.includes('billing hard limit') ||
+    t.includes('insufficient_quota') ||
+    t.includes('exceeded your current quota')
+  ) {
+    return 'Quota OpenAI épuisé (limite de facturation atteinte). Utilisez l’onglet Rechercher (images libres), Importer, ou augmentez le plafond sur platform.openai.com/settings/organization/billing.';
+  }
+  if (t.includes('does not exist') && t.includes('model')) {
+    return 'Modèle d’image OpenAI indisponible. Réessayez plus tard ou utilisez Rechercher.';
+  }
+  if (t.includes('response_format')) {
+    return 'API images OpenAI incompatible. Réessayez après mise à jour, ou utilisez Rechercher.';
+  }
+  if (t.includes('worker not configured') || t.includes('worker error')) {
+    return raw;
+  }
+  // Strip huge JSON payloads for display
+  if (raw.length > 180 && raw.includes('{')) {
+    const short = raw.replace(/\s+/g, ' ').slice(0, 160);
+    return `${short}… — Essayez l’onglet Rechercher (gratuit).`;
+  }
+  return raw;
+}
+
 export type ProductImageGenerateState = {
   error?: string;
   images?: string[];
+  /** Hint for UI: switch to free search when AI billing is blocked. */
+  suggestSearch?: boolean;
 };
 
 /** Generate AI product image variants (returns base64 data URLs — not yet stored). */
@@ -45,12 +75,22 @@ export async function generateProductImagesAction(input: {
       },
     });
 
-    if (!result.ok) return { error: result.error ?? 'Génération IA indisponible' };
+    if (!result.ok) {
+      const raw = result.error ?? 'Génération IA indisponible';
+      const msg = humanizeImageGenerateError(raw);
+      return {
+        error: msg,
+        suggestSearch:
+          /quota|billing|facturation|épuisé/i.test(msg) ||
+          /billing_hard_limit|insufficient_quota/i.test(raw),
+      };
+    }
     const images = Array.isArray(result.data.images) ? result.data.images : [];
     if (images.length === 0) return { error: 'Aucune image générée. Réessayez.' };
     return { images };
   } catch (e) {
-    return { error: e instanceof Error ? e.message : "Erreur génération d'image" };
+    const raw = e instanceof Error ? e.message : "Erreur génération d'image";
+    return { error: humanizeImageGenerateError(raw), suggestSearch: true };
   }
 }
 

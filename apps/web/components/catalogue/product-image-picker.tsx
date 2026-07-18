@@ -69,8 +69,18 @@ export function ProductImagePicker({
     setVariants([]);
     startBusy(async () => {
       const res = await generateProductImagesAction({ name: productName, category, type });
-      if (res.error) setError(res.error);
-      else setVariants(res.images ?? []);
+      if (res.error) {
+        setError(res.error);
+        if (res.suggestSearch) {
+          setTab('search');
+          const q = (category ? `${productName} ${category}` : productName).trim();
+          if (q.length >= 2) {
+            setQuery(q);
+            const searchRes = await searchFreeImagesAction({ query: q });
+            if (searchRes.results?.length) setResults(searchRes.results);
+          }
+        }
+      } else setVariants(res.images ?? []);
     });
   }
 
