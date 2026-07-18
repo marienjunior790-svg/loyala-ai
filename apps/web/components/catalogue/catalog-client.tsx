@@ -187,6 +187,15 @@ export function CatalogClient({ categories, items, canWrite, settings, versions 
     <div className="space-y-5">
       <CatalogAiPanel canWrite={canWrite} isEmpty={isEmpty} onManual={openNewItem} />
 
+      {isEmpty && (
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <Button type="button" variant="outline" size="sm" onClick={() => setConsultantOpen(true)}>
+            <Target className="h-4 w-4" />
+            Consultant menus
+          </Button>
+        </div>
+      )}
+
       {!isEmpty && (
         <>
           <CatalogPublishBar

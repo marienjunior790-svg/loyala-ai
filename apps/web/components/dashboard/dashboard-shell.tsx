@@ -30,7 +30,7 @@ export function DashboardShell({
     <div className="flex min-h-screen bg-background">
       <SkipLink />
       <div className="hidden w-64 shrink-0 lg:block">
-        <div className="fixed inset-y-0 w-64">
+        <div className="fixed inset-y-0 left-0 z-30 w-64">
           <AppSidebar />
         </div>
       </div>

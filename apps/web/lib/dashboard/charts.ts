@@ -33,6 +33,13 @@ export async function getRevenueChart(
   const clients = await listClients(supabase, organizationId);
 
   const segments = ['new', 'regular', 'vip', 'inactive', 'at_risk'] as const;
+  const labels: Record<(typeof segments)[number], string> = {
+    new: 'Nouveaux',
+    regular: 'Réguliers',
+    vip: 'VIP',
+    inactive: 'Inactifs',
+    at_risk: 'À risque',
+  };
   const totals: Record<string, number> = Object.fromEntries(segments.map((s) => [s, 0]));
 
   for (const c of clients) {
@@ -40,9 +47,9 @@ export async function getRevenueChart(
     totals[seg] = (totals[seg] ?? 0) + Number(c.total_spent ?? 0);
   }
 
-  return segments.map((label) => ({
-    label,
-    value: Math.round((totals[label] ?? 0) / 1000),
+  return segments.map((seg) => ({
+    label: labels[seg],
+    value: Math.round((totals[seg] ?? 0) / 1000),
   }));
 }
 
