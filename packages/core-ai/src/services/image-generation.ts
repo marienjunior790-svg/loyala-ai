@@ -36,10 +36,9 @@ async function generateSingleImage(
   prompt: string,
   size: ImageSize
 ): Promise<string | null> {
-  const isGptImage = model.startsWith('gpt-image');
-  const body: Record<string, unknown> = isGptImage
-    ? { model, prompt, n: 1, size }
-    : { model, prompt, n: 1, size, response_format: 'b64_json' };
+  // Newer OpenAI image models (gpt-image-*) reject `response_format`.
+  // Omit it for all models and accept either b64_json or url in the response.
+  const body: Record<string, unknown> = { model, prompt, n: 1, size };
 
   const res = await fetch('https://api.openai.com/v1/images/generations', {
     method: 'POST',

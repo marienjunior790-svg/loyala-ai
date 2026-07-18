@@ -24,6 +24,7 @@ import {
   SlidersHorizontal,
   ChevronDown,
   ChevronRight,
+  Images,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -36,7 +37,13 @@ import {
   suggestVariantsAction,
   type CatalogAiState,
 } from '@/app/(dashboard)/catalogue/_actions/catalog';
+import {
+  searchFreeImagesAction,
+  saveProductImageAction,
+  generateProductImagesAction,
+} from '@/app/(dashboard)/catalogue/_actions/images';
 import { CatalogOptionsEditor } from '@/components/catalogue/catalog-options-editor';
+import { ProductImagePicker } from '@/components/catalogue/product-image-picker';
 import { CATALOG_TEMPLATES } from '@/lib/catalogue/templates';
 import type { OptionGroup } from '@loyala/domain-crm';
 import {
@@ -262,6 +269,10 @@ function SmartCatalogDialog({
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const [suggestingKey, setSuggestingKey] = useState<string | null>(null);
   const [bulkSuggest, setBulkSuggest] = useState<{ done: number; total: number } | null>(null);
+  const [bulkImages, setBulkImages] = useState<{ done: number; total: number; mode: 'free' | 'ai' } | null>(
+    null
+  );
+  const [imagePicker, setImagePicker] = useState<{ ci: number; ii: number } | null>(null);
   const loading = busy || extracting;
 
   function toggleItemVariants(key: string) {
@@ -401,11 +412,16 @@ function SmartCatalogDialog({
   }
 
   const totalItems = preview?.categories.reduce((n, c) => n + c.items.length, 0) ?? 0;
+  const missingPhotoCount =
+    preview?.categories.reduce(
+      (n, c) => n + c.items.filter((it) => it.name.trim() && !it.photoUrl).length,
+      0
+    ) ?? 0;
 
   function updateItem(
     ci: number,
     ii: number,
-    patch: { name?: string; price?: number; options?: OptionGroup[] }
+    patch: { name?: string; price?: number; options?: OptionGroup[]; photoUrl?: string }
   ) {
     setPreview((prev) => {
       if (!prev) return prev;
@@ -495,6 +511,113 @@ function SmartCatalogDialog({
         setBulkSuggest({ done, total: targets.length });
       }
       setBulkSuggest(null);
+    });
+  }
+
+  function collectItemsWithoutPhoto() {
+    if (!preview) return [];
+    const targets: { ci: number; ii: number; name: string; category: string; type: string }[] = [];
+    preview.categories.forEach((cat, ci) => {
+      cat.items.forEach((item, ii) => {
+        if (item.name.trim() && !item.photoUrl) {
+          targets.push({
+            ci,
+            ii,
+            name: item.name.trim(),
+            category: cat.name,
+            type: item.type ?? 'product',
+          });
+        }
+      });
+    });
+    return targets;
+  }
+
+  /** Propose royalty-free images related to each menu item (Openverse). */
+  function proposeFreeImages() {
+    if (!preview) return;
+    const targets = collectItemsWithoutPhoto();
+    if (targets.length === 0) {
+      setError('Tous les articles ont déjà une image.');
+      return;
+    }
+    setError(null);
+    setBulkImages({ done: 0, total: targets.length, mode: 'free' });
+    startSuggest(async () => {
+      let filled = 0;
+      for (const t of targets) {
+        try {
+          const search = await searchFreeImagesAction({
+            query: `${t.name} ${t.category} food dish`,
+          });
+          const first = search.results?.[0];
+          if (first) {
+            const saved = await saveProductImageAction({ externalUrl: first.url });
+            if (saved.url) {
+              updateItem(t.ci, t.ii, { photoUrl: saved.url });
+              filled += 1;
+            }
+          }
+        } catch {
+          // best-effort
+        }
+        setBulkImages((prev) =>
+          prev ? { ...prev, done: prev.done + 1 } : prev
+        );
+      }
+      setBulkImages(null);
+      if (filled === 0) {
+        setError('Aucune image trouvée. Essayez « Générer avec l’IA » ou ajoutez-en une par produit.');
+      }
+    });
+  }
+
+  /** Generate AI product photos for items still without an image (sequential, capped). */
+  function proposeAiImages() {
+    if (!preview) return;
+    const targets = collectItemsWithoutPhoto().slice(0, 12);
+    if (targets.length === 0) {
+      setError('Tous les articles ont déjà une image.');
+      return;
+    }
+    if (
+      !confirm(
+        `Générer une image IA pour ${targets.length} article(s) ? Cela peut prendre une minute.`
+      )
+    ) {
+      return;
+    }
+    setError(null);
+    setBulkImages({ done: 0, total: targets.length, mode: 'ai' });
+    startSuggest(async () => {
+      let filled = 0;
+      for (const t of targets) {
+        try {
+          const gen = await generateProductImagesAction({
+            name: t.name,
+            category: t.category,
+            type: t.type,
+            count: 1,
+          });
+          const dataUrl = gen.images?.[0];
+          if (dataUrl) {
+            const saved = await saveProductImageAction({ dataUrl });
+            if (saved.url) {
+              updateItem(t.ci, t.ii, { photoUrl: saved.url });
+              filled += 1;
+            }
+          }
+        } catch {
+          // best-effort
+        }
+        setBulkImages((prev) =>
+          prev ? { ...prev, done: prev.done + 1 } : prev
+        );
+      }
+      setBulkImages(null);
+      if (filled === 0) {
+        setError('Génération IA impossible pour le moment. Réessayez ou utilisez la recherche libre.');
+      }
     });
   }
 
@@ -744,38 +867,88 @@ function SmartCatalogDialog({
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="text-sm font-medium">
                   {preview.categories.length} catégorie(s) · {totalItems} article(s)
-                </p>
-                <button
-                  type="button"
-                  onClick={suggestForAll}
-                  disabled={!!bulkSuggest}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/5 px-3 py-1 text-xs font-medium text-primary transition hover:bg-primary/10 disabled:opacity-60"
-                >
-                  {bulkSuggest ? (
-                    <>
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      Variantes… {bulkSuggest.done}/{bulkSuggest.total}
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="h-3.5 w-3.5" />
-                      Suggérer des variantes pour tout le catalogue
-                    </>
+                  {missingPhotoCount > 0 && (
+                    <span className="ml-2 font-normal text-muted-foreground">
+                      · {missingPhotoCount} sans image
+                    </span>
                   )}
-                </button>
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={proposeFreeImages}
+                    disabled={!!bulkSuggest || !!bulkImages || missingPhotoCount === 0}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1 text-xs font-medium text-foreground transition hover:border-primary/40 hover:text-primary disabled:opacity-60"
+                    title="Proposer des photos libres de droits liées aux plats"
+                  >
+                    {bulkImages?.mode === 'free' ? (
+                      <>
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        Images… {bulkImages.done}/{bulkImages.total}
+                      </>
+                    ) : (
+                      <>
+                        <Images className="h-3.5 w-3.5" />
+                        Proposer des images
+                      </>
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={proposeAiImages}
+                    disabled={!!bulkSuggest || !!bulkImages || missingPhotoCount === 0}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/5 px-3 py-1 text-xs font-medium text-primary transition hover:bg-primary/10 disabled:opacity-60"
+                    title="Générer des photos produit avec l’IA (jusqu’à 12)"
+                  >
+                    {bulkImages?.mode === 'ai' ? (
+                      <>
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        IA… {bulkImages.done}/{bulkImages.total}
+                      </>
+                    ) : (
+                      <>
+                        <Wand2 className="h-3.5 w-3.5" />
+                        Images IA
+                      </>
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={suggestForAll}
+                    disabled={!!bulkSuggest || !!bulkImages}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/5 px-3 py-1 text-xs font-medium text-primary transition hover:bg-primary/10 disabled:opacity-60"
+                  >
+                    {bulkSuggest ? (
+                      <>
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        Variantes… {bulkSuggest.done}/{bulkSuggest.total}
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="h-3.5 w-3.5" />
+                        Variantes
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
-              {bulkSuggest && (
+              {(bulkSuggest || bulkImages) && (
                 <div className="h-1.5 w-full overflow-hidden rounded-full bg-secondary">
                   <div
                     className="h-full rounded-full bg-primary transition-all"
                     style={{
-                      width: `${Math.round((bulkSuggest.done / Math.max(1, bulkSuggest.total)) * 100)}%`,
+                      width: `${Math.round(
+                        ((bulkImages?.done ?? bulkSuggest?.done ?? 0) /
+                          Math.max(1, bulkImages?.total ?? bulkSuggest?.total ?? 1)) *
+                          100
+                      )}%`,
                     }}
                   />
                 </div>
               )}
               <p className="text-xs text-muted-foreground">
-                Modifiez, ajoutez des variantes, puis validez. Rien n'est enregistré avant « Ajouter au catalogue ».
+                Proposez des images liées aux plats, ajustez les variantes, puis validez. Rien
+                n&apos;est enregistré avant « Ajouter au catalogue ».
               </p>
               {preview.categories.map((cat, ci) => (
                 <div key={`${cat.name}-${ci}`} className="rounded-xl border border-border">
@@ -791,6 +964,25 @@ function SmartCatalogDialog({
                       return (
                         <div key={`${item.name}-${ii}`} className="px-3 py-2">
                           <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setImagePicker({ ci, ii })}
+                              className="relative h-11 w-11 shrink-0 overflow-hidden rounded-lg border border-border bg-secondary/50 transition hover:border-primary/50"
+                              title={item.photoUrl ? 'Changer l’image' : 'Ajouter une image'}
+                            >
+                              {item.photoUrl ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img
+                                  src={item.photoUrl}
+                                  alt=""
+                                  className="h-full w-full object-cover"
+                                />
+                              ) : (
+                                <span className="flex h-full w-full items-center justify-center text-muted-foreground">
+                                  <ImageIcon className="h-4 w-4" />
+                                </span>
+                              )}
+                            </button>
                             <input
                               value={item.name}
                               onChange={(e) => updateItem(ci, ii, { name: e.target.value })}
@@ -864,6 +1056,19 @@ function SmartCatalogDialog({
                 </div>
               ))}
             </div>
+          )}
+
+          {imagePicker && preview && (
+            <ProductImagePicker
+              productName={preview.categories[imagePicker.ci]?.items[imagePicker.ii]?.name ?? ''}
+              category={preview.categories[imagePicker.ci]?.name}
+              type={preview.categories[imagePicker.ci]?.items[imagePicker.ii]?.type}
+              onDone={(url) => {
+                updateItem(imagePicker.ci, imagePicker.ii, { photoUrl: url });
+                setImagePicker(null);
+              }}
+              onClose={() => setImagePicker(null)}
+            />
           )}
         </div>
 

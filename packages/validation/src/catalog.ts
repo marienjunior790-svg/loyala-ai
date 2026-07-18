@@ -94,6 +94,8 @@ export const generatedCatalogItemSchema = z.object({
   price: z.coerce.number().min(0).default(0),
   type: catalogItemTypeSchema.default('product'),
   options: itemOptionsSchema.optional(),
+  /** Public storage URL proposed during AI create preview. */
+  photoUrl: z.string().max(2000).optional(),
 });
 
 export const generatedCatalogCategorySchema = z.object({
