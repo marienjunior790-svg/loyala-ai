@@ -73,29 +73,53 @@ export async function generateImages(params: GenerateImagesParams): Promise<stri
     throw new Error("Génération d'image indisponible : clé OpenAI non configurée.");
   }
 
-  const model = process.env.OPENAI_IMAGE_MODEL || 'dall-e-3';
+  // DALL·E 3 is retired for many accounts — default to GPT Image.
+  const preferred = (process.env.OPENAI_IMAGE_MODEL || 'gpt-image-1').trim();
+  const fallbacks = ['gpt-image-1', 'gpt-image-1-mini', 'gpt-image-1.5'].filter(
+    (m) => m !== preferred
+  );
+  const models = [preferred, ...fallbacks];
   const count = Math.min(Math.max(params.count ?? 2, 1), 3);
   const size = params.size ?? '1024x1024';
 
-  const settled = await Promise.allSettled(
-    Array.from({ length: count }, () => generateSingleImage(apiKey, model, params.prompt, size))
-  );
+  let lastError: Error | null = null;
 
-  const images = settled
-    .filter((r): r is PromiseFulfilledResult<string | null> => r.status === 'fulfilled')
-    .map((r) => r.value)
-    .filter((v): v is string => Boolean(v));
+  for (const model of models) {
+    try {
+      const settled = await Promise.allSettled(
+        Array.from({ length: count }, () =>
+          generateSingleImage(apiKey, model, params.prompt, size)
+        )
+      );
 
-  if (images.length === 0) {
-    const firstError = settled.find((r) => r.status === 'rejected') as
-      | PromiseRejectedResult
-      | undefined;
-    throw new Error(
-      firstError?.reason instanceof Error
-        ? firstError.reason.message
-        : 'Aucune image générée.'
-    );
+      const images = settled
+        .filter((r): r is PromiseFulfilledResult<string | null> => r.status === 'fulfilled')
+        .map((r) => r.value)
+        .filter((v): v is string => Boolean(v));
+
+      if (images.length > 0) return images;
+
+      const firstError = settled.find((r) => r.status === 'rejected') as
+        | PromiseRejectedResult
+        | undefined;
+      lastError =
+        firstError?.reason instanceof Error
+          ? firstError.reason
+          : new Error('Aucune image générée.');
+
+      // Try next model only when the current one is unavailable / invalid.
+      const msg = lastError.message.toLowerCase();
+      if (!msg.includes('does not exist') && !msg.includes('invalid_value') && !msg.includes('model')) {
+        break;
+      }
+    } catch (e) {
+      lastError = e instanceof Error ? e : new Error(String(e));
+      const msg = lastError.message.toLowerCase();
+      if (!msg.includes('does not exist') && !msg.includes('invalid_value') && !msg.includes('model')) {
+        break;
+      }
+    }
   }
 
-  return images;
+  throw lastError ?? new Error('Aucune image générée.');
 }
