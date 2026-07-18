@@ -12,6 +12,7 @@ describe('worker paths', () => {
     expect(isAllowedAiPath('catalog/variants')).toBe(true);
     expect(isAllowedAiPath('catalog/translate')).toBe(true);
     expect(isAllowedAiPath('catalog/image')).toBe(true);
+    expect(isAllowedAiPath('menu/consult')).toBe(true);
   });
 
   it('rejects unknown paths', () => {

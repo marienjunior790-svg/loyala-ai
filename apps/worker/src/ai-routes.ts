@@ -276,6 +276,22 @@ export async function handleAIRoute(
 
 
 
+    case '/ai/menu/consult': {
+
+      const result = await automation.consultMenu({
+
+        contextText: (body.contextText as string) ?? '',
+
+        currency: body.currency as string | undefined,
+
+      });
+
+      return { status: 200, data: result };
+
+    }
+
+
+
     case '/ai/catalog/variants': {
 
       const result = await automation.suggestVariants({

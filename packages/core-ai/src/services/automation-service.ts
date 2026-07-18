@@ -12,9 +12,11 @@ import {
   catalogGenerateSchema,
   variantSuggestSchema,
   catalogTranslateSchema,
+  menuConsultSchema,
   type CatalogGenerate,
   type VariantSuggest,
   type CatalogTranslate,
+  type MenuConsult,
 } from '../schemas/outputs';
 import type { ClientRFMInput } from '../rfm/scoring';
 import type { BirthdayClient, LoyaltyClient } from '../engines/campaign-engine';
@@ -219,6 +221,30 @@ export class AutomationService {
       skipGuard: true,
     });
     return catalogTranslateSchema.parse(response.parsed ?? { locale, categories: [], items: [] });
+  }
+
+  /**
+   * 8f. Consultant menus — propositions data-driven (catalogue + CRM + affinités + saison)
+   * avec pack marketing et score de confiance.
+   */
+  async consultMenu(request: {
+    contextText: string;
+    currency?: string;
+  }): Promise<MenuConsult> {
+    const currency = request.currency?.trim() || 'XOF';
+    const response = await orchestrate({
+      organizationId: this.tenantId,
+      useCase: 'menu.consult',
+      input: {
+        context: (request.contextText || '').slice(0, 14_000),
+      },
+      jsonSchema: menuConsultSchema,
+      skipCache: true,
+      skipGuard: true,
+    });
+    return menuConsultSchema.parse(
+      response.parsed ?? { currency, summary: '', contextInsights: [], proposals: [], catalogAdditions: [] }
+    );
   }
 
   /** 8c. Génération d'images produit (IA) — contexte-aware, plusieurs variantes. */

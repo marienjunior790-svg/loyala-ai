@@ -13,6 +13,7 @@ export const WORKER_AI_PATHS = [
   'catalog/variants',
   'catalog/translate',
   'catalog/image',
+  'menu/consult',
   'inbox/reply',
   'inbox/classify',
   'rfm/score',

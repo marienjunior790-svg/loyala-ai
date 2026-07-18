@@ -67,6 +67,7 @@ const AI_ROUTES = [
   '/ai/catalog/variants',
   '/ai/catalog/translate',
   '/ai/catalog/image',
+  '/ai/menu/consult',
   '/ai/inbox/reply',
   '/ai/inbox/classify',
   '/ai/rfm/score',

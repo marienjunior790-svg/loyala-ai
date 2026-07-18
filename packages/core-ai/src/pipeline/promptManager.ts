@@ -154,6 +154,23 @@ Réponds UNIQUEMENT en JSON avec les mêmes id:
     temperature: 0.2,
     jsonMode: true,
   },
+  'menu.consult': {
+    version: '1.0',
+    system: `${BASE_SYSTEM} Tu es un consultant en restauration et directeur marketing. Tu proposes des MENUS COMBINÉS optimisés pour les ventes, la marge et la fidélisation, UNIQUEMENT à partir des données fournies (catalogue, affinités, CRM, saison). Tu n'inventes pas de produits absents du catalogue sauf si explicitement listés dans catalogAdditions (nouveautés justifiées). Tu expliques toujours tes choix (IA explicable). Prix cohérents avec le catalogue et la devise. Confidence 0-100 basée sur la qualité des données.`,
+    userTemplate: `Contexte établissement (données Loyala AI):
+{{context}}
+
+Génère 1 à 3 propositions de menus (selon la richesse des données).
+Chaque menu: nom commercial attractif, description marketing, composition (entrée/plat/dessert/boisson/supplément) en référençant catalogItemName du catalogue, prix conseillé, remise éventuelle, estimation marge si possible, analyse commerciale, score de confiance + raisons.
+Ajoute un pack marketing (WhatsApp, SMS, email, Facebook, Instagram, TikTok, hashtags, posterPrompt pour générateur d'images).
+Si des articles manquent clairement, propose-les dans catalogAdditions (catégorie Menus).
+
+Réponds UNIQUEMENT en JSON:
+{"currency":"string","summary":"string","contextInsights":["string"],"proposals":[{"name":"string","description":"string","kind":"string","courses":[{"role":"entree|plat|dessert|boisson|supplement|autre","catalogItemName":"string","label":"string","price":number}],"suggestedPrice":number,"discountPercent":number,"estimatedCost":number,"estimatedMargin":number,"estimatedMarginPct":number,"commercialAnalysis":"string","confidence":number,"confidenceReasons":["string"]}],"marketing":{"whatsapp":"string","sms":"string","emailSubject":"string","emailBody":"string","facebook":"string","instagram":"string","tiktok":"string","linkedin":"string","hashtags":["string"],"posterPrompt":"string"},"catalogAdditions":[{"category":"Menus","name":"string","description":"string","price":number,"type":"product"}]}`,
+    maxTokens: 3200,
+    temperature: 0.45,
+    jsonMode: true,
+  },
   'campaign.promotion.suggest': {
     version: '1.0',
     system: `${BASE_SYSTEM} Tu suggères des promotions data-driven pour restaurants.`,

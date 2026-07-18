@@ -22,4 +22,5 @@ export * from './catalog-publication';
 export * from './availability';
 export * from './purchase-insights';
 export * from './affinity-segments';
+export * from './menu-context';
 export * from './client-history';

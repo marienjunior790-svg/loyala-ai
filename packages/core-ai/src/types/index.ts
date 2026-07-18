@@ -12,6 +12,7 @@ export type AIUseCase =
   | 'catalog.import'
   | 'catalog.variants'
   | 'catalog.translate'
+  | 'menu.consult'
   | 'inbox.reply.generate'
   | 'inbox.message.classify'
   | 'inbox.reply.suggest'

@@ -19,6 +19,7 @@ import {
   Languages,
   Smartphone,
   MessageSquare,
+  Target,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -53,6 +54,7 @@ import { CatalogQualityPanel } from '@/components/catalogue/catalog-quality-pane
 import { CatalogMenuPreview } from '@/components/catalogue/catalog-menu-preview';
 import { CatalogPublishBar } from '@/components/catalogue/catalog-publish-bar';
 import { CatalogAssistantPanel } from '@/components/catalogue/catalog-assistant';
+import { MenuConsultantPanel } from '@/components/catalogue/menu-consultant';
 
 type Tab = 'products' | 'services' | 'categories';
 
@@ -90,6 +92,7 @@ export function CatalogClient({ categories, items, canWrite, settings, versions 
   const [batch, setBatch] = useState<{ total: number; done: number } | null>(null);
   const [showPreview, setShowPreview] = useState(false);
   const [assistantOpen, setAssistantOpen] = useState(false);
+  const [consultantOpen, setConsultantOpen] = useState(false);
   const [onlyNoPhoto, setOnlyNoPhoto] = useState(false);
 
   const quality = useMemo(() => computeCatalogQuality(categories, items), [categories, items]);
@@ -267,6 +270,10 @@ export function CatalogClient({ categories, items, canWrite, settings, versions 
           >
             <Smartphone className="h-4 w-4" />
             Aperçu QR
+          </Button>
+          <Button type="button" variant="outline" size="sm" onClick={() => setConsultantOpen(true)}>
+            <Target className="h-4 w-4" />
+            Consultant menus
           </Button>
           <Button type="button" variant="outline" size="sm" onClick={() => setAssistantOpen(true)}>
             <MessageSquare className="h-4 w-4" />
@@ -566,6 +573,11 @@ export function CatalogClient({ categories, items, canWrite, settings, versions 
           setOnlyNoPhoto(true);
           setTab('products');
         }}
+      />
+      <MenuConsultantPanel
+        canWrite={canWrite}
+        open={consultantOpen}
+        onClose={() => setConsultantOpen(false)}
       />
     </div>
   );
