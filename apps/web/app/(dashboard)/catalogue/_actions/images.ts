@@ -6,40 +6,13 @@ import { createClient } from '@/lib/supabase/server';
 import { updateCatalogItem, getOrganization } from '@loyala/domain-crm';
 import { uploadCatalogImage } from '@loyala/integrations';
 import { proxyToWorker } from '@/lib/worker/client';
+import { humanizeImageGenerateError } from '@/lib/catalogue/image-errors';
 
 const WRITE = 'clients:write' as const;
 
 const PRIVATE_HOST =
   /^(localhost|127\.|10\.|192\.168\.|169\.254\.|::1|0\.0\.0\.0)|\.local$/i;
 const MAX_IMAGE_BYTES = 8_000_000;
-
-/** Map raw OpenAI/worker errors to actionable French messages. */
-export function humanizeImageGenerateError(raw: string): string {
-  const t = (raw || '').toLowerCase();
-  if (
-    t.includes('billing_hard_limit') ||
-    t.includes('billing hard limit') ||
-    t.includes('insufficient_quota') ||
-    t.includes('exceeded your current quota')
-  ) {
-    return 'Quota OpenAI épuisé (limite de facturation atteinte). Utilisez l’onglet Rechercher (images libres), Importer, ou augmentez le plafond sur platform.openai.com/settings/organization/billing.';
-  }
-  if (t.includes('does not exist') && t.includes('model')) {
-    return 'Modèle d’image OpenAI indisponible. Réessayez plus tard ou utilisez Rechercher.';
-  }
-  if (t.includes('response_format')) {
-    return 'API images OpenAI incompatible. Réessayez après mise à jour, ou utilisez Rechercher.';
-  }
-  if (t.includes('worker not configured') || t.includes('worker error')) {
-    return raw;
-  }
-  // Strip huge JSON payloads for display
-  if (raw.length > 180 && raw.includes('{')) {
-    const short = raw.replace(/\s+/g, ' ').slice(0, 160);
-    return `${short}… — Essayez l’onglet Rechercher (gratuit).`;
-  }
-  return raw;
-}
 
 export type ProductImageGenerateState = {
   error?: string;

@@ -1,4 +1,3 @@
-import type { SupabaseClient } from '@supabase/supabase-js';
 import { getCrmKpis } from './crm-metrics';
 import { getRecentActivity } from './activity';
 import { getRevenueChart, getVisitsChart } from './charts';

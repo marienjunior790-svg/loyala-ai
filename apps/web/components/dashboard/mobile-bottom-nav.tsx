@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { mainNav, mobileNav, isNavActive } from '@/lib/dashboard/navigation';
+import { mobileNav, isNavActive } from '@/lib/dashboard/navigation';
 
 export function MobileBottomNav() {
   const pathname = usePathname();

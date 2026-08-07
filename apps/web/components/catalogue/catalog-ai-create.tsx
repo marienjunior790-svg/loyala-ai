@@ -971,7 +971,6 @@ function SmartCatalogDialog({
                               title={item.photoUrl ? 'Changer l’image' : 'Ajouter une image'}
                             >
                               {item.photoUrl ? (
-                                // eslint-disable-next-line @next/next/no-img-element
                                 <img
                                   src={item.photoUrl}
                                   alt=""

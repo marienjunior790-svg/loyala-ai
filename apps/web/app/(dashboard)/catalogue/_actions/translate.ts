@@ -7,7 +7,6 @@ import {
   listCatalogCategories,
   listCatalogItems,
   updateCatalogCategory,
-  updateCatalogItem,
   getItemOptions,
   mergeItemMetadata,
   getOrganization,

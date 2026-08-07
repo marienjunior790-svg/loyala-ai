@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 
 export default function ClientsError({
-  error,
+  error: _error,
   reset,
 }: {
   error: Error & { digest?: string };
