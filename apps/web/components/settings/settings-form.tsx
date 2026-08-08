@@ -16,6 +16,9 @@ const initial: SettingsActionState = {};
 export function SettingsForm({ org }: { org: Organization }) {
   const [state, action, pending] = useActionState(updateOrganizationSettingsAction, initial);
   const whatsappPhone = String((org.settings as Record<string, unknown>)?.whatsapp_phone ?? '');
+  const whatsappPhoneNumberId = String(
+    (org.settings as Record<string, unknown>)?.whatsapp_phone_number_id ?? ''
+  );
   const googleReviewUrl = String(
     (org.settings as Record<string, unknown>)?.google_review_url ?? ''
   );
@@ -65,13 +68,32 @@ export function SettingsForm({ org }: { org: Organization }) {
             </p>
           </div>
           <div>
-            <label className="text-sm text-muted-foreground">WhatsApp (relances)</label>
+            <label className="text-sm text-muted-foreground">WhatsApp Business (affichage / QR)</label>
             <Input
               name="whatsappPhone"
               defaultValue={whatsappPhone}
-              placeholder="065719922"
+              placeholder="+242065719922"
               className="mt-1"
             />
+            <p className="mt-1 text-xs text-muted-foreground">
+              Numéro utilisé pour les QR codes, liens wa.me et relances manuelles.
+            </p>
+          </div>
+          <div>
+            <label className="text-sm text-muted-foreground">
+              Meta Phone number ID (Cloud API)
+            </label>
+            <Input
+              name="whatsappPhoneNumberId"
+              defaultValue={whatsappPhoneNumberId}
+              placeholder="123456789012345"
+              className="mt-1 font-mono text-sm"
+            />
+            <p className="mt-1 text-xs text-muted-foreground">
+              Identifiant Meta du numéro WhatsApp Business. Obligatoire pour rattacher les messages
+              entrants (nouveaux contacts) à cette organisation — jamais stocké côté navigateur comme
+              secret ; seul l’ID public est enregistré ici. Le token d’accès reste sur le worker.
+            </p>
           </div>
           <div>
             <label className="text-sm text-muted-foreground">Lien avis Google</label>

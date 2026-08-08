@@ -36,6 +36,7 @@ export interface WebhookEventStats {
   inboundProcessed: number;
   inboundSessionsUpdated: number;
   inboundSkipped: number;
+  inboundLeadsUpserted: number;
 }
 
 export interface WebhookPostResult {
@@ -81,6 +82,7 @@ function emptyStats(): WebhookEventStats {
     inboundProcessed: 0,
     inboundSessionsUpdated: 0,
     inboundSkipped: 0,
+    inboundLeadsUpserted: 0,
   };
 }
 
@@ -163,6 +165,7 @@ export async function handleWhatsAppWebhookPost(
       stats.inboundProcessed = inboundResult.processed;
       stats.inboundSessionsUpdated = inboundResult.sessionsUpdated;
       stats.inboundSkipped = inboundResult.skipped;
+      stats.inboundLeadsUpserted = inboundResult.leadsUpserted;
 
       for (const match of inboundResult.matched) {
         const recorded = await recordDomainEvent(admin, {
@@ -239,7 +242,7 @@ export async function handleWhatsAppWebhookPost(
     level: 'info',
     service: 'worker',
     message: 'WhatsApp webhook processed',
-    context: stats,
+    context: { ...stats },
   });
 
   // Always 200 on valid signed payloads so Meta does not retry storms on benign duplicates.

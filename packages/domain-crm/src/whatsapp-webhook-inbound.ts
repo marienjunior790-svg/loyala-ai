@@ -4,6 +4,11 @@ import {
   recordInboundConversationSessions,
   type InboundSessionTouchResult,
 } from './conversation-sessions';
+import {
+  parseAcquisitionSourceFromMessage,
+  resolveOrganizationsForWhatsAppPhoneNumberId,
+  upsertWhatsAppLead,
+} from './acquisition';
 
 export interface MetaWebhookInboundMessage {
   wamid: string;
@@ -11,6 +16,7 @@ export interface MetaWebhookInboundMessage {
   timestamp: string;
   type: string;
   body?: string;
+  profileName?: string;
   phoneNumberId?: string;
   raw: unknown;
 }
@@ -36,6 +42,14 @@ export function parseMetaWebhookInboundMessages(payload: unknown): MetaWebhookIn
       const value = (change as { value?: Record<string, unknown> })?.value ?? {};
       const phoneNumberId = (value.metadata as { phone_number_id?: string } | undefined)
         ?.phone_number_id;
+      const contacts = (value.contacts as unknown[]) ?? [];
+      const profileByWaId = new Map<string, string>();
+      for (const c of contacts) {
+        const row = c as { wa_id?: string; profile?: { name?: string } };
+        if (row.wa_id && row.profile?.name) {
+          profileByWaId.set(String(row.wa_id), String(row.profile.name));
+        }
+      }
       const messages = (value.messages as unknown[]) ?? [];
 
       for (const item of messages) {
@@ -56,6 +70,7 @@ export function parseMetaWebhookInboundMessages(payload: unknown): MetaWebhookIn
           timestamp: toIsoTimestamp(String(row.timestamp ?? '')),
           type,
           body,
+          profileName: profileByWaId.get(from),
           phoneNumberId: phoneNumberId ? String(phoneNumberId) : undefined,
           raw: item,
         });
@@ -85,12 +100,14 @@ export async function applyMetaWebhookInboundMessages(
   InboundSessionTouchResult & {
     processed: number;
     skipped: number;
+    leadsUpserted: number;
     matched: Array<{ organizationId: string; clientId: string; wamid: string }>;
   }
 > {
   let sessionsUpdated = 0;
   let clientsMatched = 0;
   let skipped = 0;
+  let leadsUpserted = 0;
   const matched: Array<{ organizationId: string; clientId: string; wamid: string }> = [];
 
   for (const message of messages) {
@@ -112,9 +129,7 @@ export async function applyMetaWebhookInboundMessages(
       },
     });
 
-    if (result.sessionsUpdated === 0) {
-      skipped += 1;
-    } else {
+    if (result.sessionsUpdated > 0) {
       sessionsUpdated += result.sessionsUpdated;
       clientsMatched += result.clientsMatched;
       for (const client of result.clients) {
@@ -124,12 +139,38 @@ export async function applyMetaWebhookInboundMessages(
           wamid: message.wamid,
         });
       }
+      continue;
+    }
+
+    // Unknown number → pending WhatsApp lead for mapped org(s)
+    const orgIds = await resolveOrganizationsForWhatsAppPhoneNumberId(
+      supabase,
+      message.phoneNumberId
+    );
+    if (orgIds.length === 0) {
+      skipped += 1;
+      continue;
+    }
+
+    const source = parseAcquisitionSourceFromMessage(message.body);
+    for (const organizationId of orgIds) {
+      const lead = await upsertWhatsAppLead(supabase, {
+        organizationId,
+        phone: message.from,
+        profileName: message.profileName,
+        preview: message.body,
+        wamid: message.wamid,
+        inboundAt: message.timestamp,
+        acquisitionSource: source,
+      });
+      if (lead) leadsUpserted += 1;
     }
   }
 
   return {
     processed: messages.length,
     skipped,
+    leadsUpserted,
     sessionsUpdated,
     clientsMatched,
     matched,

@@ -10,3 +10,7 @@ dist/
 coverage/
 .vercel
 .env*
+
+.secrets-prod.local
+.railway-token
+

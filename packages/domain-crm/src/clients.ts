@@ -15,6 +15,8 @@ export interface Client {
   date_of_birth: string | null;
   opt_in_whatsapp: boolean;
   notes: string | null;
+  acquisition_source: string | null;
+  whatsapp_profile_name: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -66,6 +68,8 @@ export async function createClient(
       date_of_birth: input.dateOfBirth || null,
       opt_in_whatsapp: input.optInWhatsapp,
       notes: input.notes || null,
+      acquisition_source: input.acquisitionSource || null,
+      whatsapp_profile_name: input.whatsappProfileName || null,
     })
     .select()
     .single();

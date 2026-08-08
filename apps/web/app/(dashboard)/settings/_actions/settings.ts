@@ -20,6 +20,7 @@ export async function updateOrganizationSettingsAction(
 
   const name = String(formData.get('name') ?? '').trim();
   const whatsappPhone = String(formData.get('whatsappPhone') ?? '').trim();
+  const whatsappPhoneNumberId = String(formData.get('whatsappPhoneNumberId') ?? '').trim();
   const googleReviewUrl = String(formData.get('googleReviewUrl') ?? '').trim();
   const googleReviewAutoRequest = formData.get('googleReviewAutoRequest') === '1';
   const countryCode = String(formData.get('countryCode') ?? '').trim().toUpperCase();
@@ -33,6 +34,10 @@ export async function updateOrganizationSettingsAction(
     return { error: 'Le lien avis Google doit commencer par https://' };
   }
 
+  if (whatsappPhoneNumberId && !/^\d{5,30}$/.test(whatsappPhoneNumberId)) {
+    return { error: 'Phone number ID Meta invalide (chiffres uniquement)' };
+  }
+
   const supabase = await createClient();
   const { data: org } = await supabase
     .from('organizations')
@@ -43,6 +48,7 @@ export async function updateOrganizationSettingsAction(
   const settings: Record<string, unknown> = {
     ...(org?.settings as Record<string, unknown> ?? {}),
     whatsapp_phone: whatsappPhone,
+    whatsapp_phone_number_id: whatsappPhoneNumberId,
     google_review_url: googleReviewUrl,
     google_review_auto_request: googleReviewAutoRequest,
   };
@@ -66,6 +72,8 @@ export async function updateOrganizationSettingsAction(
     });
     revalidatePath('/settings');
     revalidatePath('/administration');
+    revalidatePath('/clients');
+    revalidatePath('/clients/collecter');
     return { success: 'Paramètres enregistrés' };
   } catch (e) {
     return { error: e instanceof Error ? e.message : 'Erreur sauvegarde' };

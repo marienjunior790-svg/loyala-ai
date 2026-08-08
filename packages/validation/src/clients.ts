@@ -11,6 +11,8 @@ export const createClientSchema = z.object({
     .or(z.literal('')),
   optInWhatsapp: z.boolean().default(true),
   notes: z.string().optional(),
+  acquisitionSource: z.string().max(64).optional().or(z.literal('')),
+  whatsappProfileName: z.string().max(120).optional().or(z.literal('')),
 });
 
 export const updateClientSchema = createClientSchema.partial();

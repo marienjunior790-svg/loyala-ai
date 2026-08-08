@@ -1,3 +1,4 @@
+export * from './acquisition';
 export * from './clients';
 export * from './segments';
 export * from './organizations';
