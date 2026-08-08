@@ -156,7 +156,11 @@ export function CatalogClient({ categories, items, canWrite, settings, versions 
         const query = item.catalog_categories?.name
           ? `${item.name} ${item.catalog_categories.name}`
           : item.name;
-        const search = await searchFreeImagesAction({ query });
+        const search = await searchFreeImagesAction({
+          query,
+          name: item.name,
+          category: item.catalog_categories?.name ?? undefined,
+        });
         const first = search.results?.[0];
         if (first) {
           const saved = await saveProductImageAction({ itemId: item.id, externalUrl: first.url });

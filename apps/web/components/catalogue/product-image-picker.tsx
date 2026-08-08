@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState, useTransition } from 'react';
+import { useEffect, useRef, useState, useTransition } from 'react';
 import {
   Sparkles,
   Search,
@@ -11,6 +11,7 @@ import {
   ImageIcon,
   RefreshCw,
   Check,
+  Info,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,7 +23,7 @@ import {
 } from '@/app/(dashboard)/catalogue/_actions/images';
 import { compressImageToWebp } from '@/lib/catalogue/image-client';
 
-type PickerTab = 'ai' | 'search' | 'upload' | 'camera';
+type PickerTab = 'search' | 'ai' | 'upload' | 'camera';
 
 interface ProductImagePickerProps {
   productName: string;
@@ -35,8 +36,8 @@ interface ProductImagePickerProps {
 }
 
 const TABS: { id: PickerTab; label: string; icon: typeof Sparkles }[] = [
-  { id: 'ai', label: 'Générer (IA)', icon: Sparkles },
   { id: 'search', label: 'Rechercher', icon: Search },
+  { id: 'ai', label: 'Générer (IA)', icon: Sparkles },
   { id: 'upload', label: 'Importer', icon: Upload },
   { id: 'camera', label: 'Photo', icon: Camera },
 ];
@@ -49,8 +50,9 @@ export function ProductImagePicker({
   onDone,
   onClose,
 }: ProductImagePickerProps) {
-  const [tab, setTab] = useState<PickerTab>('ai');
+  const [tab, setTab] = useState<PickerTab>('search');
   const [error, setError] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
   const [busy, startBusy] = useTransition();
   const [saving, startSaving] = useTransition();
 
@@ -60,43 +62,85 @@ export function ProductImagePicker({
   );
   const [results, setResults] = useState<FreeImageSuggestion[]>([]);
   const [localPreview, setLocalPreview] = useState<string | null>(null);
+  const autoStarted = useRef(false);
 
   const uploadRef = useRef<HTMLInputElement>(null);
   const cameraRef = useRef<HTMLInputElement>(null);
 
+  function runSearch(q: string) {
+    if (q.trim().length < 2) return setError('Saisissez un terme de recherche.');
+    setError(null);
+    setResults([]);
+    startBusy(async () => {
+      const res = await searchFreeImagesAction({
+        query: q.trim(),
+        name: productName,
+        category,
+      });
+      if (res.error && !(res.results?.length)) setError(res.error);
+      else {
+        setResults(res.results ?? []);
+        if (res.queryUsed) {
+          setInfo(`Résultats pour « ${res.queryUsed} » (images libres, licence commerciale).`);
+        }
+      }
+    });
+  }
+
+  useEffect(() => {
+    if (autoStarted.current) return;
+    autoStarted.current = true;
+    const q = (category ? `${productName} ${category}` : productName).trim();
+    if (q.length >= 2) runSearch(q);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- open once with product context
+  }, []);
+
   function generate() {
     setError(null);
+    setInfo(null);
     setVariants([]);
     startBusy(async () => {
       const res = await generateProductImagesAction({ name: productName, category, type });
       if (res.error) {
-        setError(res.error);
         if (res.suggestSearch) {
           setTab('search');
+          setInfo(
+            'Génération IA indisponible (quota OpenAI). Voici des images libres pour ce plat.'
+          );
+          setError(null);
           const q = (category ? `${productName} ${category}` : productName).trim();
           if (q.length >= 2) {
             setQuery(q);
-            const searchRes = await searchFreeImagesAction({ query: q });
-            if (searchRes.results?.length) setResults(searchRes.results);
+            const searchRes = await searchFreeImagesAction({
+              query: q,
+              name: productName,
+              category,
+            });
+            if (searchRes.results?.length) {
+              setResults(searchRes.results);
+              if (searchRes.queryUsed) {
+                setInfo(
+                  `IA indisponible — résultats libres pour « ${searchRes.queryUsed} ».`
+                );
+              }
+            } else if (searchRes.error) {
+              setError(searchRes.error);
+            }
           }
+        } else {
+          setError(res.error);
         }
       } else setVariants(res.images ?? []);
     });
   }
 
   function search() {
-    if (query.trim().length < 2) return setError('Saisissez un terme de recherche.');
-    setError(null);
-    setResults([]);
-    startBusy(async () => {
-      const res = await searchFreeImagesAction({ query: query.trim() });
-      if (res.error) setError(res.error);
-      else setResults(res.results ?? []);
-    });
+    runSearch(query);
   }
 
   async function handleLocalFile(file: File) {
     setError(null);
+    setInfo(null);
     try {
       const compressed = await compressImageToWebp(file);
       setLocalPreview(compressed);
@@ -150,6 +194,7 @@ export function ProductImagePicker({
                 onClick={() => {
                   setTab(t.id);
                   setError(null);
+                  if (t.id !== 'search') setInfo(null);
                 }}
                 className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition ${
                   tab === t.id
@@ -171,6 +216,13 @@ export function ProductImagePicker({
             </div>
           )}
 
+          {info && !error && (
+            <div className="flex items-start gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-sm text-muted-foreground">
+              <Info className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+              <span>{info}</span>
+            </div>
+          )}
+
           {saving && (
             <div className="flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-sm text-primary">
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -178,12 +230,52 @@ export function ProductImagePicker({
             </div>
           )}
 
-          {/* ── Generate (AI) ── */}
+          {tab === 'search' && (
+            <div className="space-y-4">
+              <form
+                className="flex gap-2"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  search();
+                }}
+              >
+                <Input
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Ex : pizza margherita"
+                  className="flex-1"
+                />
+                <Button type="submit" variant="outline" disabled={busy || saving}>
+                  {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                  Chercher
+                </Button>
+              </form>
+              <p className="text-xs text-muted-foreground">
+                Images libres de droits (licence commerciale). La recherche traduit automatiquement
+                les noms de plats pour trouver des photos adaptées.
+              </p>
+              {busy && results.length === 0 && <SkeletonGrid />}
+              {results.length > 0 && (
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                  {results.map((r, i) => (
+                    <ChoiceTile
+                      key={`${r.url}-${i}`}
+                      src={r.thumbnail}
+                      caption={r.source}
+                      disabled={saving}
+                      onSelect={() => save({ externalUrl: r.url })}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           {tab === 'ai' && (
             <div className="space-y-4">
               <div className="flex items-center justify-between gap-2">
                 <p className="text-sm text-muted-foreground">
-                  Génère des visuels photoréalistes correspondant au produit.
+                  Génère des visuels photoréalistes (nécessite un quota OpenAI actif).
                 </p>
                 <Button type="button" onClick={generate} disabled={busy || saving}>
                   {busy ? (
@@ -218,48 +310,6 @@ export function ProductImagePicker({
             </div>
           )}
 
-          {/* ── Free search ── */}
-          {tab === 'search' && (
-            <div className="space-y-4">
-              <form
-                className="flex gap-2"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  search();
-                }}
-              >
-                <Input
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Ex : pizza margherita"
-                  className="flex-1"
-                />
-                <Button type="submit" variant="outline" disabled={busy || saving}>
-                  {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-                  Chercher
-                </Button>
-              </form>
-              <p className="text-xs text-muted-foreground">
-                Images libres de droits (licence commerciale) via Openverse.
-              </p>
-              {busy && results.length === 0 && <SkeletonGrid />}
-              {results.length > 0 && (
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                  {results.map((r, i) => (
-                    <ChoiceTile
-                      key={i}
-                      src={r.thumbnail}
-                      caption={r.source}
-                      disabled={saving}
-                      onSelect={() => save({ externalUrl: r.url })}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* ── Upload ── */}
           {tab === 'upload' && (
             <UploadPane
               inputRef={uploadRef}
@@ -273,7 +323,6 @@ export function ProductImagePicker({
             />
           )}
 
-          {/* ── Camera ── */}
           {tab === 'camera' && (
             <UploadPane
               inputRef={cameraRef}
@@ -318,8 +367,9 @@ function ChoiceTile({
         className="h-full w-full object-cover transition group-hover:scale-105"
       />
       <span className="absolute inset-0 flex items-center justify-center bg-primary/0 opacity-0 transition group-hover:bg-primary/20 group-hover:opacity-100">
-        <span className="rounded-full bg-primary p-2 text-primary-foreground">
-          <Check className="h-5 w-5" />
+        <span className="inline-flex items-center gap-1 rounded-full bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground">
+          <Check className="h-3.5 w-3.5" />
+          Choisir
         </span>
       </span>
       {caption && (
@@ -404,7 +454,7 @@ function UploadPane({
 function SkeletonGrid() {
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-      {Array.from({ length: 3 }).map((_, i) => (
+      {Array.from({ length: 6 }).map((_, i) => (
         <div key={i} className="aspect-square animate-pulse rounded-xl bg-secondary/50" />
       ))}
     </div>

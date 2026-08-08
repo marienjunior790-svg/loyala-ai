@@ -7,6 +7,7 @@ import { updateCatalogItem, getOrganization } from '@loyala/domain-crm';
 import { uploadCatalogImage } from '@loyala/integrations';
 import { proxyToWorker } from '@/lib/worker/client';
 import { humanizeImageGenerateError } from '@/lib/catalogue/image-errors';
+import { searchMenuImages } from '@/lib/catalogue/image-search';
 
 const WRITE = 'clients:write' as const;
 
@@ -77,56 +78,48 @@ export interface FreeImageSuggestion {
 export type FreeImageSearchState = {
   error?: string;
   results?: FreeImageSuggestion[];
+  queryUsed?: string;
 };
 
-/** Search royalty-free (CC) images via the Openverse API (no key required). */
+/** Search royalty-free (CC) images via Openverse — EN cuisine queries + FR fallbacks. */
 export async function searchFreeImagesAction(input: {
   query: string;
+  name?: string;
+  category?: string;
 }): Promise<FreeImageSearchState> {
   try {
     await requireAuthPermission(WRITE);
     const query = (input.query ?? '').trim();
-    if (query.length < 2) return { error: 'Saisissez un terme de recherche.' };
-
-    const url = new URL('https://api.openverse.org/v1/images/');
-    url.searchParams.set('q', query);
-    url.searchParams.set('page_size', '12');
-    url.searchParams.set('license_type', 'commercial');
-    url.searchParams.set('mature', 'false');
-
-    let res: Response;
-    try {
-      res = await fetch(url.toString(), {
-        headers: { Accept: 'application/json', 'User-Agent': 'LoyalaAI-Catalog/1.0' },
-        signal: AbortSignal.timeout(12_000),
-        cache: 'no-store',
-      });
-    } catch {
-      return { error: 'Recherche d\u2019images indisponible pour le moment.' };
+    const name = (input.name ?? query).trim();
+    const category = (input.category ?? '').trim() || undefined;
+    if (name.length < 2 && query.length < 2) {
+      return { error: 'Saisissez un terme de recherche.' };
     }
-    if (!res.ok) return { error: `La recherche a répondu ${res.status}` };
 
-    const data = (await res.json()) as {
-      results?: {
-        title?: string;
-        url?: string;
-        thumbnail?: string;
-        source?: string;
-        provider?: string;
-      }[];
+    // If caller passed "Name Category" as a single query, split best-effort when name omitted.
+    let dish = name;
+    let cat = category;
+    if (!input.name && !input.category && query.includes(' ')) {
+      // Keep full query as dish name; category optional.
+      dish = query;
+    }
+
+    const { results, queryUsed, error } = await searchMenuImages({
+      name: dish || query,
+      category: cat,
+      limit: 9,
+    });
+
+    if (error && results.length === 0) return { error };
+    return {
+      results: results.map((r) => ({
+        url: r.url,
+        thumbnail: r.thumbnail,
+        title: r.title,
+        source: r.source,
+      })),
+      queryUsed,
     };
-
-    const results: FreeImageSuggestion[] = (data.results ?? [])
-      .filter((r) => r.url)
-      .map((r) => ({
-        url: r.url!,
-        thumbnail: r.thumbnail || r.url!,
-        title: r.title || 'Sans titre',
-        source: r.source || r.provider || 'Openverse',
-      }));
-
-    if (results.length === 0) return { error: 'Aucune image trouvée. Essayez un autre terme.' };
-    return { results };
   } catch (e) {
     return { error: e instanceof Error ? e.message : 'Erreur de recherche' };
   }
@@ -160,15 +153,29 @@ async function fetchExternalImage(
   }
   if (PRIVATE_HOST.test(url.hostname)) return { error: 'Adresse non autorisée' };
 
-  let res: Response;
-  try {
-    res = await fetch(url.toString(), {
+  const headers = {
+    Accept: 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8',
+    'User-Agent': 'LoyalaAI-Catalog/1.0 (menu photos; https://fmagence.online)',
+  };
+
+  async function once(): Promise<Response> {
+    return fetch(url.toString(), {
       redirect: 'follow',
       signal: AbortSignal.timeout(15_000),
-      headers: { 'User-Agent': 'LoyalaAI-Catalog/1.0' },
+      headers,
     });
+  }
+
+  let res: Response;
+  try {
+    res = await once();
   } catch {
-    return { error: 'Téléchargement de l\u2019image impossible' };
+    try {
+      await new Promise((r) => setTimeout(r, 400));
+      res = await once();
+    } catch {
+      return { error: 'Téléchargement de l\u2019image impossible' };
+    }
   }
   if (!res.ok) return { error: `L\u2019image a répondu ${res.status}` };
 

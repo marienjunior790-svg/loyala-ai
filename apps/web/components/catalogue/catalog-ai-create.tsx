@@ -533,7 +533,7 @@ function SmartCatalogDialog({
     return targets;
   }
 
-  /** Propose royalty-free images related to each menu item (Openverse). */
+  /** Propose royalty-free images related to each menu item (Openverse, EN-aware). */
   function proposeFreeImages() {
     if (!preview) return;
     const targets = collectItemsWithoutPhoto();
@@ -548,7 +548,9 @@ function SmartCatalogDialog({
       for (const t of targets) {
         try {
           const search = await searchFreeImagesAction({
-            query: `${t.name} ${t.category} food dish`,
+            query: `${t.name} ${t.category}`,
+            name: t.name,
+            category: t.category,
           });
           const first = search.results?.[0];
           if (first) {
@@ -582,7 +584,7 @@ function SmartCatalogDialog({
     }
     if (
       !confirm(
-        `Générer une image IA pour ${targets.length} article(s) ? Cela peut prendre une minute.`
+        `Générer une image IA pour ${targets.length} article(s) ? Si l’IA est indisponible, recherche libre en secours.`
       )
     ) {
       return;
@@ -606,6 +608,20 @@ function SmartCatalogDialog({
               updateItem(t.ci, t.ii, { photoUrl: saved.url });
               filled += 1;
             }
+          } else {
+            const search = await searchFreeImagesAction({
+              query: `${t.name} ${t.category}`,
+              name: t.name,
+              category: t.category,
+            });
+            const first = search.results?.[0];
+            if (first) {
+              const saved = await saveProductImageAction({ externalUrl: first.url });
+              if (saved.url) {
+                updateItem(t.ci, t.ii, { photoUrl: saved.url });
+                filled += 1;
+              }
+            }
           }
         } catch {
           // best-effort
@@ -616,7 +632,7 @@ function SmartCatalogDialog({
       }
       setBulkImages(null);
       if (filled === 0) {
-        setError('Génération IA impossible pour le moment. Réessayez ou utilisez la recherche libre.');
+        setError('Impossible d’illustrer pour le moment. Réessayez ou ajoutez une image par produit.');
       }
     });
   }
