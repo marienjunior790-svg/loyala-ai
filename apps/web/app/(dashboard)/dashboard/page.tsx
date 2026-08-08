@@ -49,11 +49,16 @@ async function OverviewContent() {
           title="Revenus fidélité"
           description="7 derniers jours — en milliers XOF"
           data={metrics.revenueChart}
+          href="/loyalty"
+          actionLabel="Ouvrir la fidélité"
+          segmentLinks
         />
         <AnalyticsPanel
           title="Visites clients"
           description="Par semaine — mois en cours"
           data={metrics.visitsChart}
+          href="/clients"
+          actionLabel="Voir et enregistrer des visites"
         />
       </section>
 

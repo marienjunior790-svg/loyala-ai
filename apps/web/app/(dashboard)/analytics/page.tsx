@@ -36,11 +36,16 @@ async function AnalyticsContent() {
           title="Revenus par segment"
           description="Total historique CRM (milliers XOF)"
           data={metrics.revenueChart}
+          href="/loyalty"
+          actionLabel="Ouvrir la fidélité"
+          segmentLinks
         />
         <AnalyticsPanel
           title="Activité clients"
           description="Clients actifs par période (4 semaines)"
           data={metrics.visitsChart}
+          href="/clients"
+          actionLabel="Voir et enregistrer des visites"
         />
       </div>
 
