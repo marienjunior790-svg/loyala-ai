@@ -20,7 +20,7 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
         </div>
       </div>
 
-      <nav className="flex-1 space-y-1 p-3">
+      <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain p-3">
         {mainNav.map((item) => {
           const active = isNavActive(pathname, item.href);
           const Icon = item.icon;
@@ -48,7 +48,7 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
         })}
       </nav>
 
-      <div className="border-t border-sidebar-border p-4">
+      <div className="shrink-0 border-t border-sidebar-border p-4">
         <div className="rounded-lg border border-border/60 bg-card/50 p-3">
           <p className="text-xs font-medium">Plan Growth</p>
           <p className="mt-1 text-[11px] text-muted-foreground">
