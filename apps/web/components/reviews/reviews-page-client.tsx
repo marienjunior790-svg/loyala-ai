@@ -1,7 +1,8 @@
 'use client';
 
-import { useActionState, useState, useTransition } from 'react';
-import { Star, Sparkles } from 'lucide-react';
+import { useActionState, useEffect, useState, useTransition } from 'react';
+import Link from 'next/link';
+import { Star, Sparkles, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -19,13 +20,62 @@ const initial: ReviewActionState = {};
 interface ReviewsPageClientProps {
   reviews: Review[];
   summary: { count: number; averageRating: number; pendingResponses: number };
+  googleReviewUrl: string;
+  autoRequestEnabled: boolean;
 }
 
-export function ReviewsPageClient({ reviews, summary }: ReviewsPageClientProps) {
+export function ReviewsPageClient({
+  reviews,
+  summary,
+  googleReviewUrl,
+  autoRequestEnabled,
+}: ReviewsPageClientProps) {
   const [createState, createAction, createPending] = useActionState(createReviewAction, initial);
+  const configured = Boolean(googleReviewUrl);
 
   return (
     <div className="space-y-6 animate-fade-in">
+      <div className="rounded-xl border border-primary/25 bg-primary/5 px-4 py-3">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="flex items-start gap-2 text-sm text-muted-foreground">
+            <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+            <div>
+              <p className="font-medium text-foreground">Automatisation avis Google</p>
+              {configured && autoRequestEnabled ? (
+                <p className="mt-1">
+                  Après chaque visite, WhatsApp s’ouvre avec un message demandant un avis sur Google
+                  (client avec téléphone + opt-in). Les réponses IA restent à valider avant
+                  publication.
+                </p>
+              ) : configured ? (
+                <p className="mt-1">
+                  Lien Google configuré, mais la demande auto après visite est désactivée dans
+                  Paramètres.
+                </p>
+              ) : (
+                <p className="mt-1">
+                  Ajoutez votre lien « Écrire un avis » Google dans Paramètres pour activer la
+                  demande WhatsApp automatique après chaque visite.
+                </p>
+              )}
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {configured && (
+              <Button type="button" size="sm" variant="outline" asChild>
+                <a href={googleReviewUrl} target="_blank" rel="noopener noreferrer">
+                  <ExternalLink className="h-3.5 w-3.5" />
+                  Voir le lien
+                </a>
+              </Button>
+            )}
+            <Button type="button" size="sm" variant="secondary" asChild>
+              <Link href="/settings">Paramètres</Link>
+            </Button>
+          </div>
+        </div>
+      </div>
+
       <div className="grid gap-4 sm:grid-cols-3">
         <Card>
           <CardContent className="pt-6">
@@ -71,15 +121,28 @@ export function ReviewsPageClient({ reviews, summary }: ReviewsPageClientProps) 
       </Card>
 
       <div className="space-y-3">
-        {reviews.map((r) => (
-          <ReviewCard key={r.id} review={r} />
-        ))}
+        {reviews.length === 0 ? (
+          <Card className="border-dashed">
+            <CardContent className="py-10 text-center text-sm text-muted-foreground">
+              Aucun avis pour le moment. Demandez-en via WhatsApp après les visites, ou saisissez-les
+              ici.
+            </CardContent>
+          </Card>
+        ) : (
+          reviews.map((r, index) => (
+            <ReviewCard
+              key={r.id}
+              review={r}
+              autoSuggest={!r.response_text && index === reviews.findIndex((x) => !x.response_text)}
+            />
+          ))
+        )}
       </div>
     </div>
   );
 }
 
-function ReviewCard({ review }: { review: Review }) {
+function ReviewCard({ review, autoSuggest }: { review: Review; autoSuggest?: boolean }) {
   const [state, action, pending] = useActionState(
     respondReviewAction.bind(null, review.id),
     initial
@@ -87,6 +150,7 @@ function ReviewCard({ review }: { review: Review }) {
   const [draft, setDraft] = useState('');
   const [aiPending, startAi] = useTransition();
   const [aiError, setAiError] = useState<string | null>(null);
+  const [autoTried, setAutoTried] = useState(false);
 
   function handleSuggestAi() {
     setAiError(null);
@@ -100,6 +164,13 @@ function ReviewCard({ review }: { review: Review }) {
       else if (result.text) setDraft(result.text);
     });
   }
+
+  useEffect(() => {
+    if (!autoSuggest || autoTried || review.response_text) return;
+    setAutoTried(true);
+    handleSuggestAi();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot auto draft
+  }, [autoSuggest, autoTried, review.response_text]);
 
   return (
     <Card>
@@ -123,7 +194,7 @@ function ReviewCard({ review }: { review: Review }) {
               name="responseText"
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
-              placeholder="Votre réponse au client..."
+              placeholder={aiPending ? 'Brouillon IA en cours…' : 'Votre réponse au client...'}
               className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
               rows={3}
               required
@@ -132,9 +203,9 @@ function ReviewCard({ review }: { review: Review }) {
             <div className="flex flex-wrap gap-2">
               <Button type="button" size="sm" variant="outline" disabled={aiPending} onClick={handleSuggestAi}>
                 <Sparkles className="mr-1 h-3 w-3" />
-                {aiPending ? 'IA...' : 'Suggérer avec IA'}
+                {aiPending ? 'IA...' : 'Régénérer avec IA'}
               </Button>
-              <Button type="submit" size="sm" disabled={pending}>
+              <Button type="submit" size="sm" disabled={pending || !draft.trim()}>
                 Publier la réponse
               </Button>
             </div>

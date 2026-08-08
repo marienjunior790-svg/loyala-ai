@@ -16,6 +16,11 @@ const initial: SettingsActionState = {};
 export function SettingsForm({ org }: { org: Organization }) {
   const [state, action, pending] = useActionState(updateOrganizationSettingsAction, initial);
   const whatsappPhone = String((org.settings as Record<string, unknown>)?.whatsapp_phone ?? '');
+  const googleReviewUrl = String(
+    (org.settings as Record<string, unknown>)?.google_review_url ?? ''
+  );
+  const autoRequest =
+    (org.settings as Record<string, unknown>)?.google_review_auto_request !== false;
   const [countryCode, setCountryCode] = useState(org.country_code || 'CG');
   const country = useMemo(() => getCountryOption(countryCode), [countryCode]);
 
@@ -68,6 +73,29 @@ export function SettingsForm({ org }: { org: Organization }) {
               className="mt-1"
             />
           </div>
+          <div>
+            <label className="text-sm text-muted-foreground">Lien avis Google</label>
+            <Input
+              name="googleReviewUrl"
+              defaultValue={googleReviewUrl}
+              placeholder="https://g.page/r/…/review"
+              className="mt-1"
+            />
+            <p className="mt-1 text-xs text-muted-foreground">
+              Lien « Écrire un avis » Google Maps / fiche établissement. Après chaque visite, WhatsApp
+              s’ouvre pour demander l’avis au client (s’il a un téléphone + opt-in).
+            </p>
+          </div>
+          <label className="flex items-center gap-2 text-sm text-muted-foreground">
+            <input
+              type="checkbox"
+              name="googleReviewAutoRequest"
+              value="1"
+              defaultChecked={autoRequest}
+              className="rounded border-border"
+            />
+            Demander automatiquement un avis Google après chaque visite
+          </label>
           <div>
             <label className="text-sm text-muted-foreground">Logo (Supabase Storage)</label>
             <Input name="logo" type="file" accept="image/*" className="mt-1" />

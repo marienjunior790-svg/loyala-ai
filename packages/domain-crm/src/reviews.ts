@@ -93,3 +93,17 @@ export async function getReviewsSummary(
 
   return { count, averageRating, pendingResponses };
 }
+
+/** Org settings helper: Google review write URL (Maps / g.page). */
+export function getGoogleReviewUrl(settings: Record<string, unknown> | null | undefined): string {
+  const raw = settings?.google_review_url;
+  return typeof raw === 'string' ? raw.trim() : '';
+}
+
+export function isGoogleReviewAutoRequestEnabled(
+  settings: Record<string, unknown> | null | undefined
+): boolean {
+  if (settings?.google_review_auto_request === false) return false;
+  return Boolean(getGoogleReviewUrl(settings));
+}
+

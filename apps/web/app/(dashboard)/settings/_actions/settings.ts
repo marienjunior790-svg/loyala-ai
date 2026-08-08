@@ -20,12 +20,18 @@ export async function updateOrganizationSettingsAction(
 
   const name = String(formData.get('name') ?? '').trim();
   const whatsappPhone = String(formData.get('whatsappPhone') ?? '').trim();
+  const googleReviewUrl = String(formData.get('googleReviewUrl') ?? '').trim();
+  const googleReviewAutoRequest = formData.get('googleReviewAutoRequest') === '1';
   const countryCode = String(formData.get('countryCode') ?? '').trim().toUpperCase();
   const timezone = String(formData.get('timezone') ?? '').trim();
   const currency = String(formData.get('currency') ?? '').trim().toUpperCase();
   const logoFile = formData.get('logo') as File | null;
 
   if (name.length < 2) return { error: 'Nom requis' };
+
+  if (googleReviewUrl && !/^https?:\/\//i.test(googleReviewUrl)) {
+    return { error: 'Le lien avis Google doit commencer par https://' };
+  }
 
   const supabase = await createClient();
   const { data: org } = await supabase
@@ -37,6 +43,8 @@ export async function updateOrganizationSettingsAction(
   const settings: Record<string, unknown> = {
     ...(org?.settings as Record<string, unknown> ?? {}),
     whatsapp_phone: whatsappPhone,
+    google_review_url: googleReviewUrl,
+    google_review_auto_request: googleReviewAutoRequest,
   };
 
   if (logoFile && logoFile.size > 0) {

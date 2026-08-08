@@ -70,13 +70,16 @@ export function RecordVisitDialog({ clientId, clientName, catalogItems }: Record
 
   useEffect(() => {
     if (state.success) {
+      if (state.reviewWhatsappUrl) {
+        window.open(state.reviewWhatsappUrl, '_blank', 'noopener,noreferrer');
+      }
       dialogRef.current?.close();
       setLines([]);
       setSearch('');
       setConfiguring(null);
       router.refresh();
     }
-  }, [state.success, router]);
+  }, [state.success, state.reviewWhatsappUrl, router]);
 
   const currency = catalogItems[0]?.currency ?? 'XOF';
   const total = useMemo(

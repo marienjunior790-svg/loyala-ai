@@ -32,6 +32,7 @@ export default async function SettingsPage() {
           </CardHeader>
           <CardContent className="space-y-2 text-sm text-muted-foreground">
             <p>WhatsApp — relances via lien direct (wa.me), numéro enregistré ci-dessus</p>
+            <p>Avis Google — demande WhatsApp auto après visite (lien Paramètres)</p>
             <p>Worker IA — {process.env.WORKER_URL ? 'connecté' : 'non configuré'}</p>
             <p>Inngest — campagnes automatiques quotidiennes (08h UTC)</p>
             <p>Email — {process.env.RESEND_API_KEY ? 'Resend actif' : 'configurez RESEND_API_KEY'}</p>

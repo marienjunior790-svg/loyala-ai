@@ -8,6 +8,13 @@ import {
   recordClientExpense,
   updateClientVisit,
   deleteClientVisit,
+  getClient,
+  getOrganization,
+  getGoogleReviewUrl,
+  isGoogleReviewAutoRequestEnabled,
+  buildGoogleReviewRequestMessage,
+  buildWhatsAppUrl,
+  createNotification,
 } from '@loyala/domain-crm';
 import {
   recordVisitSchema,
@@ -16,7 +23,12 @@ import {
 } from '@loyala/validation';
 import { recordDomainEvent } from '@/lib/audit/record-domain-event';
 
-export type VisitActionState = { error?: string; success?: string };
+export type VisitActionState = {
+  error?: string;
+  success?: string;
+  /** wa.me link to ask for a Google review after the visit (when configured). */
+  reviewWhatsappUrl?: string;
+};
 
 const REVALIDATE_PATHS = (clientId: string) => [
   `/clients/${clientId}`,
@@ -25,11 +37,52 @@ const REVALIDATE_PATHS = (clientId: string) => [
   '/segments',
   '/analytics',
   '/loyalty',
+  '/reviews',
 ];
 
 function revalidateVisitPaths(clientId: string) {
   for (const path of REVALIDATE_PATHS(clientId)) {
     revalidatePath(path);
+  }
+}
+
+async function buildPostVisitReviewUrl(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  organizationId: string,
+  userId: string,
+  clientId: string
+): Promise<string | undefined> {
+  try {
+    const [org, client] = await Promise.all([
+      getOrganization(supabase, organizationId),
+      getClient(supabase, organizationId, clientId),
+    ]);
+    if (!org || !client) return undefined;
+    if (!isGoogleReviewAutoRequestEnabled(org.settings)) return undefined;
+    if (!client.opt_in_whatsapp || !client.phone?.trim()) return undefined;
+
+    const reviewUrl = getGoogleReviewUrl(org.settings);
+    if (!reviewUrl) return undefined;
+
+    const message = buildGoogleReviewRequestMessage({
+      clientName: client.full_name,
+      restaurantName: org.name,
+      reviewUrl,
+    });
+    const wa = buildWhatsAppUrl(client.phone, message);
+
+    await createNotification(supabase, {
+      organizationId,
+      userId,
+      title: 'Demande d’avis Google',
+      body: `Envoyer la demande WhatsApp à ${client.full_name}`,
+      type: 'review',
+      link: wa,
+    }).catch(() => undefined);
+
+    return wa;
+  } catch {
+    return undefined;
   }
 }
 
@@ -83,8 +136,20 @@ export async function recordVisitAction(
       },
     }).catch(() => undefined);
 
+    const reviewWhatsappUrl = await buildPostVisitReviewUrl(
+      supabase,
+      ctx.organizationId,
+      ctx.userId,
+      parsed.data.clientId
+    );
+
     revalidateVisitPaths(parsed.data.clientId);
-    return { success: 'Visite enregistrée' };
+    return {
+      success: reviewWhatsappUrl
+        ? 'Visite enregistrée — demande d’avis Google prête'
+        : 'Visite enregistrée',
+      reviewWhatsappUrl,
+    };
   } catch (e) {
     return { error: e instanceof Error ? e.message : 'Erreur enregistrement visite' };
   }
