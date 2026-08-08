@@ -24,6 +24,7 @@ const REVALIDATE_PATHS = (clientId: string) => [
   '/dashboard',
   '/segments',
   '/analytics',
+  '/loyalty',
 ];
 
 function revalidateVisitPaths(clientId: string) {

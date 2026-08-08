@@ -1,6 +1,10 @@
 import { requireAuth } from '@/lib/auth/guard';
 import { createClient } from '@/lib/supabase/server';
-import { getLoyaltySummary, listClients } from '@loyala/domain-crm';
+import {
+  getLoyaltySummary,
+  listClients,
+  listLoyaltyTransactions,
+} from '@loyala/domain-crm';
 import { LoyaltyPageClient } from '@/components/loyalty/loyalty-page-client';
 import { ModuleError } from '@/components/dashboard/module-error';
 
@@ -11,9 +15,10 @@ export default async function LoyaltyPage() {
   const supabase = await createClient();
 
   try {
-    const [summary, clients] = await Promise.all([
+    const [summary, clients, transactions] = await Promise.all([
       getLoyaltySummary(supabase, ctx.organizationId),
       listClients(supabase, ctx.organizationId),
+      listLoyaltyTransactions(supabase, ctx.organizationId, 40),
     ]);
 
     return (
@@ -24,6 +29,7 @@ export default async function LoyaltyPage() {
           full_name: c.full_name,
           loyalty_points: c.loyalty_points,
         }))}
+        transactions={transactions}
       />
     );
   } catch (e) {

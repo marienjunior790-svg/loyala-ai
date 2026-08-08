@@ -1,5 +1,15 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 
+/** 1 loyalty point per this many XOF spent (visit/expense amount). */
+export const LOYALTY_XOF_PER_POINT = 1_000;
+
+/** Convert a spend amount (XOF) into loyalty points. */
+export function computeLoyaltyPointsFromAmount(amountXof: number | null | undefined): number {
+  const amount = Number(amountXof ?? 0);
+  if (!Number.isFinite(amount) || amount <= 0) return 0;
+  return Math.floor(amount / LOYALTY_XOF_PER_POINT);
+}
+
 export interface LoyaltyTransaction {
   id: string;
   organization_id: string;
@@ -68,10 +78,45 @@ export async function addLoyaltyPoints(
   return { newBalance };
 }
 
+/**
+ * Award points from a recorded spend (visit or expense). No-op if amount < 1000 XOF.
+ */
+export async function awardLoyaltyPointsForSpend(
+  supabase: SupabaseClient,
+  organizationId: string,
+  input: {
+    clientId: string;
+    amount: number | null | undefined;
+    kind: 'visit' | 'expense';
+    visitedAt: string;
+    createdBy: string;
+  }
+): Promise<{ pointsDelta: number; newBalance?: number }> {
+  const pointsDelta = computeLoyaltyPointsFromAmount(input.amount);
+  if (pointsDelta <= 0) return { pointsDelta: 0 };
+
+  const amountLabel = Math.round(Number(input.amount ?? 0)).toLocaleString('fr-FR');
+  const kindLabel = input.kind === 'visit' ? 'Visite' : 'Dépense';
+  const reason = `${kindLabel} automatique · ${amountLabel} XOF → +${pointsDelta} pts`;
+
+  const { newBalance } = await addLoyaltyPoints(supabase, organizationId, {
+    clientId: input.clientId,
+    pointsDelta,
+    reason,
+    createdBy: input.createdBy,
+  });
+
+  return { pointsDelta, newBalance };
+}
+
 export async function getLoyaltySummary(
   supabase: SupabaseClient,
   organizationId: string
-): Promise<{ totalPoints: number; clientsWithPoints: number; topClients: { full_name: string; loyalty_points: number }[] }> {
+): Promise<{
+  totalPoints: number;
+  clientsWithPoints: number;
+  topClients: { full_name: string; loyalty_points: number }[];
+}> {
   const { data, error } = await supabase
     .from('clients')
     .select('full_name, loyalty_points')

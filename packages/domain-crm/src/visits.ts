@@ -7,6 +7,7 @@ import type {
 } from '@loyala/validation';
 import { computeClientSegment, type ClientSegment } from './segments';
 import type { Client } from './clients';
+import { awardLoyaltyPointsForSpend } from './loyalty';
 
 export type ClientVisitKind = 'visit' | 'expense';
 
@@ -191,6 +192,13 @@ export async function recordClientVisit(
   const visit = data as ClientVisit;
   await insertVisitItems(supabase, organizationId, visit.id, items);
   await recalculateClientAggregates(supabase, organizationId, input.clientId);
+  await awardLoyaltyPointsForSpend(supabase, organizationId, {
+    clientId: input.clientId,
+    amount,
+    kind: 'visit',
+    visitedAt: input.visitedAt,
+    createdBy: input.createdBy,
+  });
   return visit;
 }
 
@@ -215,6 +223,13 @@ export async function recordClientExpense(
 
   if (error) throw new Error(error.message);
   await recalculateClientAggregates(supabase, organizationId, input.clientId);
+  await awardLoyaltyPointsForSpend(supabase, organizationId, {
+    clientId: input.clientId,
+    amount: input.amount,
+    kind: 'expense',
+    visitedAt: input.visitedAt,
+    createdBy: input.createdBy,
+  });
   return data as ClientVisit;
 }
 
