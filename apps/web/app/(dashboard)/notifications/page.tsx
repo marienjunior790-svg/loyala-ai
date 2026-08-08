@@ -29,7 +29,7 @@ export default async function NotificationsPage() {
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
-        <div>
+        <div className="rounded-xl border border-primary/25 bg-primary/5 px-4 py-3">
           <h2 className="text-2xl font-semibold tracking-tight">Notifications</h2>
           <p className="mt-1 text-sm text-muted-foreground">Alertes et activité récente</p>
         </div>

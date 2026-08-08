@@ -93,9 +93,11 @@ export default function AnalyticsPage() {
   return (
     <Suspense fallback={<DashboardOverviewSkeleton />}>
       <div className="space-y-6">
-        <div>
+        <div className="rounded-xl border border-primary/25 bg-primary/5 px-4 py-3">
           <h2 className="text-2xl font-semibold tracking-tight">Analytics</h2>
-          <p className="mt-1 text-sm text-muted-foreground">Données réelles de votre CRM</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Rapports détaillés — revenus par segment, activité et métriques IA
+          </p>
         </div>
         <AnalyticsContent />
       </div>
