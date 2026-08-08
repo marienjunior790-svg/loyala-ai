@@ -7,10 +7,12 @@ import { createClient } from '@/lib/supabase/server';
 import {
   disconnectWhatsAppConnection,
   getWhatsAppConnectionPublic,
-  testWhatsAppConnectionForOrganization,
-  upsertWhatsAppConnectionForOrganization,
   type WhatsAppConnectionPublic,
 } from '@loyala/domain-crm';
+import {
+  testWhatsAppConnectionForOrganization,
+  upsertWhatsAppConnectionForOrganization,
+} from '@loyala/domain-crm/whatsapp-secure';
 
 export type WhatsAppSettingsState = {
   error?: string;

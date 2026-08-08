@@ -4,9 +4,9 @@ import {
   markCampaignSendFailed,
   markCampaignSendSent,
   recordOutboundConversationSession,
-  getMetaWhatsAppConfigForOrganization,
   type CampaignSend,
 } from '@loyala/domain-crm';
+import { getMetaWhatsAppConfigForOrganization } from '@loyala/domain-crm/whatsapp-secure';
 import {
   deliverOutboundMessage,
   type MessageIntent,

@@ -5,11 +5,11 @@ import { createClient } from '@/lib/supabase/server';
 import {
   buildClientRelanceMessage,
   getClient,
-  getMetaWhatsAppConfigForOrganization,
   getOrganization,
   getWhatsAppConnectionPublic,
   recordOutboundConversationSession,
 } from '@loyala/domain-crm';
+import { getMetaWhatsAppConfigForOrganization } from '@loyala/domain-crm/whatsapp-secure';
 import { sendWhatsAppMessage } from '@loyala/integrations';
 
 export type RelaunchActionResult = {
