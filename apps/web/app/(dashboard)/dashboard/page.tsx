@@ -47,7 +47,7 @@ async function OverviewContent() {
       <section className="grid gap-4 lg:grid-cols-2">
         <AnalyticsPanel
           title="Revenus fidélité"
-          description="7 derniers jours — en milliers XOF"
+          description="Total historique par segment — en milliers XOF"
           data={metrics.revenueChart}
           href="/loyalty"
           actionLabel="Ouvrir la fidélité"
@@ -55,7 +55,7 @@ async function OverviewContent() {
         />
         <AnalyticsPanel
           title="Visites clients"
-          description="Par semaine — mois en cours"
+          description="Nombre de visites / dépenses enregistrées — 4 dernières semaines"
           data={metrics.visitsChart}
           href="/clients"
           actionLabel="Voir et enregistrer des visites"

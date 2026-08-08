@@ -21,12 +21,17 @@ export function MiniBarChart({
       {data.map((point) => {
         const barInner = (
           <>
-            <div className="relative flex w-full flex-1 items-end">
+            <div className="relative flex w-full flex-1 items-end justify-center">
+              {point.value > 0 && (
+                <span className="absolute -top-4 left-1/2 -translate-x-1/2 text-[10px] font-medium text-foreground">
+                  {point.value}
+                </span>
+              )}
               <div
                 className="w-full rounded-t-md transition-all duration-500 group-hover/bar:brightness-110"
                 style={{
-                  height: `${(point.value / max) * 100}%`,
-                  minHeight: '8%',
+                  height: point.value > 0 ? `${(point.value / max) * 100}%` : '0%',
+                  minHeight: point.value > 0 ? '12%' : '0%',
                   background: `linear-gradient(180deg, ${color} 0%, ${color}88 100%)`,
                 }}
               />
