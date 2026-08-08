@@ -20,9 +20,15 @@ interface ClientsListProps {
   clients: Client[];
   canWrite: boolean;
   initialSegment?: string | null;
+  whatsappReady?: boolean;
 }
 
-export function ClientsList({ clients, canWrite, initialSegment }: ClientsListProps) {
+export function ClientsList({
+  clients,
+  canWrite,
+  initialSegment,
+  whatsappReady = false,
+}: ClientsListProps) {
   const segmentFilter =
     initialSegment && VALID_SEGMENTS.has(initialSegment) ? initialSegment : null;
   const [query, setQuery] = useState('');
@@ -147,8 +153,10 @@ export function ClientsList({ clients, canWrite, initialSegment }: ClientsListPr
                     </Button>
                     {canWrite && client.opt_in_whatsapp && (
                       <WhatsAppRelaunchButton
+                        clientId={client.id}
                         phone={client.phone}
                         clientName={client.full_name}
+                        whatsappReady={whatsappReady}
                       />
                     )}
                   </div>

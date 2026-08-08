@@ -9,7 +9,7 @@ import { createClientAction, type ClientActionState } from '../_actions/clients'
 
 const initial: ClientActionState = {};
 
-export function NewClientForm() {
+export function NewClientForm({ whatsappReady = false }: { whatsappReady?: boolean }) {
   const [state, formAction, pending] = useActionState(createClientAction, initial);
 
   if (state.success) {
@@ -20,10 +20,12 @@ export function NewClientForm() {
           <p className="text-sm text-muted-foreground">
             Relancez-le maintenant sur WhatsApp pour voir la valeur immédiatement.
           </p>
-          {state.optInWhatsapp && state.clientPhone && state.clientName && (
+          {state.optInWhatsapp && state.clientId && state.clientPhone && state.clientName && (
             <WhatsAppRelaunchButton
+              clientId={state.clientId}
               phone={state.clientPhone}
               clientName={state.clientName}
+              whatsappReady={whatsappReady}
               size="default"
             />
           )}

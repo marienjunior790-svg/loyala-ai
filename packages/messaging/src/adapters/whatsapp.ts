@@ -24,7 +24,11 @@ export async function deliverWhatsApp(
   deps: WhatsAppAdapterDeps = {}
 ): Promise<DeliveryResult> {
   const send = deps.sendMessage ?? sendWhatsAppMessage;
-  const config = deps.getConfig?.() ?? getMetaWhatsAppConfigFromEnv() ?? undefined;
+  // If getConfig is provided (even when null), never fall back to shared env credentials.
+  const config =
+    deps.getConfig !== undefined
+      ? deps.getConfig() ?? undefined
+      : getMetaWhatsAppConfigFromEnv() ?? undefined;
 
   if (!message.optIn) {
     return {

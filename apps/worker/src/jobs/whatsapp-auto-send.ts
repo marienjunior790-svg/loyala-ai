@@ -4,6 +4,7 @@ import {
   markCampaignSendFailed,
   markCampaignSendSent,
   recordOutboundConversationSession,
+  getMetaWhatsAppConfigForOrganization,
   type CampaignSend,
 } from '@loyala/domain-crm';
 import {
@@ -12,7 +13,6 @@ import {
 } from '@loyala/messaging';
 import { loadTemplateCatalog } from '../messaging/load-catalog.js';
 import {
-  getMetaWhatsAppConfigFromEnv,
   isWhatsAppApiEnabled,
   logStructured,
   normalizePhoneForWhatsApp,
@@ -118,6 +118,19 @@ export async function autoSendCampaignForTestClient(
   const messageBody = target.message_body;
   const intent = params.intent ?? 'transactional';
 
+  const orgConfig = await getMetaWhatsAppConfigForOrganization(
+    supabase,
+    params.organizationId
+  );
+
+  if (!orgConfig) {
+    return {
+      attempted: false,
+      sent: false,
+      skippedReason: 'org_whatsapp_not_connected',
+    };
+  }
+
   const templateCatalog = await loadTemplateCatalog(supabase, {
     organizationId: params.organizationId,
     templateName: config.templateName,
@@ -140,9 +153,10 @@ export async function autoSendCampaignForTestClient(
       },
     },
     createWorkerMessagingContext(supabase, {
-      apiEnabled: config.enabled && Boolean(getMetaWhatsAppConfigFromEnv()),
+      apiEnabled: config.enabled && isWhatsAppApiEnabled() && Boolean(orgConfig),
       templateCatalog,
-    })
+    }),
+    { getConfig: () => orgConfig }
   );
 
   if (delivery.mode === 'deep_link') {

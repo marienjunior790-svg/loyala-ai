@@ -10,6 +10,7 @@ import {
   listCatalogItems,
   computeClientPurchaseInsights,
   getItemOptions,
+  getWhatsAppConnectionPublic,
 } from '@loyala/domain-crm';
 import { DeleteClientButton } from './delete-client-button';
 import { WhatsAppRelaunchButton } from '@/components/clients/whatsapp-relaunch-button';
@@ -53,11 +54,13 @@ export default async function ClientDetailPage({
 
   if (!client) notFound();
 
-  const [visits, catalogItems] = await Promise.all([
+  const [visits, catalogItems, connection] = await Promise.all([
     listClientPurchases(supabase, ctx.organizationId, id),
     listCatalogItems(supabase, ctx.organizationId, { activeOnly: true }),
+    getWhatsAppConnectionPublic(supabase, ctx.organizationId),
   ]);
   const insights = computeClientPurchaseInsights(visits);
+  const whatsappReady = connection.isReady;
   const pickerItems = catalogItems.map((i) => ({
     id: i.id,
     name: i.name,
@@ -103,8 +106,10 @@ export default async function ClientDetailPage({
               />
               {client.opt_in_whatsapp && (
                 <WhatsAppRelaunchButton
+                  clientId={client.id}
                   phone={client.phone}
                   clientName={client.full_name}
+                  whatsappReady={whatsappReady}
                 />
               )}
               <Button variant="outline" asChild>

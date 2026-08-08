@@ -8,6 +8,7 @@ import {
   listPendingWhatsAppLeads,
   getOrganization,
   isClientInactive,
+  getWhatsAppConnectionPublic,
 } from '@loyala/domain-crm';
 import { Card, CardContent } from '@/components/ui/card';
 import { ClientsList } from '@/components/clients/clients-list';
@@ -40,6 +41,7 @@ export default async function ClientsPage({
   let leads: Awaited<ReturnType<typeof listPendingWhatsAppLeads>> = [];
   let whatsappPhone = '';
   let phoneNumberId = '';
+  let whatsappReady = false;
 
   try {
     clients = await listClients(supabase, ctx.organizationId);
@@ -63,15 +65,13 @@ export default async function ClientsPage({
   try {
     const org = await getOrganization(supabase, ctx.organizationId);
     const settings = (org?.settings as Record<string, unknown>) ?? {};
-    whatsappPhone = String(settings.whatsapp_phone ?? '');
-    phoneNumberId = String(settings.whatsapp_phone_number_id ?? '');
+    const connection = await getWhatsAppConnectionPublic(supabase, ctx.organizationId);
+    whatsappReady = connection.isReady;
+    whatsappPhone = connection.displayPhone || String(settings.whatsapp_phone ?? '');
+    phoneNumberId = connection.phoneNumberId || String(settings.whatsapp_phone_number_id ?? '');
   } catch {
     /* ignore */
   }
-
-  const apiConfigured = Boolean(
-    phoneNumberId.trim() || process.env.WHATSAPP_PHONE_NUMBER_ID?.trim()
-  );
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -90,10 +90,15 @@ export default async function ClientsPage({
         leads={leads}
         whatsappPhone={whatsappPhone}
         phoneNumberId={phoneNumberId}
-        apiConfigured={apiConfigured}
+        apiConfigured={whatsappReady}
       />
 
-      <ClientsList clients={clients} canWrite={canWrite} initialSegment={initialSegment ?? null} />
+      <ClientsList
+        clients={clients}
+        canWrite={canWrite}
+        initialSegment={initialSegment ?? null}
+        whatsappReady={whatsappReady}
+      />
     </div>
   );
 }

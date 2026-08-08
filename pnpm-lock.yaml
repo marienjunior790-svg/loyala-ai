@@ -159,6 +159,9 @@ importers:
       '@loyala/validation':
         specifier: workspace:*
         version: link:../../packages/validation
+      '@supabase/supabase-js':
+        specifier: ^2.49.1
+        version: 2.110.0
       inngest:
         specifier: ^3.32.5
         version: 3.54.2(@opentelemetry/core@2.8.0(@opentelemetry/api@1.9.1))(next@15.5.19(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(typescript@5.9.3)(zod@3.25.76)
@@ -235,6 +238,9 @@ importers:
 
   packages/domain-crm:
     dependencies:
+      '@loyala/integrations':
+        specifier: workspace:*
+        version: link:../integrations
       '@loyala/validation':
         specifier: workspace:*
         version: link:../validation

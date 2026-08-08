@@ -84,9 +84,12 @@ export function ConnectWhatsAppDialog({
                 </p>
               )}
               <p className="mt-3 text-xs text-muted-foreground">
-                Pour rattacher les messages entrants inconnus à cette organisation, renseignez le{' '}
-                <strong>Phone number ID</strong> Meta dans Paramètres (même valeur que Meta /
-                Railway).
+                La connexion Cloud API se configure dans{' '}
+                <a href="/settings" className="text-primary underline">
+                  Paramètres → WhatsApp Business
+                </a>{' '}
+                pour <strong>cette organisation uniquement</strong>. Aucun fallback vers un autre
+                restaurant.
               </p>
             </>
           ) : (

@@ -1,4 +1,5 @@
 export * from './acquisition';
+export * from './whatsapp-connections';
 export * from './clients';
 export * from './segments';
 export * from './organizations';

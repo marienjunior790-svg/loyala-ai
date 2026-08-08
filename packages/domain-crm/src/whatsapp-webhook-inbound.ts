@@ -93,6 +93,11 @@ function dedupeInbound(messages: MetaWebhookInboundMessage[]): MetaWebhookInboun
   return unique;
 }
 
+/**
+ * Process inbound Meta messages with strict tenant isolation:
+ * phone_number_id → WhatsAppPhoneNumber → Connection → organizationId
+ * Never trusts a client-supplied organizationId.
+ */
 export async function applyMetaWebhookInboundMessages(
   supabase: SupabaseClient,
   messages: MetaWebhookInboundMessage[]
@@ -117,10 +122,21 @@ export async function applyMetaWebhookInboundMessages(
       continue;
     }
 
+    const orgIds = await resolveOrganizationsForWhatsAppPhoneNumberId(
+      supabase,
+      message.phoneNumberId
+    );
+    const organizationId = orgIds[0];
+    if (!organizationId) {
+      skipped += 1;
+      continue;
+    }
+
     const result = await recordInboundConversationSessions(supabase, {
       fromAddress: message.from,
       inboundAt: message.timestamp,
       channel: 'whatsapp',
+      organizationId,
       metadata: {
         lastInboundWamid: message.wamid,
         lastInboundType: message.type,
@@ -133,6 +149,7 @@ export async function applyMetaWebhookInboundMessages(
       sessionsUpdated += result.sessionsUpdated;
       clientsMatched += result.clientsMatched;
       for (const client of result.clients) {
+        if (client.organizationId !== organizationId) continue;
         matched.push({
           organizationId: client.organizationId,
           clientId: client.clientId,
@@ -142,29 +159,17 @@ export async function applyMetaWebhookInboundMessages(
       continue;
     }
 
-    // Unknown number → pending WhatsApp lead for mapped org(s)
-    const orgIds = await resolveOrganizationsForWhatsAppPhoneNumberId(
-      supabase,
-      message.phoneNumberId
-    );
-    if (orgIds.length === 0) {
-      skipped += 1;
-      continue;
-    }
-
     const source = parseAcquisitionSourceFromMessage(message.body);
-    for (const organizationId of orgIds) {
-      const lead = await upsertWhatsAppLead(supabase, {
-        organizationId,
-        phone: message.from,
-        profileName: message.profileName,
-        preview: message.body,
-        wamid: message.wamid,
-        inboundAt: message.timestamp,
-        acquisitionSource: source,
-      });
-      if (lead) leadsUpserted += 1;
-    }
+    const lead = await upsertWhatsAppLead(supabase, {
+      organizationId,
+      phone: message.from,
+      profileName: message.profileName,
+      preview: message.body,
+      wamid: message.wamid,
+      inboundAt: message.timestamp,
+      acquisitionSource: source,
+    });
+    if (lead) leadsUpserted += 1;
   }
 
   return {

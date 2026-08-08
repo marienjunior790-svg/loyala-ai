@@ -1,13 +1,14 @@
-import { deliverWhatsApp } from './adapters/whatsapp';
+import { deliverWhatsApp, type WhatsAppAdapterDeps } from './adapters/whatsapp';
 import type { DeliveryResult, MessageIntent, MessagingContext, OutboundMessage } from './types';
 
 export async function deliverOutboundMessage(
   message: OutboundMessage,
-  context: MessagingContext
+  context: MessagingContext,
+  deps?: WhatsAppAdapterDeps
 ): Promise<DeliveryResult> {
   switch (message.channel) {
     case 'whatsapp':
-      return deliverWhatsApp(message, context);
+      return deliverWhatsApp(message, context, deps);
     default:
       return {
         channel: message.channel,

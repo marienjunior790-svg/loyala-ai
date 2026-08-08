@@ -315,36 +315,17 @@ export async function getAcquisitionStats(
 
 /**
  * Resolve organization(s) that own a Meta phone_number_id.
- * Prefer explicit settings.whatsapp_phone_number_id; single-tenant fallback
- * when env WHATSAPP_PHONE_NUMBER_ID matches and exactly one org has whatsapp_phone.
+ * Prefers whatsapp_phone_numbers (multi-tenant connections).
+ * Legacy: exact match on settings.whatsapp_phone_number_id (exactly one org).
+ * NEVER falls back to a shared env token / another organization.
  */
 export async function resolveOrganizationsForWhatsAppPhoneNumberId(
   supabase: SupabaseClient,
   phoneNumberId: string | undefined
 ): Promise<string[]> {
-  if (!phoneNumberId) return [];
-
-  const { data, error } = await supabase.from('organizations').select('id, settings');
-  if (error) throw new Error(error.message);
-
-  const matched = (data ?? [])
-    .filter((row) => {
-      const settings = (row.settings as Record<string, unknown>) ?? {};
-      return String(settings.whatsapp_phone_number_id ?? '') === phoneNumberId;
-    })
-    .map((row) => String(row.id));
-
-  if (matched.length > 0) return matched;
-
-  const envId = process.env.WHATSAPP_PHONE_NUMBER_ID?.trim();
-  if (!envId || envId !== phoneNumberId) return [];
-
-  const withPhone = (data ?? [])
-    .filter((row) => {
-      const settings = (row.settings as Record<string, unknown>) ?? {};
-      return Boolean(String(settings.whatsapp_phone ?? '').trim());
-    })
-    .map((row) => String(row.id));
-
-  return withPhone.length === 1 ? withPhone : [];
+  const { resolveOrganizationIdForWhatsAppPhoneNumberId } = await import(
+    './whatsapp-connections'
+  );
+  const orgId = await resolveOrganizationIdForWhatsAppPhoneNumberId(supabase, phoneNumberId);
+  return orgId ? [orgId] : [];
 }

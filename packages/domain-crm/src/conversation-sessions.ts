@@ -68,14 +68,15 @@ export async function fetchConversationSession(
 
 export async function findClientsByWhatsAppAddress(
   supabase: SupabaseClient,
-  fromAddress: string
+  fromAddress: string,
+  opts?: { organizationId?: string }
 ): Promise<ClientPhoneMatch[]> {
   const normalized = normalizeAddressForChannel('whatsapp', fromAddress);
   if (!normalized) return [];
 
   const matches = new Map<string, ClientPhoneMatch>();
 
-  const { data: recentMessages, error: msgError } = await supabase
+  let msgQuery = supabase
     .from('whatsapp_messages')
     .select('organization_id, client_id, phone, created_at')
     .eq('phone', normalized)
@@ -83,6 +84,11 @@ export async function findClientsByWhatsAppAddress(
     .order('created_at', { ascending: false })
     .limit(20);
 
+  if (opts?.organizationId) {
+    msgQuery = msgQuery.eq('organization_id', opts.organizationId);
+  }
+
+  const { data: recentMessages, error: msgError } = await msgQuery;
   assertOk(msgError);
 
   for (const row of recentMessages ?? []) {
@@ -97,13 +103,18 @@ export async function findClientsByWhatsAppAddress(
     }
   }
 
-  const { data: clients, error: clientError } = await supabase
+  let clientQuery = supabase
     .from('clients')
     .select('id, organization_id, phone')
     .is('deleted_at', null)
     .not('phone', 'is', null)
     .limit(500);
 
+  if (opts?.organizationId) {
+    clientQuery = clientQuery.eq('organization_id', opts.organizationId);
+  }
+
+  const { data: clients, error: clientError } = await clientQuery;
   assertOk(clientError);
 
   for (const client of clients ?? []) {
@@ -207,10 +218,14 @@ export async function recordInboundConversationSessions(
     inboundAt: string;
     channel?: ConversationChannel;
     metadata?: Record<string, unknown>;
+    /** When set, only touch clients in this organization (multi-tenant safe). */
+    organizationId?: string;
   }
 ): Promise<InboundSessionTouchResult & { clients: ClientPhoneMatch[] }> {
   const channel = params.channel ?? 'whatsapp';
-  const clients = await findClientsByWhatsAppAddress(supabase, params.fromAddress);
+  const clients = await findClientsByWhatsAppAddress(supabase, params.fromAddress, {
+    organizationId: params.organizationId,
+  });
 
   if (clients.length === 0) {
     return { sessionsUpdated: 0, clientsMatched: 0, clients: [] };

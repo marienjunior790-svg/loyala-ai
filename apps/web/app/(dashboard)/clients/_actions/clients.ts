@@ -16,6 +16,7 @@ import { recordDomainEvent } from '@/lib/audit/record-domain-event';
 export type ClientActionState = {
   error?: string;
   success?: boolean;
+  clientId?: string;
   clientName?: string;
   clientPhone?: string;
   optInWhatsapp?: boolean;
@@ -66,6 +67,7 @@ export async function createClientAction(
     revalidatePath('/clients');
     return {
       success: true,
+      clientId: client.id,
       clientName: client.full_name,
       clientPhone: client.phone,
       optInWhatsapp: client.opt_in_whatsapp,
