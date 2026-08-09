@@ -105,7 +105,10 @@ export async function getWhatsAppConnectionPublic(
     .maybeSingle();
 
   if (error) {
-    if (/does not exist|relation/i.test(error.message)) return emptyPublic();
+    // PostgREST: missing table / schema cache not yet refreshed after migration
+    if (/does not exist|relation|schema cache|could not find the table/i.test(error.message)) {
+      return emptyPublic();
+    }
     throw new Error(error.message);
   }
   if (!conn) return emptyPublic();
