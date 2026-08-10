@@ -50,6 +50,21 @@ export async function updateSession(request: NextRequest) {
   const isCallback = pathname.startsWith('/auth/callback');
   const isRecovery = pathname.startsWith('/reset-password');
 
+  // Auth emails sometimes land on Site URL (/) with ?code= — forward to callback.
+  if (
+    (pathname === '/' || pathname === '') &&
+    (request.nextUrl.searchParams.has('code') || request.nextUrl.searchParams.has('token_hash'))
+  ) {
+    const callbackUrl = request.nextUrl.clone();
+    callbackUrl.pathname = '/auth/callback';
+    if (!callbackUrl.searchParams.get('next') && request.nextUrl.searchParams.get('type') === 'recovery') {
+      callbackUrl.searchParams.set('next', '/reset-password');
+    } else if (!callbackUrl.searchParams.get('next')) {
+      callbackUrl.searchParams.set('next', '/reset-password');
+    }
+    return NextResponse.redirect(callbackUrl);
+  }
+
   if (!user && !isGuestOnly && !isCallback && !isPublic) {
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = '/login';

@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation';
 import { headers } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
 import { authDebug } from '@/lib/auth/debug';
-import { getPublicAppUrl } from '@/lib/app-url';
+import { getAuthEmailOrigin, getPublicAppUrl } from '@/lib/app-url';
 import { loginSchema, signupSchema, forgotPasswordSchema, resetPasswordSchema } from '@loyala/validation';
 
 export type AuthActionState = { error?: string; success?: string };
@@ -116,11 +116,15 @@ export async function logoutAction(): Promise<void> {
 }
 
 async function getSiteOrigin(): Promise<string> {
+  // Prefer configured public URL so auth emails never point at *.vercel.app previews.
+  if (process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_SITE_URL) {
+    return getAuthEmailOrigin();
+  }
   const headersList = await headers();
   const host = headersList.get('x-forwarded-host') ?? headersList.get('host');
   const proto = headersList.get('x-forwarded-proto') ?? 'http';
   if (host) return `${proto}://${host}`;
-  return process.env.NEXT_PUBLIC_SITE_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? getPublicAppUrl();
+  return getAuthEmailOrigin() || getPublicAppUrl();
 }
 
 export async function forgotPasswordAction(
@@ -166,5 +170,6 @@ export async function resetPasswordAction(
 
   if (error) return { error: error.message };
 
-  redirect('/login');
+  await supabase.auth.signOut();
+  redirect('/login?reset=ok');
 }

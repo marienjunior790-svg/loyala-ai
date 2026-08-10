@@ -20,3 +20,21 @@ export function getPublicAppUrl(): string {
   }
   return 'http://localhost:3000';
 }
+
+/**
+ * Origin used in Auth emails (reset / confirm). Prefer www production host so
+ * apex → www 308 redirects do not drop recovery fragments, and avoid preview
+ * *.vercel.app hosts when APP_URL / SITE_URL is configured.
+ */
+export function getAuthEmailOrigin(): string {
+  const base = getPublicAppUrl();
+  try {
+    const u = new URL(base);
+    if (u.hostname === 'fmagence.online') {
+      u.hostname = 'www.fmagence.online';
+    }
+    return u.origin;
+  } catch {
+    return base;
+  }
+}

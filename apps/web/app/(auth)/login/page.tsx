@@ -7,9 +7,9 @@ const AUTH_CALLBACK_MESSAGES: Record<string, string> = {
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; reset?: string }>;
 }) {
-  const { error } = await searchParams;
+  const { error, reset } = await searchParams;
   const callbackError = error ? AUTH_CALLBACK_MESSAGES[error] : undefined;
 
   return (
@@ -20,6 +20,11 @@ export default async function LoginPage({
         </div>
         <h1 className="mt-3 text-2xl font-semibold tracking-tight">Loyala AI</h1>
         <p className="mt-1 text-sm text-muted-foreground">Connexion à votre CRM</p>
+        {reset === 'ok' && (
+          <p className="mt-4 rounded-lg bg-loyala-green/10 px-3 py-2 text-sm text-loyala-green">
+            Mot de passe mis à jour. Connectez-vous avec votre nouveau mot de passe.
+          </p>
+        )}
         {callbackError && (
           <p className="mt-4 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
             {callbackError}
