@@ -12,6 +12,18 @@ function withSafeContext(ctx: AuthContext): AuthContext {
   };
 }
 
+/**
+ * Pure permission decision — membership + role map only.
+ * organizationId alone NEVER grants clients:read / clients:write.
+ */
+export function evaluateAuthPermission(
+  ctx: AuthContext,
+  permission: Permission
+): 'allow' | 'deny' {
+  if (!ctx.userId || !ctx.organizationId) return 'deny';
+  return hasPermission(ctx, permission) ? 'allow' : 'deny';
+}
+
 export async function requireAuth(): Promise<AuthContext> {
   const raw = await getAuthContext();
 
@@ -53,29 +65,23 @@ export async function requireAuth(): Promise<AuthContext> {
 
 export async function requireAuthPermission(permission: Permission): Promise<AuthContext> {
   const ctx = await requireAuth();
-  const hasMembership = Boolean(ctx.organizationId);
-  const roleGranted = hasPermission(ctx, permission);
-  const clientsReadGranted =
-    permission === 'clients:read' && hasMembership && ctx.userId;
-  const clientsWriteGranted =
-    permission === 'clients:write' && hasMembership && ctx.userId;
+  const decision = evaluateAuthPermission(ctx, permission);
 
   authDebug('requireAuthPermission', {
     userId: ctx.userId,
     organizationId: ctx.organizationId,
     role: ctx.role,
-    hasMembership,
+    hasMembership: Boolean(ctx.organizationId),
     permission,
-    hasClientsAccess: roleGranted || clientsReadGranted || clientsWriteGranted,
-    decision: roleGranted || clientsReadGranted || clientsWriteGranted ? 'allow' : 'deny',
+    decision,
   });
 
-  if (roleGranted || clientsReadGranted || clientsWriteGranted) {
+  if (decision === 'allow') {
     return ctx;
   }
 
   // Authenticated + org exists but missing write/delete — stay in CRM (never /dashboard)
-  if (permission.startsWith('clients:') && hasMembership) {
+  if (permission.startsWith('clients:') && ctx.organizationId) {
     authDebug('requireAuthPermission', {
       decision: 'redirect_clients',
       reason: 'insufficient_permission',

@@ -1,13 +1,12 @@
 import type { AuthContext } from '@loyala/core-iam';
 import { hasPermission } from '@loyala/core-iam';
 
-/** MVP : tout membre actif du restaurant peut gérer les clients */
+/** Write access strictly from role → permission map (no membership bypass). */
 export function canWriteClients(ctx: AuthContext): boolean {
-  if (hasPermission(ctx, 'clients:write')) return true;
-  return Boolean(ctx.userId && ctx.organizationId);
+  return hasPermission(ctx, 'clients:write');
 }
 
-/** Suppression réservée aux rôles avec clients:delete (pas de bypass MVP). */
+/** Suppression réservée aux rôles avec clients:delete. */
 export function canDeleteClients(ctx: AuthContext): boolean {
   return hasPermission(ctx, 'clients:delete');
 }
