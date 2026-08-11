@@ -1,5 +1,5 @@
 import {
-  BILLING_PLANS as DOMAIN_PLANS,
+  PUBLIC_BILLING_PLANS as DOMAIN_PLANS,
   formatFcfa,
 } from '@loyala/domain-billing';
 
@@ -15,16 +15,23 @@ export const DEMO_WHATSAPP = normalizeWhatsAppDigits(
   process.env.NEXT_PUBLIC_DEMO_WHATSAPP ?? '065719922'
 );
 
-/** Marketing pricing — sourced from canonical @loyala/domain-billing catalogue */
+function periodLabel(amountXaf: number, periodDays: number): string {
+  if (amountXaf === 0) {
+    return periodDays <= 1 ? '24 heures' : `${periodDays} jours`;
+  }
+  return 'FCFA / mois';
+}
+
+/** Marketing pricing — public offers only (Gratuit 24h + Pro). */
 export const PRICING_PLANS = DOMAIN_PLANS.map((plan) => ({
   id: plan.code,
   name: plan.name,
   price: plan.amountXaf === 0 ? '0' : formatFcfa(plan.amountXaf).replace(' FCFA', ''),
-  period: plan.amountXaf === 0 ? '14 jours' : 'FCFA / mois',
+  period: periodLabel(plan.amountXaf, plan.periodDays),
   description: plan.description,
   features: [...plan.features],
-  cta: plan.code === 'trial' ? 'Démarrer gratuitement' : 'Choisir ce plan',
-  href: plan.code === 'trial' ? '/signup' : '/billing',
-  ctaType: (plan.code === 'trial' ? 'signup' : 'demo') as 'signup' | 'demo',
+  cta: plan.code === 'trial' ? 'Démarrer gratuitement' : 'Choisir Pro',
+  href: plan.code === 'trial' ? '/signup' : '/billing/checkout?plan=pro',
+  ctaType: (plan.code === 'trial' ? 'signup' : 'signup') as 'signup' | 'demo',
   highlighted: Boolean(plan.highlighted),
 }));

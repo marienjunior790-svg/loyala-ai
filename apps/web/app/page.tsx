@@ -27,7 +27,7 @@ const jsonLd = {
     '@type': 'Offer',
     price: '0',
     priceCurrency: 'XOF',
-    description: 'Essai gratuit 14 jours',
+    description: 'Essai gratuit 24 heures',
   },
 };
 

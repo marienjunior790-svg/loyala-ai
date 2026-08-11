@@ -19,7 +19,7 @@ export function PricingSection() {
             Un client qui revient paie votre abonnement. Pas de frais cachés.
           </p>
         </div>
-        <div className="mt-16 grid gap-6 md:grid-cols-3">
+        <div className="mt-16 mx-auto grid max-w-3xl gap-6 md:grid-cols-2">
           {PRICING_PLANS.map((plan) => (
             <Card
               key={plan.id}

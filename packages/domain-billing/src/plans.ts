@@ -9,41 +9,62 @@ export interface BillingPlan {
   description: string;
   features: string[];
   highlighted?: boolean;
+  /** Shown on marketing Tarifs + billing upgrade cards */
+  publicOffer?: boolean;
 }
 
 /** Canonical Loyala catalogue (XAF / FCFA display). */
 export const BILLING_PLANS: readonly BillingPlan[] = [
   {
     code: 'trial',
-    name: 'Essai',
+    name: 'Gratuit',
     amountXaf: 0,
-    periodDays: 14,
-    description: 'CRM complet, sans paiement',
-    features: ['Clients illimités', '1 restaurant', 'Support WhatsApp'],
+    periodDays: 1,
+    description: '24 heures pour tester, options limitées',
+    features: [
+      '1 restaurant',
+      'Jusqu’à 20 clients',
+      'Consultation CRM de base',
+      'Sans paiements / sans volume WhatsApp',
+    ],
+    publicOffer: true,
   },
   {
+    // Legacy code kept for existing orgs / DB — not sold on Tarifs
     code: 'growth',
     name: 'Croissance',
     amountXaf: 19900,
     periodDays: 30,
-    description: 'Le choix des restaurants actifs',
+    description: 'Ancienne offre (non proposée)',
     features: [
       'CRM + relances WhatsApp',
       '500 messages / mois',
       'Segmentation clients',
       'Dashboard ROI',
     ],
-    highlighted: true,
+    publicOffer: false,
   },
   {
     code: 'pro',
     name: 'Pro',
-    amountXaf: 39900,
+    amountXaf: 80000,
     periodDays: 30,
-    description: 'Multi-service & volume',
-    features: ['Messages illimités', '2 numéros WhatsApp', 'Analytics avancés', 'Support prioritaire'],
+    description: 'CRM + WhatsApp pour restaurants actifs',
+    features: [
+      'Clients illimités',
+      'Relances WhatsApp',
+      'Messages illimités',
+      '2 numéros WhatsApp',
+      'Analytics avancés',
+      'Support prioritaire',
+    ],
+    highlighted: true,
+    publicOffer: true,
   },
 ] as const;
+
+/** Plans displayed publicly (Tarifs + billing chooser). */
+export const PUBLIC_BILLING_PLANS = BILLING_PLANS.filter((p) => p.publicOffer);
 
 const PLAN_BY_CODE = new Map(BILLING_PLANS.map((p) => [p.code, p]));
 

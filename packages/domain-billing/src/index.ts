@@ -1,5 +1,6 @@
 export {
   BILLING_PLANS,
+  PUBLIC_BILLING_PLANS,
   getPlan,
   isPaidPlan,
   normalizePlanCode,

@@ -20,7 +20,7 @@ export default async function CheckoutPage({
   }
 
   const params = await searchParams;
-  const planCode = (params.plan === 'pro' ? 'pro' : 'growth') as PlanCode;
+  const planCode = (params.plan === 'growth' ? 'growth' : 'pro') as PlanCode;
   const plan = getPlan(planCode);
   if (!plan || plan.amountXaf <= 0) redirect('/billing');
 
@@ -39,7 +39,7 @@ export default async function CheckoutPage({
         </CardHeader>
         <CardContent>
           <CheckoutForm
-            planCode={planCode === 'pro' ? 'pro' : 'growth'}
+            planCode={planCode === 'growth' ? 'growth' : 'pro'}
             planName={plan.name}
             amountLabel={formatFcfa(plan.amountXaf)}
           />

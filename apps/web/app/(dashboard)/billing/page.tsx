@@ -87,8 +87,8 @@ export default async function BillingPage() {
         </CardContent>
       </Card>
 
-      <div className="grid gap-4 md:grid-cols-3">
-        {BILLING_PLANS.map((plan) => (
+      <div className="grid gap-4 md:grid-cols-2">
+        {BILLING_PLANS.filter((p) => p.publicOffer).map((plan) => (
           <Card
             key={plan.code}
             className={
@@ -105,7 +105,11 @@ export default async function BillingPage() {
                 {plan.amountXaf === 0 ? '0' : formatFcfa(plan.amountXaf).replace(' FCFA', '')}
                 <span className="text-sm font-normal text-muted-foreground">
                   {' '}
-                  {plan.amountXaf === 0 ? '14 jours' : 'FCFA / mois'}
+                  {plan.amountXaf === 0
+                    ? plan.periodDays <= 1
+                      ? '24 heures'
+                      : `${plan.periodDays} jours`
+                    : 'FCFA / mois'}
                 </span>
               </p>
             </CardHeader>
