@@ -1,17 +1,30 @@
+'use client';
+
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { BrandLockup } from '@/components/brand/liquid-logo';
+import { useLiquidGlass } from '@/components/glass/use-liquid-glass';
 import { buildDemoBookingMessage, buildWhatsAppUrl } from '@/lib/whatsapp';
 import { DEMO_WHATSAPP } from '@/lib/marketing/config';
+import { cn } from '@/lib/utils';
 
 const demoUrl = buildWhatsAppUrl(DEMO_WHATSAPP, buildDemoBookingMessage());
 
 export function MarketingNav() {
+  const { rootRef, glassRef, mirror, active } = useLiquidGlass<HTMLElement>();
+
   return (
-    <header className="sticky top-0 z-50 px-4 pt-4">
-      <div className="glass-liquid mx-auto flex h-16 max-w-6xl items-center justify-between rounded-full pl-3 pr-2 sm:pl-4">
+    <header ref={rootRef} className="sticky top-0 z-50 px-4 pt-4">
+      {mirror}
+      <div
+        ref={glassRef}
+        className={cn(
+          'glass-liquid mx-auto flex h-[4.5rem] max-w-6xl items-center justify-between rounded-full pl-3 pr-2.5 sm:pl-4',
+          active && 'glass-webgl'
+        )}
+      >
         <Link href="/" aria-label="Loyala AI — accueil" className="rounded-full">
-          <BrandLockup size={40} priority />
+          <BrandLockup size={52} priority />
         </Link>
         <nav className="hidden items-center gap-1 text-sm text-muted-foreground md:flex">
           {[

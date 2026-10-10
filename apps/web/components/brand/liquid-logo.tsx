@@ -57,7 +57,10 @@ export function BrandLockup({ size = 36, tagline, className, priority }: BrandLo
     <span className={cn('flex items-center gap-3', className)}>
       <LiquidLogo size={size} priority={priority} />
       <span className="flex flex-col leading-none">
-        <span className="text-[15px] font-semibold tracking-[0.12em]">
+        <span
+          className="font-semibold tracking-[0.12em]"
+          style={{ fontSize: Math.round(Math.max(15, size * 0.32)) }}
+        >
           <span className="text-gradient-silver">LOYALA</span>{' '}
           <span className="text-gold">AI</span>
         </span>

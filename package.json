@@ -65,6 +65,11 @@
     "vitest": "^2.1.8"
   },
   "packageManager": "pnpm@9.15.0",
+  "pnpm": {
+    "neverBuiltDependencies": [
+      "@ybouane/liquidglass"
+    ]
+  },
   "engines": {
     "node": ">=20"
   }

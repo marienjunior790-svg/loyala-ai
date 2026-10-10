@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { ArrowRight, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { LiquidLogo } from '@/components/brand/liquid-logo';
 import { HeroVisual } from './hero-visual';
 import { buildDemoBookingMessage, buildWhatsAppUrl } from '@/lib/whatsapp';
 import { DEMO_WHATSAPP } from '@/lib/marketing/config';
@@ -12,6 +13,13 @@ export function HeroSection() {
     <section className="relative px-6 pb-20 pt-14 md:pt-20">
       <div className="mx-auto grid max-w-6xl items-center gap-12 lg:grid-cols-[1.1fr_0.9fr]">
         <div className="text-center lg:text-left">
+          <div className="mb-6 flex justify-center lg:justify-start">
+            <LiquidLogo
+              size={104}
+              priority
+              className="drop-shadow-[0_0_32px_hsl(var(--primary)/0.45)]"
+            />
+          </div>
           <p className="glass mb-6 inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-medium text-muted-foreground">
             <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary shadow-[0_0_8px_hsl(var(--primary))]" />
             CRM IA · Restaurants Afrique francophone

@@ -58,7 +58,7 @@ export function DashboardShell({
               <Button
                 variant="ghost"
                 size="icon"
-                className="absolute right-3 top-5 rounded-full"
+                className="absolute right-3 top-7 rounded-full"
                 onClick={() => setMobileOpen(false)}
                 aria-label="Fermer le menu"
               >

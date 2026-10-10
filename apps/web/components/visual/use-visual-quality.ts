@@ -4,13 +4,14 @@ import { useSyncExternalStore } from 'react';
 
 /**
  * `full`: animated WebGL backdrop, 3D scenes, liquid-metal logo.
- * `lite`: static artwork — phones, low-end hardware, Save-Data, reduced motion, no WebGL.
+ * `lite`: static artwork — touch devices, low-end hardware, Save-Data, reduced motion, no WebGL.
  * `null` during SSR and the first client render.
  */
 export type VisualQuality = 'full' | 'lite';
 
 const REDUCED_MOTION = '(prefers-reduced-motion: reduce)';
-const DESKTOP = '(min-width: 1024px)';
+/** Desktop-class input, not viewport width: a narrow window on a PC still gets the full scene. */
+const DESKTOP = '(hover: hover) and (pointer: fine)';
 
 type NavigatorHints = Navigator & {
   deviceMemory?: number;

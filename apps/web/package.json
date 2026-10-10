@@ -29,6 +29,7 @@
     "@shadergradient/react": "^2.4.20",
     "@supabase/ssr": "^0.5.2",
     "@supabase/supabase-js": "^2.49.1",
+    "@ybouane/liquidglass": "^1.0.3",
     "camera-controls": "^3.1.2",
     "class-variance-authority": "^0.7.1",
     "jsqr": "1.4.0",

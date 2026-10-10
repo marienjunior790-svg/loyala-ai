@@ -5,7 +5,9 @@ import { Menu, Bell, Search, LogOut } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { useLiquidGlass } from '@/components/glass/use-liquid-glass';
 import { logoutAction } from '@/app/(auth)/_actions/auth';
+import { cn } from '@/lib/utils';
 
 interface TopNavbarProps {
   title: string;
@@ -22,9 +24,18 @@ export function TopNavbar({
   unreadNotifications = 0,
   onMenuClick,
 }: TopNavbarProps) {
+  const { rootRef, glassRef, mirror, active } = useLiquidGlass<HTMLElement>();
+
   return (
-    <header className="sticky top-0 z-30 px-3 pt-3 lg:pl-0">
-      <div className="glass-liquid flex h-16 items-center justify-between gap-4 rounded-2xl px-3 md:px-5">
+    <header ref={rootRef} className="sticky top-0 z-30 px-3 pt-3 lg:pl-0">
+      {mirror}
+      <div
+        ref={glassRef}
+        className={cn(
+          'glass-liquid flex h-16 items-center justify-between gap-4 rounded-2xl px-3 md:px-5',
+          active && 'glass-webgl'
+        )}
+      >
         <div className="flex min-w-0 items-center gap-3">
           <Button
             variant="ghost"

@@ -12,13 +12,13 @@ export default function LiquidMetalMark({ className }: { className?: string }) {
       colorTint="#3DFF95"
       fit="contain"
       scale={1}
-      speed={0.6}
+      speed={0.85}
       repetition={2.5}
-      softness={0.15}
-      shiftRed={0.25}
-      shiftBlue={0.25}
-      distortion={0.08}
-      contour={0.45}
+      softness={0.1}
+      shiftRed={0.35}
+      shiftBlue={0.35}
+      distortion={0.12}
+      contour={0.6}
       angle={70}
       maxPixelCount={400_000}
     />

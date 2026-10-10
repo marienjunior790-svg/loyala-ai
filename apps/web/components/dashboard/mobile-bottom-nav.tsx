@@ -4,17 +4,29 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { mobileNav, isNavActive } from '@/lib/dashboard/navigation';
+import { useLiquidGlass } from '@/components/glass/use-liquid-glass';
 
 export function MobileBottomNav() {
   const pathname = usePathname();
   const items = mobileNav.slice(0, 5);
+  const { rootRef, glassRef, mirror, active: glassActive } = useLiquidGlass<HTMLElement>({
+    blurAmount: 0.4,
+  });
 
   return (
     <nav
+      ref={rootRef}
       aria-label="Navigation rapide"
       className="fixed inset-x-0 bottom-0 z-40 px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] lg:hidden"
     >
-      <div className="glass-strong mx-auto flex max-w-lg items-stretch justify-around rounded-full p-1.5">
+      {mirror}
+      <div
+        ref={glassRef}
+        className={cn(
+          'glass-strong mx-auto flex max-w-lg items-stretch justify-around rounded-full p-1.5',
+          glassActive && 'glass-webgl'
+        )}
+      >
         {items.map((item) => {
           const active = isNavActive(pathname, item.href);
           const Icon = item.icon;
