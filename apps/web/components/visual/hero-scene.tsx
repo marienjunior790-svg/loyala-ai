@@ -1,18 +1,17 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
+import { Float, MeshTransmissionMaterial, RoundedBox } from '@react-three/drei';
 import {
-  Environment,
-  Float,
-  Lightformer,
-  MeshTransmissionMaterial,
-  RoundedBox,
-} from '@react-three/drei';
-import type { Group } from 'three';
+  GOLD,
+  GREEN,
+  GlassSphere,
+  GoldCoin,
+  GreenRing,
+  ParallaxRig,
+  SceneCanvas,
+  StudioLights,
+} from './scene-kit';
 
-const GREEN = '#00C853';
-const GOLD = '#D9AE5B';
 const SCREEN_HALF_WIDTH = 0.84;
 
 type BubbleSpec = { y: number; width: number; side: 'in' | 'out'; tone?: 'gold' };
@@ -82,53 +81,6 @@ function Phone() {
   );
 }
 
-function Rig({ pointer }: { pointer: React.MutableRefObject<{ x: number; y: number }> }) {
-  const group = useRef<Group>(null);
-  useFrame((_, delta) => {
-    const g = group.current;
-    if (!g) return;
-    const k = Math.min(1, delta * 3);
-    g.rotation.y += (pointer.current.x * 0.35 - 0.18 - g.rotation.y) * k;
-    g.rotation.x += (-pointer.current.y * 0.25 + 0.05 - g.rotation.x) * k;
-  });
-
-  return (
-    <group ref={group}>
-      <Float speed={1.4} rotationIntensity={0.25} floatIntensity={0.6}>
-        <Phone />
-      </Float>
-
-      <Float speed={2.2} rotationIntensity={1.4} floatIntensity={1.2} position={[1.4, 1.45, 0.5]}>
-        <mesh rotation={[Math.PI / 2.4, 0, 0]}>
-          <cylinderGeometry args={[0.38, 0.38, 0.08, 48]} />
-          <meshStandardMaterial color={GOLD} metalness={1} roughness={0.22} />
-        </mesh>
-      </Float>
-
-      <Float speed={1.8} rotationIntensity={0.6} floatIntensity={1.4} position={[-1.45, -1.25, 0.7]}>
-        <mesh>
-          <sphereGeometry args={[0.36, 48, 48]} />
-          <meshPhysicalMaterial
-            color="#B9FFD6"
-            transmission={1}
-            thickness={0.6}
-            roughness={0.05}
-            ior={1.4}
-            clearcoat={1}
-          />
-        </mesh>
-      </Float>
-
-      <Float speed={2.6} rotationIntensity={2} floatIntensity={0.9} position={[-1.5, 1.2, -0.8]}>
-        <mesh>
-          <torusGeometry args={[0.24, 0.07, 24, 64]} />
-          <meshStandardMaterial color={GREEN} emissive={GREEN} emissiveIntensity={0.8} roughness={0.3} />
-        </mesh>
-      </Float>
-    </group>
-  );
-}
-
 export default function HeroScene({
   className,
   onReady,
@@ -136,51 +88,21 @@ export default function HeroScene({
   className?: string;
   onReady?: () => void;
 }) {
-  const container = useRef<HTMLDivElement>(null);
-  const pointer = useRef({ x: 0, y: 0 });
-  const [inView, setInView] = useState(true);
-
-  useEffect(() => {
-    const onMove = (e: PointerEvent) => {
-      pointer.current.x = (e.clientX / window.innerWidth) * 2 - 1;
-      pointer.current.y = (e.clientY / window.innerHeight) * 2 - 1;
-    };
-    window.addEventListener('pointermove', onMove, { passive: true });
-
-    const el = container.current;
-    const observer = el
-      ? new IntersectionObserver(([entry]) => setInView(entry?.isIntersecting ?? true))
-      : null;
-    if (el && observer) observer.observe(el);
-
-    return () => {
-      window.removeEventListener('pointermove', onMove);
-      observer?.disconnect();
-    };
-  }, []);
-
   return (
-    <div ref={container} className={className}>
-      <Canvas
-        dpr={[1, 1.75]}
-        frameloop={inView ? 'always' : 'never'}
-        camera={{ position: [0, 0, 10], fov: 32 }}
-        gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
-        onCreated={() => onReady?.()}
-      >
-        <ambientLight intensity={0.35} />
-        <directionalLight position={[3, 4, 5]} intensity={1.2} />
-        <pointLight position={[-3, -2, 2]} intensity={12} color={GREEN} />
-
-        <Environment resolution={256}>
-          <Lightformer form="rect" intensity={3} position={[0, 4, 3]} scale={[8, 1.2, 1]} />
-          <Lightformer form="rect" intensity={2} color={GREEN} position={[-4, 0, 2]} rotation-y={Math.PI / 2} scale={[6, 2, 1]} />
-          <Lightformer form="ring" intensity={2.5} color={GOLD} position={[4, 1, 1]} scale={2} />
-          <Lightformer form="rect" intensity={1} position={[0, -4, 2]} scale={[8, 0.6, 1]} />
-        </Environment>
-
-        <Rig pointer={pointer} />
-      </Canvas>
-    </div>
+    <SceneCanvas className={className} camera={{ position: [0, 0, 10], fov: 32 }} onReady={onReady}>
+      {(pointer) => (
+        <>
+          <StudioLights />
+          <ParallaxRig pointer={pointer}>
+            <Float speed={1.4} rotationIntensity={0.25} floatIntensity={0.6}>
+              <Phone />
+            </Float>
+            <GoldCoin position={[1.4, 1.45, 0.5]} />
+            <GlassSphere position={[-1.45, -1.25, 0.7]} />
+            <GreenRing position={[-1.5, 1.2, -0.8]} />
+          </ParallaxRig>
+        </>
+      )}
+    </SceneCanvas>
   );
 }

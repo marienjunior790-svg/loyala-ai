@@ -18,17 +18,28 @@ type NavigatorHints = Navigator & {
   connection?: { saveData?: boolean };
 };
 
-let webglSupport: boolean | null = null;
+/** Context creation can fail transiently while a previous page's contexts are being freed. */
+const WEBGL_RETRY_MS = 2000;
+
+let webglSupported = false;
+let webglFailedAt = -Infinity;
 
 function hasWebGL(): boolean {
-  if (webglSupport !== null) return webglSupport;
+  if (webglSupported) return true;
+  if (performance.now() - webglFailedAt < WEBGL_RETRY_MS) return false;
   try {
     const canvas = document.createElement('canvas');
-    webglSupport = Boolean(canvas.getContext('webgl2') ?? canvas.getContext('webgl'));
+    const gl = canvas.getContext('webgl2') ?? canvas.getContext('webgl');
+    if (gl) {
+      gl.getExtension('WEBGL_lose_context')?.loseContext();
+      webglSupported = true;
+      return true;
+    }
   } catch {
-    webglSupport = false;
+    // Treated like a missing context below.
   }
-  return webglSupport;
+  webglFailedAt = performance.now();
+  return false;
 }
 
 function getSnapshot(): VisualQuality {
@@ -46,7 +57,11 @@ function getSnapshot(): VisualQuality {
 function subscribe(onChange: () => void): () => void {
   const queries = [REDUCED_MOTION, DESKTOP].map((q) => window.matchMedia(q));
   queries.forEach((q) => q.addEventListener('change', onChange));
-  return () => queries.forEach((q) => q.removeEventListener('change', onChange));
+  const retry = webglSupported ? 0 : window.setTimeout(onChange, WEBGL_RETRY_MS + 100);
+  return () => {
+    queries.forEach((q) => q.removeEventListener('change', onChange));
+    window.clearTimeout(retry);
+  };
 }
 
 function getServerSnapshot(): VisualQuality | null {

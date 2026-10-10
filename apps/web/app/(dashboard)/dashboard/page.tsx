@@ -7,6 +7,7 @@ import { KpiGrid } from '@/components/dashboard/kpi-card';
 import { AnalyticsPanel } from '@/components/dashboard/analytics-panel';
 import { RecentActivity } from '@/components/dashboard/recent-activity';
 import { DashboardOverviewSkeleton } from '@/components/dashboard/dashboard-skeleton';
+import { AiOrb } from '@/components/dashboard/ai-orb';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 
@@ -68,11 +69,14 @@ async function OverviewContent() {
         </div>
         <Card className="animate-fade-in border-primary/20 bg-gradient-to-b from-primary/5 to-transparent">
           <CardContent className="p-6">
-            <div className="flex items-center gap-2 text-primary">
-              <Sparkles className="h-4 w-4" />
-              <span className="text-sm font-medium">Insight IA</span>
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex items-center gap-2 text-primary">
+                <Sparkles className="h-4 w-4" />
+                <span className="text-sm font-medium">Insight IA</span>
+              </div>
+              <AiOrb className="-mr-3 -mt-5" />
             </div>
-            <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
+            <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
               {metrics.kpis.find((k) => k.id === 'crm-inactive')?.value ?? '0'} clients à relancer.
               Une campagne WhatsApp ciblée peut remplir vos tables cette semaine.
             </p>

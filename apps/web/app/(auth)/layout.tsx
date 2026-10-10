@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { BrandLockup } from '@/components/brand/liquid-logo';
 import { AuthGlassCard } from '@/components/auth/auth-glass-card';
+import { AuthBackdrop3D } from '@/components/visual/auth-backdrop-3d';
 
 export const metadata: Metadata = {
   robots: { index: false, follow: false },
@@ -10,6 +11,7 @@ export const metadata: Metadata = {
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
     <main className="flex min-h-screen flex-col items-center justify-center gap-8 px-4 py-10">
+      <AuthBackdrop3D />
       <Link href="/" aria-label="Loyala AI — accueil" className="rounded-2xl">
         <BrandLockup size={84} priority />
       </Link>
