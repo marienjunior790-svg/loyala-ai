@@ -25,8 +25,6 @@ function extractBodyCore(body: string, clientName?: string, restaurantName?: str
     return body.trim();
   }
 
-  const first = lines[0] ?? '';
-  const last = lines[lines.length - 1] ?? '';
   const greeting = clientName ? new RegExp(`bonjour\\s+${firstName(clientName)}`, 'i') : null;
   const signOff = restaurantName
     ? new RegExp(`${restaurantName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'i')

@@ -1,4 +1,4 @@
-import { orchestrate, clearAICache } from '../orchestrator/orchestrate';
+import { orchestrate } from '../orchestrator/orchestrate';
 import { segmentSchema } from '../schemas/outputs';
 import { computeRFMScore, type ClientRFMInput, type RFMScore } from '../rfm/scoring';
 import type { SegmentResult } from '../schemas/outputs';
