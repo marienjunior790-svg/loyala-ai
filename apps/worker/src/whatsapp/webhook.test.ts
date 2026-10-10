@@ -15,6 +15,10 @@ vi.mock('@loyala/domain-crm', async (importOriginal) => {
   };
 });
 
+vi.mock('../supabase.js', () => ({
+  getWorkerAdminClient: vi.fn(() => ({})),
+}));
+
 import {
   handleWhatsAppWebhookVerify,
   handleWhatsAppWebhookPost,

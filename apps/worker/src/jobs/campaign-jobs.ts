@@ -92,8 +92,11 @@ export async function listActiveOrganizations(): Promise<OrgRow[]> {
   }
 
   // Production schema lag (missing plan_status / deleted_at) — list all orgs.
-  logStructured('warn', 'listActiveOrganizations falling back without plan_status filter', {
-    error: full.error.message,
+  logStructured({
+    level: 'warn',
+    service: 'worker',
+    message: 'listActiveOrganizations falling back without plan_status filter',
+    context: { error: full.error.message },
   });
   const fallback = await admin.from('organizations').select('id, name');
   if (fallback.error) {

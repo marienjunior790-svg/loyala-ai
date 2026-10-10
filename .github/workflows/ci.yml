@@ -67,7 +67,7 @@ jobs:
       - name: Smoke web health (degraded OK)
         run: |
           URL="${PRODUCTION_WEB_URL:-https://loyala-ai-web.vercel.app}"
-          body=$(curl -sf "$URL/api/health" || echo '{}')
+          body=$(curl -sfL "$URL/api/health" || echo '{}')
           echo "$body"
           echo "$body" | grep -q '"status"' || (echo "Invalid health response" && exit 1)
         env:

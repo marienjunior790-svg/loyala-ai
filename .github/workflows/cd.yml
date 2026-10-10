@@ -17,7 +17,7 @@ jobs:
       - name: Smoke web health
         run: |
           URL="${PRODUCTION_WEB_URL:-https://loyala-ai-web.vercel.app}"
-          body=$(curl -sf "$URL/api/health")
+          body=$(curl -sfL "$URL/api/health")
           echo "$body"
           status=$(echo "$body" | grep -o '"status":"[^"]*"' | head -1)
           echo "Status: $status"

@@ -18,6 +18,10 @@ export default defineConfig({
       '@': resolve(__dirname, 'apps/web'),
       '@loyala/core-iam': resolve(__dirname, 'packages/core-iam/src'),
       '@loyala/db': resolve(__dirname, 'packages/db/src'),
+      '@loyala/domain-crm/whatsapp-secure': resolve(
+        __dirname,
+        'packages/domain-crm/src/whatsapp-connections-secure.ts'
+      ),
       '@loyala/domain-crm': resolve(__dirname, 'packages/domain-crm/src'),
       '@loyala/domain-billing': resolve(__dirname, 'packages/domain-billing/src'),
       '@loyala/events': resolve(__dirname, 'packages/events/src'),

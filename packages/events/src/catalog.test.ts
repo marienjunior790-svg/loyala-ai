@@ -32,7 +32,7 @@ describe('@loyala/events catalog', () => {
 
 describe('recordDomainEvent', () => {
   it('inserts with event_id and returns ok', async () => {
-    const insert = vi.fn(async () => ({ error: null }));
+    const insert = vi.fn(async (_row: Record<string, unknown>) => ({ error: null }));
     const supabase = {
       from: vi.fn(() => ({ insert })),
     };

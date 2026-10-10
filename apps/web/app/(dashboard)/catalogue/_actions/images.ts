@@ -98,7 +98,7 @@ export async function searchFreeImagesAction(input: {
 
     // If caller passed "Name Category" as a single query, split best-effort when name omitted.
     let dish = name;
-    let cat = category;
+    const cat = category;
     if (!input.name && !input.category && query.includes(' ')) {
       // Keep full query as dish name; category optional.
       dish = query;
