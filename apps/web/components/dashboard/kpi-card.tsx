@@ -22,11 +22,15 @@ export function KpiCard({ metric, className }: KpiCardProps) {
   return (
     <Card
       className={cn(
-        'group overflow-hidden transition-all duration-300 hover:border-primary/30 hover:shadow-glow',
+        'group overflow-hidden transition-all duration-300 hover:-translate-y-0.5 hover:shadow-glow',
         className
       )}
     >
-      <CardContent className="p-5">
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute -right-10 -top-12 h-32 w-32 rounded-full bg-primary/20 opacity-40 blur-3xl transition-opacity duration-500 group-hover:opacity-100"
+      />
+      <CardContent className="relative p-5">
         <p className="text-sm text-muted-foreground">{metric.label}</p>
         <p className="mt-2 text-2xl font-semibold tracking-tight md:text-3xl">{metric.value}</p>
         <div className={cn('mt-3 flex items-center gap-1.5 text-xs', trendColor)}>

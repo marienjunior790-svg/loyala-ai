@@ -1,61 +1,111 @@
 'use client';
 
+import { useLayoutEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { mainNav, isNavActive } from '@/lib/dashboard/navigation';
+import { BrandLockup } from '@/components/brand/liquid-logo';
 
-export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
+type IndicatorBox = { top: number; height: number } | null;
+
+export function AppSidebar({
+  onNavigate,
+  surface = 'liquid',
+}: {
+  onNavigate?: () => void;
+  surface?: 'liquid' | 'strong';
+}) {
   const pathname = usePathname();
   const router = useRouter();
+  const listRef = useRef<HTMLDivElement>(null);
+  const [indicator, setIndicator] = useState<IndicatorBox>(null);
+
+  const activeHref = mainNav.find((item) => isNavActive(pathname, item.href))?.href ?? null;
+
+  useLayoutEffect(() => {
+    const list = listRef.current;
+    if (!list) return;
+
+    const measure = () => {
+      const el = activeHref
+        ? list.querySelector<HTMLElement>(`[data-nav-href="${CSS.escape(activeHref)}"]`)
+        : null;
+      setIndicator(el ? { top: el.offsetTop, height: el.offsetHeight } : null);
+    };
+
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(list);
+    return () => observer.disconnect();
+  }, [activeHref]);
 
   return (
-    <aside className="flex h-full w-full flex-col border-r border-sidebar-border bg-sidebar">
-      <div className="flex h-16 shrink-0 items-center gap-3 border-b border-sidebar-border px-5">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/15 ring-1 ring-primary/30">
-          <span className="text-sm font-bold text-primary">L</span>
-        </div>
-        <div>
-          <p className="text-sm font-semibold tracking-tight">Loyala AI</p>
-          <p className="text-[11px] text-muted-foreground">Restaurant CRM</p>
-        </div>
+    <aside
+      className={cn(
+        'flex h-full w-full flex-col rounded-3xl',
+        surface === 'strong' ? 'glass-strong' : 'glass-liquid'
+      )}
+    >
+      <div className="flex h-20 shrink-0 items-center px-5">
+        <Link href="/dashboard" aria-label="Tableau de bord" className="rounded-xl">
+          <BrandLockup size={40} tagline="Restaurant CRM" priority />
+        </Link>
       </div>
 
-      <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain p-3 pb-6">
-        {mainNav.map((item) => {
-          const active = isNavActive(pathname, item.href);
-          const Icon = item.icon;
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              prefetch
-              onClick={(e) => {
-                // Force client navigation even if something intercepts the default Link behavior.
-                if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
-                e.preventDefault();
-                onNavigate?.();
-                if (pathname !== item.href) {
-                  router.push(item.href);
-                }
-              }}
-              className={cn(
-                'group relative z-10 flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-all duration-200',
-                active
-                  ? 'bg-primary/10 text-primary shadow-[inset_0_0_0_1px_hsl(var(--primary)/0.25)]'
-                  : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-foreground'
-              )}
-            >
-              <Icon
+      <div className="mx-5 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+
+      <nav
+        aria-label="Navigation principale"
+        className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-3 pb-6"
+      >
+        <div ref={listRef} className="relative space-y-1">
+          {indicator && (
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-x-0 top-0 rounded-xl bg-gradient-to-r from-primary/20 via-primary/10 to-transparent shadow-[inset_0_0_0_1px_hsl(var(--primary)/0.28),0_0_24px_-6px_hsl(var(--primary)/0.55)] transition-[transform,height] duration-300 ease-out motion-reduce:transition-none"
+              style={{ transform: `translateY(${indicator.top}px)`, height: indicator.height }}
+            />
+          )}
+          {mainNav.map((item) => {
+            const active = item.href === activeHref;
+            const Icon = item.icon;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                prefetch
+                data-nav-href={item.href}
+                aria-current={active ? 'page' : undefined}
+                onClick={(e) => {
+                  // Force client navigation even if something intercepts the default Link behavior.
+                  if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+                  e.preventDefault();
+                  onNavigate?.();
+                  if (pathname !== item.href) {
+                    router.push(item.href);
+                  }
+                }}
                 className={cn(
-                  'h-4 w-4 shrink-0 transition-colors',
-                  active ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground'
+                  'group relative z-10 flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors duration-200',
+                  active
+                    ? 'text-foreground'
+                    : 'text-sidebar-foreground/70 hover:bg-white/[0.05] hover:text-foreground'
                 )}
-              />
-              <span className="truncate font-medium">{item.label}</span>
-            </Link>
-          );
-        })}
+              >
+                <Icon
+                  className={cn(
+                    'h-4 w-4 shrink-0 transition-colors',
+                    active
+                      ? 'text-primary drop-shadow-[0_0_6px_hsl(var(--primary)/0.8)]'
+                      : 'text-muted-foreground group-hover:text-foreground'
+                  )}
+                />
+                <span className="truncate font-medium">{item.label}</span>
+              </Link>
+            );
+          })}
+        </div>
       </nav>
     </aside>
   );

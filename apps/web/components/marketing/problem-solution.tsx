@@ -15,9 +15,9 @@ const solutions = [
 
 export function ProblemSolutionSection() {
   return (
-    <section id="solution" className="border-t border-border/40 px-6 py-24">
+    <section id="solution" className="scroll-mt-28 px-6 py-24">
       <div className="mx-auto grid max-w-6xl gap-8 md:grid-cols-2">
-        <Card className="border-destructive/20 bg-destructive/5">
+        <Card className="bg-gradient-to-br from-destructive/10 via-transparent to-transparent">
           <CardContent className="p-8">
             <p className="text-sm font-medium text-destructive">Sans Loyala</p>
             <ul className="mt-6 space-y-4">
@@ -30,7 +30,7 @@ export function ProblemSolutionSection() {
             </ul>
           </CardContent>
         </Card>
-        <Card className="border-primary/20 bg-primary/5 shadow-glow">
+        <Card className="glass-liquid bg-gradient-to-br from-primary/15 via-transparent to-transparent shadow-glow">
           <CardContent className="p-8">
             <p className="text-sm font-medium text-primary">Avec Loyala AI</p>
             <ul className="mt-6 space-y-4">

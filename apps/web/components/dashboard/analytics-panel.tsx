@@ -32,7 +32,8 @@ export function MiniBarChart({
                 style={{
                   height: point.value > 0 ? `${(point.value / max) * 100}%` : '0%',
                   minHeight: point.value > 0 ? '12%' : '0%',
-                  background: `linear-gradient(180deg, ${color} 0%, ${color}88 100%)`,
+                  background: `linear-gradient(180deg, ${color} 0%, color-mix(in srgb, ${color} 35%, transparent) 100%)`,
+                  boxShadow: `0 0 18px -6px ${color}`,
                 }}
               />
             </div>
@@ -48,7 +49,7 @@ export function MiniBarChart({
             <Link
               key={point.label}
               href={pointHref}
-              className="group/bar flex flex-1 flex-col items-center gap-2 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="group/bar flex h-full flex-1 flex-col items-center gap-2 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               {barInner}
             </Link>
@@ -56,7 +57,7 @@ export function MiniBarChart({
         }
 
         return (
-          <div key={point.label} className="flex flex-1 flex-col items-center gap-2">
+          <div key={point.label} className="flex h-full flex-1 flex-col items-center gap-2">
             {barInner}
           </div>
         );

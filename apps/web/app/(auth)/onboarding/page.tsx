@@ -14,15 +14,13 @@ export default async function OnboardingPage() {
   if (membership) redirect('/clients');
 
   return (
-    <main className="flex min-h-screen items-center justify-center p-6">
-      <div className="w-full max-w-md">
-        <p className="text-xs font-medium uppercase tracking-wider text-primary">Onboarding</p>
-        <h1 className="mt-2 text-2xl font-semibold tracking-tight">Configurez votre restaurant</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Moins de 2 minutes pour un CRM prêt à générer du revenu.
-        </p>
-        <OnboardingWizard />
-      </div>
-    </main>
+    <div>
+      <p className="text-xs font-medium uppercase tracking-wider text-primary">Onboarding</p>
+      <h1 className="mt-2 text-2xl font-semibold tracking-tight">Configurez votre restaurant</h1>
+      <p className="mt-2 text-sm text-muted-foreground">
+        Moins de 2 minutes pour un CRM prêt à générer du revenu.
+      </p>
+      <OnboardingWizard />
+    </div>
   );
 }

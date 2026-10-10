@@ -92,7 +92,7 @@ export function AuthRecoveryRedirect() {
   if (!busy) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-background/90 px-6 text-center">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 px-6 backdrop-blur-md text-center">
       <p className="text-sm text-muted-foreground">Ouverture de la réinitialisation…</p>
     </div>
   );

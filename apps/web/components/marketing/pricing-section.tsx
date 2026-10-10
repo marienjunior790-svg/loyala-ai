@@ -11,7 +11,7 @@ const demoUrl = buildWhatsAppUrl(DEMO_WHATSAPP, buildDemoBookingMessage());
 
 export function PricingSection() {
   return (
-    <section id="pricing" className="border-t border-border/40 px-6 py-24">
+    <section id="pricing" className="scroll-mt-28 px-6 py-24">
       <div className="mx-auto max-w-6xl">
         <div className="mx-auto max-w-2xl text-center">
           <h2 className="text-3xl font-semibold tracking-tight">Tarifs simples, ROI clair</h2>
@@ -24,19 +24,27 @@ export function PricingSection() {
             <Card
               key={plan.id}
               className={cn(
-                'relative flex flex-col border-border/60',
-                plan.highlighted && 'border-primary/40 shadow-glow ring-1 ring-primary/20'
+                'flex flex-col',
+                plan.highlighted &&
+                  'glass-liquid bg-gradient-to-b from-primary/10 to-transparent shadow-glow-lg ring-1 ring-primary/25'
               )}
             >
               {plan.highlighted && (
-                <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-primary px-3 py-0.5 text-xs font-medium text-primary-foreground">
+                <span className="absolute -top-3 left-1/2 z-10 -translate-x-1/2 rounded-full bg-primary px-3 py-0.5 text-xs font-medium text-primary-foreground shadow-glow">
                   Le plus choisi
                 </span>
               )}
               <CardContent className="flex flex-1 flex-col p-8">
                 <p className="text-sm font-medium text-muted-foreground">{plan.name}</p>
                 <div className="mt-4 flex items-baseline gap-1">
-                  <span className="text-3xl font-semibold tracking-tight">{plan.price}</span>
+                  <span
+                    className={cn(
+                      'text-3xl font-semibold tracking-tight',
+                      plan.highlighted && 'text-gradient-brand'
+                    )}
+                  >
+                    {plan.price}
+                  </span>
                   <span className="text-sm text-muted-foreground">{plan.period}</span>
                 </div>
                 <p className="mt-2 text-sm text-muted-foreground">{plan.description}</p>
@@ -49,7 +57,7 @@ export function PricingSection() {
                   ))}
                 </ul>
                 <Button
-                  className="mt-8 w-full"
+                  className="mt-8 w-full rounded-full"
                   variant={plan.highlighted ? 'default' : 'outline'}
                   asChild
                 >

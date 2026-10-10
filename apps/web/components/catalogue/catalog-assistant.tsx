@@ -123,18 +123,23 @@ export function CatalogAssistantPanel({
   }
 
   return (
-    <aside className="fixed bottom-4 right-4 z-40 flex h-[min(70vh,560px)] w-[min(100%-2rem,22rem)] flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl">
-      <div className="flex items-center justify-between border-b border-border px-3 py-2">
+    <aside className="glass-strong fixed bottom-24 right-4 z-40 flex h-[min(70vh,560px)] w-[min(100%-2rem,22rem)] flex-col overflow-hidden rounded-3xl animate-in fade-in slide-in-from-bottom-4 duration-300 lg:bottom-4">
+      <div className="flex items-center justify-between border-b border-white/[0.08] px-4 py-2.5">
         <div className="flex items-center gap-2 text-sm font-medium">
           <MessageSquare className="h-4 w-4 text-primary" />
           Assistant catalogue
         </div>
-        <button type="button" onClick={onClose} className="rounded-md p-1 text-muted-foreground hover:bg-secondary">
+        <button
+          type="button"
+          onClick={onClose}
+          className="rounded-full p-1.5 text-muted-foreground hover:bg-white/[0.08] hover:text-foreground"
+          aria-label="Fermer l’assistant"
+        >
           <X className="h-4 w-4" />
         </button>
       </div>
 
-      <div className="flex flex-wrap gap-1 border-b border-border p-2">
+      <div className="flex flex-wrap gap-1 border-b border-white/[0.08] p-2">
         {QUICK.map((q) => (
           <button
             key={q.label}
@@ -169,7 +174,7 @@ export function CatalogAssistantPanel({
           <div
             key={i}
             className={`rounded-lg px-2.5 py-1.5 text-xs ${
-              m.role === 'user' ? 'ml-6 bg-primary/15 text-foreground' : 'mr-4 bg-secondary text-muted-foreground'
+              m.role === 'user' ? 'ml-6 bg-primary/15 text-foreground' : 'mr-4 bg-white/[0.06] text-muted-foreground'
             }`}
           >
             {m.text}
@@ -183,7 +188,7 @@ export function CatalogAssistantPanel({
       </div>
 
       <form
-        className="flex gap-2 border-t border-border p-2"
+        className="flex gap-2 border-t border-white/[0.08] p-2"
         onSubmit={(e) => {
           e.preventDefault();
           runPrompt(text);

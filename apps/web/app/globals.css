@@ -4,39 +4,183 @@
 
 @layer base {
   :root {
-    --background: 0 0% 4%;
-    --foreground: 0 0% 98%;
-    --card: 0 0% 7%;
-    --card-foreground: 0 0% 98%;
-    --popover: 0 0% 7%;
-    --popover-foreground: 0 0% 98%;
+    color-scheme: dark;
+
+    --background: 150 24% 2%;
+    --foreground: 140 10% 97%;
+    --card: 150 18% 6%;
+    --card-foreground: 140 10% 97%;
+    --popover: 150 18% 6%;
+    --popover-foreground: 140 10% 97%;
     --primary: 145 100% 39%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 0 0% 12%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 0 0% 12%;
-    --muted-foreground: 0 0% 63%;
-    --accent: 214 100% 50%;
-    --accent-foreground: 0 0% 100%;
+    --secondary: 150 10% 12%;
+    --secondary-foreground: 140 10% 97%;
+    --muted: 150 10% 12%;
+    --muted-foreground: 145 6% 68%;
+    --accent: 41 64% 58%;
+    --accent-foreground: 150 24% 4%;
+    --gold: 41 64% 58%;
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 16%;
-    --input: 0 0% 16%;
+    --border: 150 10% 16%;
+    --input: 150 10% 18%;
     --ring: 145 100% 39%;
-    --radius: 0.75rem;
-    --sidebar: 0 0% 5%;
-    --sidebar-foreground: 0 0% 90%;
-    --sidebar-border: 0 0% 12%;
-    --sidebar-accent: 0 0% 10%;
+    --radius: 0.875rem;
+    --sidebar: 150 20% 4%;
+    --sidebar-foreground: 140 8% 90%;
+    --sidebar-border: 150 10% 12%;
+    --sidebar-accent: 150 10% 10%;
+
+    /* Glass surfaces */
+    --glass-tint: 150 22% 5%;
+    --glass-opacity: 0.55;
+    --glass-blur: 18px;
+    --glass-highlight: 0 0% 100%;
   }
 
   * {
     @apply border-border;
   }
 
+  html {
+    background-color: hsl(var(--background));
+  }
+
   body {
-    @apply bg-background text-foreground antialiased;
+    @apply text-foreground antialiased;
+    background: transparent;
     font-feature-settings: 'rlig' 1, 'calt' 1;
+  }
+
+  ::selection {
+    background: hsl(var(--primary) / 0.35);
+    color: hsl(var(--foreground));
+  }
+
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(0 0% 100% / 0.14) transparent;
+  }
+}
+
+@layer components {
+  /* Static brand backdrop: used on its own in lite mode and under the shader while it loads. */
+  .app-backdrop {
+    background:
+      radial-gradient(60% 50% at 12% 8%, hsl(145 100% 39% / 0.2), transparent 70%),
+      radial-gradient(45% 40% at 88% 18%, hsl(160 85% 22% / 0.28), transparent 70%),
+      radial-gradient(70% 55% at 65% 105%, hsl(145 100% 32% / 0.16), transparent 70%),
+      radial-gradient(35% 30% at 92% 88%, hsl(var(--gold) / 0.07), transparent 70%),
+      hsl(var(--background));
+  }
+
+  .app-vignette {
+    background:
+      radial-gradient(120% 90% at 50% 40%, transparent 35%, hsl(150 30% 1% / 0.75) 100%),
+      linear-gradient(180deg, hsl(150 30% 1% / 0.15), hsl(150 30% 1% / 0.45));
+  }
+
+  /*
+   * Glass surfaces. The rim highlight is a masked gradient border on ::before so it
+   * follows border-radius; utilities (fixed/sticky/absolute) still override position.
+   */
+  .glass,
+  .glass-liquid,
+  .glass-strong {
+    position: relative;
+    isolation: isolate;
+    background:
+      linear-gradient(
+        160deg,
+        hsl(var(--glass-highlight) / 0.075) 0%,
+        hsl(var(--glass-highlight) / 0.015) 45%,
+        hsl(var(--primary) / 0.04) 100%
+      ),
+      hsl(var(--glass-tint) / var(--glass-opacity));
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(165%);
+    backdrop-filter: blur(var(--glass-blur)) saturate(165%);
+    box-shadow:
+      inset 0 1px 0 0 hsl(var(--glass-highlight) / 0.12),
+      inset 0 -1px 0 0 hsl(var(--glass-highlight) / 0.03),
+      0 18px 50px -24px rgb(0 0 0 / 0.8);
+  }
+
+  .glass::before,
+  .glass-liquid::before,
+  .glass-strong::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    border-radius: inherit;
+    padding: 1px;
+    pointer-events: none;
+    background: linear-gradient(
+      135deg,
+      hsl(var(--glass-highlight) / 0.3) 0%,
+      hsl(var(--glass-highlight) / 0.05) 35%,
+      hsl(var(--primary) / 0.12) 70%,
+      hsl(var(--glass-highlight) / 0.18) 100%
+    );
+    -webkit-mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+  }
+
+  .glass-liquid {
+    --glass-opacity: 0.42;
+    --glass-blur: 14px;
+    box-shadow:
+      inset 0 1px 0 0 hsl(var(--glass-highlight) / 0.22),
+      inset 0 0 22px 0 hsl(var(--glass-highlight) / 0.05),
+      inset 0 -10px 24px -18px hsl(var(--primary) / 0.35),
+      0 24px 60px -28px rgb(0 0 0 / 0.9);
+  }
+
+  .glass-strong {
+    --glass-opacity: 0.82;
+    --glass-blur: 24px;
+  }
+
+  /* Refraction only where backdrop-filter supports SVG filters (Chromium, see LiquidGlassFilter). */
+  html.liquid-glass .glass-liquid {
+    -webkit-backdrop-filter: url(#liquid-glass) blur(var(--glass-blur)) saturate(175%);
+    backdrop-filter: url(#liquid-glass) blur(var(--glass-blur)) saturate(175%);
+  }
+
+  .text-gradient-brand {
+    background: linear-gradient(100deg, hsl(var(--primary)) 0%, hsl(150 80% 70%) 55%, hsl(var(--gold)) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .text-gradient-silver {
+    background: linear-gradient(180deg, hsl(0 0% 100%) 0%, hsl(140 8% 72%) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  /* Glossy sweep on primary actions. */
+  .btn-sheen {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+  }
+
+  .btn-sheen::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background:
+      linear-gradient(180deg, hsl(0 0% 100% / 0.28) 0%, hsl(0 0% 100% / 0) 55%),
+      radial-gradient(120% 80% at 50% 120%, hsl(150 100% 70% / 0.45), transparent 60%);
+    pointer-events: none;
   }
 }
 
@@ -47,6 +191,10 @@
 
   .animate-slide-up {
     animation: slide-up 0.45s ease-out forwards;
+  }
+
+  .animate-backdrop-in {
+    animation: fade-in 1.6s ease-out forwards;
   }
 
   .stagger-1 { animation-delay: 0.05s; }
@@ -70,5 +218,16 @@
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

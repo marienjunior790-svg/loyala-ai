@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { Check, MessageCircle, X, Loader2 } from 'lucide-react';
+import { Check, MessageCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { GlassDialog, GlassDialogBody, GlassDialogFooter } from '@/components/ui/glass-dialog';
 import {
   convertWhatsAppLeadAction,
   ignoreWhatsAppLeadAction,
@@ -25,30 +26,18 @@ export function ConnectWhatsAppDialog({
   phoneNumberId,
   apiConfigured,
 }: ConnectWhatsAppDialogProps) {
-  if (!open) return null;
-
   const connected = Boolean(whatsappPhone.trim()) || apiConfigured;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
-      <div
-        className="w-[min(100%,32rem)] rounded-2xl border border-border bg-card p-6 shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <h3 className="text-lg font-semibold">Connectez votre WhatsApp Business</h3>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Centralisez vos échanges WhatsApp dans Loyala et transformez progressivement vos
-              conversations en clients CRM.
-            </p>
-          </div>
-          <button type="button" className="rounded-md p-1 text-muted-foreground hover:bg-secondary" onClick={onClose}>
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-
-        <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
+    <GlassDialog
+      open={open}
+      onClose={onClose}
+      icon={<MessageCircle />}
+      title="Connectez votre WhatsApp Business"
+      description="Centralisez vos échanges WhatsApp dans Loyala et transformez progressivement vos conversations en clients CRM."
+    >
+      <GlassDialogBody>
+        <ul className="space-y-2 text-sm text-muted-foreground">
           {[
             'Identifier les nouveaux clients',
             'Centraliser les contacts',
@@ -64,7 +53,7 @@ export function ConnectWhatsAppDialog({
           ))}
         </ul>
 
-        <div className="mt-5 rounded-xl border border-border bg-background/50 p-4 text-sm">
+        <div className="mt-5 rounded-xl border border-white/[0.08] bg-black/20 p-4 text-sm">
           {connected ? (
             <>
               <p className="font-medium text-foreground">WhatsApp connecté ✓</p>
@@ -109,8 +98,9 @@ export function ConnectWhatsAppDialog({
             </>
           )}
         </div>
+      </GlassDialogBody>
 
-        <div className="mt-5 flex flex-wrap gap-2">
+      <GlassDialogFooter>
           {whatsappPhone.trim() && (
             <Button type="button" variant="outline" asChild>
               <a
@@ -131,9 +121,8 @@ export function ConnectWhatsAppDialog({
           <Button type="button" onClick={onClose}>
             Fermer
           </Button>
-        </div>
-      </div>
-    </div>
+      </GlassDialogFooter>
+    </GlassDialog>
   );
 }
 

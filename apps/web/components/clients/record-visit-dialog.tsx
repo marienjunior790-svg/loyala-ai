@@ -1,10 +1,11 @@
 'use client';
 
-import { useActionState, useEffect, useMemo, useRef, useState } from 'react';
+import { useActionState, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { CalendarPlus, X, Plus, Minus, Trash2, Search, SlidersHorizontal } from 'lucide-react';
+import { CalendarPlus, Plus, Minus, Trash2, Search, SlidersHorizontal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { GlassDialog, GlassDialogBody, GlassDialogFooter } from '@/components/ui/glass-dialog';
 import { recordVisitAction, type VisitActionState } from '@/app/(dashboard)/clients/_actions/visits';
 import {
   computeItemUnitPrice,
@@ -57,7 +58,7 @@ function formatMoney(amount: number, currency = 'XOF'): string {
 
 export function RecordVisitDialog({ clientId, clientName, catalogItems }: RecordVisitDialogProps) {
   const router = useRouter();
-  const dialogRef = useRef<HTMLDialogElement>(null);
+  const [open, setOpen] = useState(false);
   const [state, formAction, pending] = useActionState(recordVisitAction, initial);
   const [lines, setLines] = useState<SaleLine[]>([]);
   const [search, setSearch] = useState('');
@@ -73,7 +74,7 @@ export function RecordVisitDialog({ clientId, clientName, catalogItems }: Record
       if (state.reviewWhatsappUrl) {
         window.open(state.reviewWhatsappUrl, '_blank', 'noopener,noreferrer');
       }
-      dialogRef.current?.close();
+      setOpen(false);
       setLines([]);
       setSearch('');
       setConfiguring(null);
@@ -190,32 +191,20 @@ export function RecordVisitDialog({ clientId, clientName, catalogItems }: Record
 
   return (
     <>
-      <Button type="button" onClick={() => dialogRef.current?.showModal()} className="shadow-glow">
+      <Button type="button" onClick={() => setOpen(true)}>
         <CalendarPlus className="h-4 w-4" />
         Enregistrer une visite
       </Button>
 
-      <dialog
-        ref={dialogRef}
-        className="fixed left-1/2 top-1/2 z-50 w-[min(100%,34rem)] max-h-[90vh] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-xl border border-border bg-card p-0 text-foreground shadow-2xl backdrop:bg-black/60 open:animate-fade-in"
+      <GlassDialog
+        open={open}
+        onClose={() => setOpen(false)}
+        eyebrow="Nouvelle visite"
+        title={clientName}
+        size="lg"
       >
-        <form action={formAction} className="flex flex-col">
-          <div className="flex items-start justify-between border-b border-border px-6 py-4">
-            <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-primary">Nouvelle visite</p>
-              <h3 className="mt-1 text-lg font-semibold">{clientName}</h3>
-            </div>
-            <button
-              type="button"
-              className="rounded-md p-1 text-muted-foreground hover:bg-secondary hover:text-foreground"
-              onClick={() => dialogRef.current?.close()}
-              aria-label="Fermer"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-
-          <div className="space-y-4 px-6 py-5">
+        <form action={formAction} className="flex min-h-0 flex-1 flex-col">
+          <GlassDialogBody className="space-y-4">
             <input type="hidden" name="clientId" value={clientId} />
             <input type="hidden" name="itemsJson" value={itemsJson} />
 
@@ -372,14 +361,14 @@ export function RecordVisitDialog({ clientId, clientName, catalogItems }: Record
             </div>
 
             {state.error && <p className="text-sm text-destructive">{state.error}</p>}
-          </div>
+          </GlassDialogBody>
 
-          <div className="flex gap-2 border-t border-border px-6 py-4">
+          <GlassDialogFooter className="flex-nowrap">
             <Button
               type="button"
               variant="outline"
               className="flex-1"
-              onClick={() => dialogRef.current?.close()}
+              onClick={() => setOpen(false)}
               disabled={pending}
             >
               Annuler
@@ -387,7 +376,7 @@ export function RecordVisitDialog({ clientId, clientName, catalogItems }: Record
             <Button type="submit" className="flex-1" disabled={pending}>
               {pending ? 'Enregistrement...' : 'Valider'}
             </Button>
-          </div>
+          </GlassDialogFooter>
         </form>
 
         {configuring && (
@@ -402,7 +391,7 @@ export function RecordVisitDialog({ clientId, clientName, catalogItems }: Record
             onConfirm={confirmConfigured}
           />
         )}
-      </dialog>
+      </GlassDialog>
     </>
   );
 }
@@ -430,30 +419,8 @@ function VariantConfigurator({
   const error = validateSelections(groups, selections);
 
   return (
-    <div
-      className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-4"
-      onClick={onCancel}
-    >
-      <div
-        className="flex max-h-[85vh] w-[min(100%,26rem)] flex-col overflow-hidden rounded-xl border border-border bg-card text-foreground shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between border-b border-border px-4 py-3">
-          <div className="flex min-w-0 items-center gap-2">
-            <SlidersHorizontal className="h-4 w-4 shrink-0 text-primary" />
-            <h4 className="truncate text-sm font-semibold">{item.name}</h4>
-          </div>
-          <button
-            type="button"
-            onClick={onCancel}
-            className="rounded-md p-1 text-muted-foreground hover:bg-secondary"
-            aria-label="Fermer"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-
-        <div className="flex-1 space-y-4 overflow-y-auto px-4 py-4">
+    <GlassDialog open onClose={onCancel} icon={<SlidersHorizontal />} title={item.name} size="sm">
+        <GlassDialogBody className="space-y-4">
           {groups.map((group) => {
             const max = effectiveMax(group);
             const hint =
@@ -526,9 +493,9 @@ function VariantConfigurator({
               </div>
             );
           })}
-        </div>
+        </GlassDialogBody>
 
-        <div className="border-t border-border px-4 py-3">
+        <GlassDialogFooter className="block">
           <div className="mb-2 flex items-center justify-between text-sm">
             <span className="text-muted-foreground">Prix unitaire</span>
             <span className="font-semibold text-primary">{formatMoney(unitPrice, item.currency)}</span>
@@ -541,8 +508,7 @@ function VariantConfigurator({
               {error ?? 'Ajouter'}
             </Button>
           </div>
-        </div>
-      </div>
-    </div>
+        </GlassDialogFooter>
+    </GlassDialog>
   );
 }

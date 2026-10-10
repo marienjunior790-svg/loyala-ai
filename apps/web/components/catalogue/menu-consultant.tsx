@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import {
   Sparkles,
   Loader2,
-  X,
   RefreshCw,
   Save,
   Megaphone,
@@ -15,6 +14,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { GlassDialog, GlassDialogBody, GlassDialogFooter } from '@/components/ui/glass-dialog';
 import {
   consultMenuAction,
   previewMenuContextAction,
@@ -155,32 +155,17 @@ export function MenuConsultantPanel({
   const currency = state.result?.currency ?? 'XOF';
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/60 p-0 sm:items-center sm:p-4">
-      <div
-        className="flex max-h-[94vh] w-full max-w-3xl flex-col overflow-hidden rounded-t-2xl border border-border bg-card text-foreground shadow-2xl sm:rounded-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between border-b border-border px-4 py-3 sm:px-6">
-          <div className="flex items-center gap-2">
-            <Target className="h-5 w-5 text-primary" />
-            <div>
-              <h3 className="text-base font-semibold sm:text-lg">Consultant menus IA</h3>
-              <p className="text-xs text-muted-foreground">
-                Décisions basées sur catalogue, CRM, ventes et saison
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
-            className="rounded-md p-1 text-muted-foreground hover:bg-secondary"
-            onClick={onClose}
-            aria-label="Fermer"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-
-        <div className="flex-1 space-y-4 overflow-y-auto px-4 py-4 sm:px-6">
+    <GlassDialog
+      open
+      onClose={onClose}
+      icon={<Target />}
+      title="Consultant menus IA"
+      description="Décisions basées sur catalogue, CRM, ventes et saison"
+      size="2xl"
+      placement="sheet"
+      dismissOnOutsideClick={false}
+    >
+        <GlassDialogBody className="space-y-4 px-4 sm:px-6">
           <div className="flex gap-2">
             <button
               type="button"
@@ -495,9 +480,9 @@ export function MenuConsultantPanel({
               {msg}
             </p>
           )}
-        </div>
+        </GlassDialogBody>
 
-        <div className="flex flex-wrap gap-2 border-t border-border px-4 py-3 sm:px-6">
+        <GlassDialogFooter className="px-4 sm:px-6">
           <Button type="button" variant="outline" onClick={onClose}>
             Fermer
           </Button>
@@ -525,8 +510,7 @@ export function MenuConsultantPanel({
               </Button>
             </>
           )}
-        </div>
-      </div>
-    </div>
+        </GlassDialogFooter>
+    </GlassDialog>
   );
 }

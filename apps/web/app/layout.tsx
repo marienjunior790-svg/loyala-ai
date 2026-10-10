@@ -1,7 +1,9 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
 import { getPublicAppUrl } from '@/lib/app-url';
 import { AuthRecoveryRedirect } from '@/components/auth/auth-recovery-redirect';
+import { AnimatedBackground } from '@/components/visual/animated-background';
+import { LiquidGlassFilter } from '@/components/glass/liquid-glass-filter';
 import './globals.css';
 
 const inter = Inter({
@@ -45,12 +47,20 @@ export const metadata: Metadata = {
   },
   robots: { index: true, follow: true },
   alternates: { canonical: appUrl },
+  icons: { apple: '/brand/apple-touch-icon.png' },
+};
+
+export const viewport: Viewport = {
+  themeColor: '#040705',
+  colorScheme: 'dark',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="fr" className="dark">
-      <body className={`${inter.className} min-h-screen bg-background text-foreground antialiased`}>
+      <body className={`${inter.className} min-h-screen text-foreground antialiased`}>
+        <AnimatedBackground />
+        <LiquidGlassFilter />
         <AuthRecoveryRedirect />
         {children}
       </body>

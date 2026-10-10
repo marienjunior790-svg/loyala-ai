@@ -4,14 +4,17 @@ import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '@/lib/utils';
 
 const buttonVariants = cva(
-  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0',
+  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0',
   {
     variants: {
       variant: {
-        default: 'bg-primary text-primary-foreground shadow hover:brightness-110',
-        secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80',
-        outline: 'border border-border bg-transparent hover:bg-secondary',
-        ghost: 'hover:bg-secondary hover:text-foreground',
+        default:
+          'btn-sheen bg-primary text-primary-foreground shadow-glow hover:shadow-glow-lg hover:brightness-110',
+        secondary: 'bg-white/[0.07] text-secondary-foreground hover:bg-white/[0.11]',
+        outline:
+          'border border-white/[0.12] bg-white/[0.03] backdrop-blur-sm hover:border-white/20 hover:bg-white/[0.07]',
+        ghost: 'hover:bg-white/[0.06] hover:text-foreground',
+        glass: 'glass-liquid text-foreground hover:brightness-125',
         destructive: 'bg-destructive text-destructive-foreground hover:bg-destructive/90',
       },
       size: {

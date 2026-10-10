@@ -14,7 +14,6 @@ import {
   LayoutTemplate,
   Pencil,
   ClipboardPaste,
-  X,
   Loader2,
   Trash2,
   Plus,
@@ -28,6 +27,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { GlassDialog, GlassDialogBody, GlassDialogFooter } from '@/components/ui/glass-dialog';
 import {
   generateCatalogAction,
   importCatalogFromTextAction,
@@ -648,36 +648,19 @@ function SmartCatalogDialog({
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-      onClick={() => {
-        // On mobile, returning from the native file picker often fires a click
-        // on the backdrop and closes the dialog before analysis starts.
-        if (mode === 'import-file' || mode === 'import-image' || mode === 'import-qr') return;
-        if (loading) return;
-        onClose();
-      }}
+    <GlassDialog
+      open
+      onClose={onClose}
+      icon={<Sparkles />}
+      title={DIALOG_TITLE[mode]}
+      size="xl"
+      // On mobile, returning from the native file picker often fires a click
+      // on the backdrop and closes the dialog before analysis starts.
+      dismissOnOutsideClick={
+        !(mode === 'import-file' || mode === 'import-image' || mode === 'import-qr' || loading)
+      }
     >
-      <div
-        className="flex max-h-[92vh] w-[min(100%,46rem)] flex-col overflow-hidden rounded-2xl border border-border bg-card text-foreground shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between border-b border-border px-6 py-4">
-          <div className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-primary" />
-            <h3 className="text-lg font-semibold">{DIALOG_TITLE[mode]}</h3>
-          </div>
-          <button
-            type="button"
-            className="rounded-md p-1 text-muted-foreground hover:bg-secondary hover:text-foreground"
-            onClick={onClose}
-            aria-label="Fermer"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-
-        <div className="flex-1 space-y-4 overflow-y-auto px-6 py-5">
+        <GlassDialogBody className="space-y-4">
           {/* ── Input step (hidden once a preview exists, except template picker) ── */}
           {!preview && mode === 'generate' && (
             <div>
@@ -1085,9 +1068,9 @@ function SmartCatalogDialog({
               onClose={() => setImagePicker(null)}
             />
           )}
-        </div>
+        </GlassDialogBody>
 
-        <div className="flex flex-wrap items-center gap-2 border-t border-border px-6 py-4">
+        <GlassDialogFooter>
           {preview ? (
             <>
               <Button type="button" variant="outline" onClick={() => setPreview(null)} disabled={applying}>
@@ -1137,8 +1120,7 @@ function SmartCatalogDialog({
               )}
             </Button>
           )}
-        </div>
-      </div>
-    </div>
+        </GlassDialogFooter>
+    </GlassDialog>
   );
 }

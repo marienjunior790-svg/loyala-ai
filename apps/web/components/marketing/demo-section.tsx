@@ -14,9 +14,9 @@ const steps = [
 
 export function DemoSection() {
   return (
-    <section id="demo" className="border-t border-border/40 px-6 py-24">
+    <section id="demo" className="scroll-mt-28 px-6 py-24">
       <div className="mx-auto max-w-3xl text-center">
-        <div className="inline-flex items-center gap-2 rounded-full border border-border px-3 py-1 text-xs text-muted-foreground">
+        <div className="glass inline-flex items-center gap-2 rounded-full px-3.5 py-1 text-xs text-muted-foreground">
           <Clock className="h-3.5 w-3.5" />
           Démo 3 minutes
         </div>
@@ -26,7 +26,7 @@ export function DemoSection() {
         <p className="mt-4 text-muted-foreground">
           Pas de slides. On vous montre comment relancer un vrai client sur WhatsApp.
         </p>
-        <Card className="mx-auto mt-10 max-w-md border-primary/20 text-left">
+        <Card className="glass-liquid mx-auto mt-10 max-w-md text-left">
           <CardContent className="space-y-3 p-6">
             {steps.map((step, i) => (
               <div key={step} className="flex items-center gap-3 text-sm">
@@ -38,7 +38,7 @@ export function DemoSection() {
             ))}
           </CardContent>
         </Card>
-        <Button size="lg" className="mt-8 h-12 px-8" asChild>
+        <Button size="lg" className="mt-8 h-12 rounded-full px-8" asChild>
           <a href={demoUrl} target="_blank" rel="noopener noreferrer">
             Réserver ma démo WhatsApp
           </a>

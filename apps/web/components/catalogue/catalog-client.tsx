@@ -24,6 +24,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { GlassDialog } from '@/components/ui/glass-dialog';
 import type {
   CatalogCategory,
   CatalogItem,
@@ -659,7 +660,7 @@ function CategoriesPanel({
 }
 
 const inputClass =
-  'mt-1 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring';
+  'mt-1 w-full rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm outline-none transition-colors hover:border-white/[0.16] focus:border-primary/60 focus:ring-2 focus:ring-primary/25';
 
 function DialogShell({
   title,
@@ -671,25 +672,9 @@ function DialogShell({
   children: React.ReactNode;
 }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
-      <div
-        className="w-[min(100%,32rem)] max-h-[90vh] overflow-y-auto rounded-xl border border-border bg-card text-foreground shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between border-b border-border px-6 py-4">
-          <h3 className="text-lg font-semibold">{title}</h3>
-          <button
-            type="button"
-            className="rounded-md p-1 text-muted-foreground hover:bg-secondary hover:text-foreground"
-            onClick={onClose}
-            aria-label="Fermer"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-        {children}
-      </div>
-    </div>
+    <GlassDialog open onClose={onClose} title={title}>
+      <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
+    </GlassDialog>
   );
 }
 

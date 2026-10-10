@@ -7,7 +7,6 @@ import {
   Upload,
   Camera,
   Loader2,
-  X,
   ImageIcon,
   RefreshCw,
   Check,
@@ -15,6 +14,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { GlassDialog, GlassDialogBody } from '@/components/ui/glass-dialog';
 import {
   generateProductImagesAction,
   searchFreeImagesAction,
@@ -161,30 +161,14 @@ export function ProductImagePicker({
   const loadingLabel = saving ? 'Enregistrement…' : null;
 
   return (
-    <div
-      className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4"
-      onClick={onClose}
+    <GlassDialog
+      open
+      onClose={onClose}
+      icon={<ImageIcon />}
+      title={`Image · ${productName}`}
+      size="xl"
     >
-      <div
-        className="flex max-h-[92vh] w-[min(100%,44rem)] flex-col overflow-hidden rounded-2xl border border-border bg-card text-foreground shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between border-b border-border px-6 py-4">
-          <div className="flex min-w-0 items-center gap-2">
-            <ImageIcon className="h-5 w-5 shrink-0 text-primary" />
-            <h3 className="truncate text-lg font-semibold">Image · {productName}</h3>
-          </div>
-          <button
-            type="button"
-            className="rounded-md p-1 text-muted-foreground hover:bg-secondary hover:text-foreground"
-            onClick={onClose}
-            aria-label="Fermer"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-
-        <div className="flex flex-wrap gap-1 border-b border-border px-4 py-2">
+        <div className="flex shrink-0 flex-wrap gap-1 border-b border-white/[0.08] px-4 py-2">
           {TABS.map((t) => {
             const Icon = t.icon;
             return (
@@ -196,10 +180,10 @@ export function ProductImagePicker({
                   setError(null);
                   if (t.id !== 'search') setInfo(null);
                 }}
-                className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition ${
+                className={`inline-flex items-center gap-2 rounded-full px-3.5 py-2 text-sm font-medium transition ${
                   tab === t.id
-                    ? 'bg-primary text-primary-foreground'
-                    : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
+                    ? 'bg-primary text-primary-foreground shadow-glow'
+                    : 'text-muted-foreground hover:bg-white/[0.06] hover:text-foreground'
                 }`}
               >
                 <Icon className="h-4 w-4" />
@@ -209,7 +193,7 @@ export function ProductImagePicker({
           })}
         </div>
 
-        <div className="flex-1 space-y-4 overflow-y-auto px-6 py-5">
+        <GlassDialogBody className="space-y-4">
           {error && (
             <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
               {error}
@@ -236,6 +220,8 @@ export function ProductImagePicker({
                 className="flex gap-2"
                 onSubmit={(e) => {
                   e.preventDefault();
+                  // The picker is rendered inside the item form; keep its submit from bubbling there.
+                  e.stopPropagation();
                   search();
                 }}
               >
@@ -336,9 +322,8 @@ export function ProductImagePicker({
               onValidate={() => localPreview && save({ dataUrl: localPreview })}
             />
           )}
-        </div>
-      </div>
-    </div>
+        </GlassDialogBody>
+    </GlassDialog>
   );
 }
 
@@ -440,7 +425,7 @@ function UploadPane({
         <button
           type="button"
           onClick={() => inputRef.current?.click()}
-          className="flex w-full flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-background py-12 text-sm text-muted-foreground transition hover:border-primary/40 hover:text-foreground"
+          className="flex w-full flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-white/15 bg-black/20 py-12 text-sm text-muted-foreground transition hover:border-primary/40 hover:text-foreground"
         >
           {capture ? <Camera className="h-6 w-6" /> : <Upload className="h-6 w-6" />}
           {label}

@@ -8,7 +8,7 @@ import { MarketingFooter } from './marketing-footer';
 
 export function LandingPage() {
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen">
       <MarketingNav />
       <main id="main-content">
         <HeroSection />

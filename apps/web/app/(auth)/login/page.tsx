@@ -13,25 +13,20 @@ export default async function LoginPage({
   const callbackError = error ? AUTH_CALLBACK_MESSAGES[error] : undefined;
 
   return (
-    <main className="flex min-h-screen items-center justify-center p-6">
-      <div className="w-full max-w-sm text-center">
-        <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-lg bg-primary/15 ring-1 ring-primary/30">
-          <span className="text-sm font-bold text-primary">L</span>
-        </div>
-        <h1 className="mt-3 text-2xl font-semibold tracking-tight">Loyala AI</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Connexion à votre CRM</p>
-        {reset === 'ok' && (
-          <p className="mt-4 rounded-lg bg-loyala-green/10 px-3 py-2 text-sm text-loyala-green">
-            Mot de passe mis à jour. Connectez-vous avec votre nouveau mot de passe.
-          </p>
-        )}
-        {callbackError && (
-          <p className="mt-4 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
-            {callbackError}
-          </p>
-        )}
-        <LoginForm />
-      </div>
-    </main>
+    <div className="text-center">
+      <h1 className="text-2xl font-semibold tracking-tight">Bon retour</h1>
+      <p className="mt-1 text-sm text-muted-foreground">Connexion à votre CRM</p>
+      {reset === 'ok' && (
+        <p className="mt-4 rounded-xl border border-primary/25 bg-primary/10 px-3 py-2 text-sm text-primary">
+          Mot de passe mis à jour. Connectez-vous avec votre nouveau mot de passe.
+        </p>
+      )}
+      {callbackError && (
+        <p className="mt-4 rounded-xl border border-destructive/25 bg-destructive/10 px-3 py-2 text-sm text-red-300">
+          {callbackError}
+        </p>
+      )}
+      <LoginForm />
+    </div>
   );
 }

@@ -75,6 +75,13 @@ export default tseslint.config(
     },
   },
   {
+    // react-three-fiber JSX uses Three.js props (args, roughness, …) unknown to the DOM rule.
+    files: ['apps/web/components/visual/**/*.tsx'],
+    rules: {
+      'react/no-unknown-property': 'off',
+    },
+  },
+  {
     files: ['**/next-env.d.ts'],
     rules: {
       '@typescript-eslint/triple-slash-reference': 'off',

@@ -31,10 +31,13 @@ export function BenefitsSection() {
         </div>
         <div className="mt-16 grid gap-6 md:grid-cols-3">
           {benefits.map(({ icon: Icon, title, description }) => (
-            <Card key={title} className="border-border/60 bg-card/50 transition hover:border-primary/30">
+            <Card
+              key={title}
+              className="group transition-all duration-300 hover:-translate-y-1 hover:shadow-glow"
+            >
               <CardContent className="p-8">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-                  <Icon className="h-5 w-5 text-primary" />
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-primary/25 to-primary/5 ring-1 ring-primary/25 transition-shadow group-hover:shadow-glow">
+                  <Icon className="h-5 w-5 text-primary drop-shadow-[0_0_6px_hsl(var(--primary)/0.7)]" />
                 </div>
                 <h3 className="mt-6 text-lg font-medium">{title}</h3>
                 <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{description}</p>

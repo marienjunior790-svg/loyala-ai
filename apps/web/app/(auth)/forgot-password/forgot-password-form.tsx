@@ -2,6 +2,7 @@
 
 import { useActionState } from 'react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { forgotPasswordAction, type AuthActionState } from '../_actions/auth';
 
 const initial: AuthActionState = {};
@@ -11,7 +12,7 @@ export function ForgotPasswordForm() {
 
   if (state.success) {
     return (
-      <p className="mt-8 rounded-lg bg-loyala-green/10 px-4 py-3 text-sm text-loyala-green">
+      <p className="mt-8 rounded-xl border border-primary/25 bg-primary/10 px-4 py-3 text-sm text-primary">
         {state.success}
       </p>
     );
@@ -20,15 +21,15 @@ export function ForgotPasswordForm() {
   return (
     <form action={formAction} className="mt-8 space-y-4 text-left">
       {state.error && (
-        <p className="rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-400">{state.error}</p>
+        <p className="rounded-xl border border-destructive/25 bg-destructive/10 px-3 py-2 text-sm text-red-300">{state.error}</p>
       )}
       <div>
-        <label className="text-sm text-neutral-400">Email</label>
-        <input
+        <label className="text-sm text-muted-foreground">Email</label>
+        <Input
           name="email"
           type="email"
           required
-          className="mt-1 w-full rounded-lg border border-neutral-700 bg-neutral-900 px-4 py-3"
+          className="mt-1"
         />
       </div>
       <Button type="submit" className="w-full" disabled={pending}>

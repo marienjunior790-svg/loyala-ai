@@ -7,8 +7,13 @@ export default function manifest(): MetadataRoute.Manifest {
     description: 'CRM IA pour restaurants africains',
     start_url: '/dashboard',
     display: 'standalone',
-    background_color: '#0a0a0a',
-    theme_color: '#16a34a',
+    background_color: '#040705',
+    theme_color: '#040705',
     lang: 'fr',
+    icons: [
+      { src: '/icon.png', sizes: '128x128', type: 'image/png' },
+      { src: '/brand/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
+      { src: '/brand/loyala-mark.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+    ],
   };
 }
