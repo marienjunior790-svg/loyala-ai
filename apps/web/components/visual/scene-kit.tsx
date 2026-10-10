@@ -90,6 +90,14 @@ export function StudioLights() {
         />
         <Lightformer form="ring" intensity={2.5} color={GOLD} position={[4, 1, 1]} scale={2} />
         <Lightformer form="rect" intensity={1} position={[0, -4, 2]} scale={[8, 0.6, 1]} />
+        {/* Behind the camera: lights faces turned towards the viewer (coins read black without it). */}
+        <Lightformer
+          form="rect"
+          intensity={1.6}
+          position={[0, 1, 9]}
+          rotation-y={Math.PI}
+          scale={[10, 4, 1]}
+        />
       </Environment>
     </>
   );
@@ -118,13 +126,31 @@ export function ParallaxRig({
   return <group ref={group}>{children}</group>;
 }
 
+function CoinRim({ y }: { y: number }) {
+  return (
+    <mesh rotation={[Math.PI / 2, 0, 0]} position={[0, y, 0]}>
+      <torusGeometry args={[0.35, 0.022, 16, 72]} />
+      <meshStandardMaterial color="#F6DDA4" metalness={1} roughness={0.16} />
+    </mesh>
+  );
+}
+
+/** Minted coin: polished rims around a brushed face. */
 export function GoldCoin({ position, scale = 1 }: { position: Vec3; scale?: number }) {
   return (
-    <Float speed={2.2} rotationIntensity={1.4} floatIntensity={1.2} position={position}>
-      <mesh rotation={[Math.PI / 2.4, 0, 0]} scale={scale}>
-        <cylinderGeometry args={[0.38, 0.38, 0.08, 48]} />
-        <meshStandardMaterial color={GOLD} metalness={1} roughness={0.22} />
-      </mesh>
+    <Float speed={2} rotationIntensity={1.1} floatIntensity={1.1} position={position}>
+      <group rotation={[Math.PI / 2.3, 0.35, 0]} scale={scale}>
+        <mesh>
+          <cylinderGeometry args={[0.42, 0.42, 0.09, 72]} />
+          <meshStandardMaterial color={GOLD} metalness={1} roughness={0.3} envMapIntensity={1.4} />
+        </mesh>
+        <mesh>
+          <cylinderGeometry args={[0.2, 0.2, 0.11, 48]} />
+          <meshStandardMaterial color="#C3923A" metalness={1} roughness={0.42} />
+        </mesh>
+        <CoinRim y={0.046} />
+        <CoinRim y={-0.046} />
+      </group>
     </Float>
   );
 }

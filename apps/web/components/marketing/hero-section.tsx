@@ -51,7 +51,7 @@ export function HeroSection() {
           </p>
         </div>
 
-        <HeroVisual className="mx-auto max-w-[460px]" />
+        <HeroVisual className="mx-auto max-w-[520px]" />
       </div>
     </section>
   );

@@ -2,38 +2,25 @@
 
 import { useState } from 'react';
 import dynamic from 'next/dynamic';
-import { CheckCheck, Gift } from 'lucide-react';
-import { LiquidLogo } from '@/components/brand/liquid-logo';
 import { useVisualQuality } from '@/components/visual/use-visual-quality';
 import { cn } from '@/lib/utils';
+import { PhoneChatScreen } from './phone-chat-screen';
+import { CampaignCard, LoyaltyCard, ReturnCard } from './hero-float-cards';
 
 const HeroScene = dynamic(() => import('@/components/visual/hero-scene'), { ssr: false });
 
-function PhoneMockup() {
+/** Same composition as the 3D scene, flat: shown on mobile, reduced motion and while WebGL loads. */
+function StaticComposition() {
   return (
-    <div className="glass-liquid mx-auto flex h-full max-h-[520px] w-full max-w-[270px] flex-col rounded-[2.5rem] p-3 shadow-glow-lg">
-      <div className="flex flex-1 flex-col overflow-hidden rounded-[2rem] bg-black/45">
-        <div className="flex items-center gap-2.5 border-b border-white/[0.08] px-4 py-3">
-          <LiquidLogo size={30} />
-          <div className="min-w-0">
-            <p className="text-sm font-semibold leading-none">Loyala AI</p>
-            <p className="mt-1 text-[10px] text-primary">en ligne</p>
-          </div>
-        </div>
-        <div className="flex flex-1 flex-col justify-end gap-2.5 p-3 text-[12px] leading-snug">
-          <p className="max-w-[85%] self-start rounded-2xl rounded-bl-md bg-white/[0.08] px-3 py-2">
-            Bonjour Awa 👋 Ça fait 3 semaines ! Votre plat préféré vous attend ce week-end 🍲
-          </p>
-          <p className="flex max-w-[80%] items-end gap-1 self-end rounded-2xl rounded-br-md bg-primary/85 px-3 py-2 text-primary-foreground">
-            Super, je réserve pour samedi !
-            <CheckCheck className="h-3 w-3 shrink-0 opacity-80" />
-          </p>
-          <p className="flex items-center gap-2 self-start rounded-2xl border border-gold/30 bg-gold/10 px-3 py-2 text-gold">
-            <Gift className="h-3.5 w-3.5" />
-            Visite enregistrée · +50 points
-          </p>
+    <div className="relative origin-center scale-[0.66] sm:scale-90 xl:scale-100">
+      <div className="rounded-[2.6rem] bg-gradient-to-b from-[#2C4636] via-[#14231a] to-[#0b140f] p-[3px] shadow-[0_40px_80px_-30px_rgba(0,0,0,0.95),0_0_60px_-20px_hsl(var(--primary)/0.5)]">
+        <div className="rounded-[2.45rem] bg-black p-[7px]">
+          <PhoneChatScreen />
         </div>
       </div>
+      <ReturnCard className="absolute -right-24 top-16 hidden sm:flex" />
+      <CampaignCard className="absolute -left-28 top-[45%] hidden sm:flex" />
+      <LoyaltyCard className="absolute -right-20 bottom-16 hidden sm:flex" />
     </div>
   );
 }
@@ -44,14 +31,18 @@ export function HeroVisual({ className }: { className?: string }) {
   const full = quality === 'full';
 
   return (
-    <div className={cn('relative aspect-[4/5] w-full', className)}>
+    <div className={cn('relative aspect-[9/10] w-full', className)}>
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-[12%] rounded-full bg-[radial-gradient(closest-side,hsl(var(--primary)/0.28),transparent)] blur-2xl"
+      />
       <div
         className={cn(
-          'absolute inset-0 flex items-center justify-center p-6 transition-opacity duration-700',
+          'absolute inset-0 flex items-center justify-center transition-opacity duration-700',
           full && sceneReady && 'pointer-events-none opacity-0'
         )}
       >
-        <PhoneMockup />
+        <StaticComposition />
       </div>
       {full && (
         <HeroScene
