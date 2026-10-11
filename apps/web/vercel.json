@@ -5,7 +5,7 @@
     {
       "source": "/:path*",
       "has": [{ "type": "host", "value": "loyala-ai-web.vercel.app" }],
-      "destination": "https://fmagence.online/:path*",
+      "destination": "https://loyala.fmagence.com/:path*",
       "permanent": true
     }
   ],

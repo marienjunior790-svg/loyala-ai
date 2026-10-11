@@ -1,9 +1,12 @@
 /** Official production origin — custom domain on Vercel. */
-export const PRODUCTION_APP_ORIGIN = 'https://fmagence.online';
+export const PRODUCTION_APP_ORIGIN = 'https://loyala.fmagence.com';
+
+/** Former production hosts, no longer served by this app. */
+const LEGACY_HOSTS = new Set(['fmagence.online', 'www.fmagence.online']);
 
 /**
  * Public app URL for metadata, sitemap, robots, and fallbacks when env is unset.
- * Production builds must set NEXT_PUBLIC_APP_URL=https://fmagence.online on Vercel.
+ * Production builds must set NEXT_PUBLIC_APP_URL=https://loyala.fmagence.com on Vercel.
  */
 export function getPublicAppUrl(): string {
   if (process.env.NEXT_PUBLIC_APP_URL) {
@@ -22,16 +25,16 @@ export function getPublicAppUrl(): string {
 }
 
 /**
- * Origin used in Auth emails (reset / confirm). Prefer www production host so
- * apex → www 308 redirects do not drop recovery fragments, and avoid preview
- * *.vercel.app hosts when APP_URL / SITE_URL is configured.
+ * Origin used in Auth emails (reset / confirm). Links must point straight at the production
+ * host: a host redirect would drop the recovery fragment. Legacy hosts are rewritten so a stale
+ * APP_URL / SITE_URL still yields working links.
  */
 export function getAuthEmailOrigin(): string {
   const base = getPublicAppUrl();
   try {
     const u = new URL(base);
-    if (u.hostname === 'fmagence.online') {
-      u.hostname = 'www.fmagence.online';
+    if (LEGACY_HOSTS.has(u.hostname)) {
+      return PRODUCTION_APP_ORIGIN;
     }
     return u.origin;
   } catch {

@@ -155,7 +155,7 @@ async function fetchExternalImage(
 
   const headers = {
     Accept: 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8',
-    'User-Agent': 'LoyalaAI-Catalog/1.0 (menu photos; https://fmagence.online)',
+    'User-Agent': 'LoyalaAI-Catalog/1.0 (menu photos; https://loyala.fmagence.com)',
   };
 
   async function once(): Promise<Response> {

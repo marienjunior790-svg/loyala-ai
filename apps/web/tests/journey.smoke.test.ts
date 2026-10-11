@@ -132,7 +132,7 @@ describe('User journey smoke tests', () => {
 });
 
 describe('Production health checks', () => {
-  const productionOrigin = process.env.PRODUCTION_SMOKE_URL ?? 'https://fmagence.online';
+  const productionOrigin = process.env.PRODUCTION_SMOKE_URL ?? 'https://loyala.fmagence.com';
 
   it('login page is reachable', async () => {
     const res = await fetch(`${productionOrigin}/login`, {

@@ -252,7 +252,7 @@ async function fetchOpenversePage(query: string): Promise<OpenverseRaw[]> {
     res = await fetch(url.toString(), {
       headers: {
         Accept: 'application/json',
-        'User-Agent': 'LoyalaAI-Catalog/1.0 (menu photos; https://fmagence.online)',
+        'User-Agent': 'LoyalaAI-Catalog/1.0 (menu photos; https://loyala.fmagence.com)',
       },
       signal: AbortSignal.timeout(12_000),
       cache: 'no-store',
@@ -267,7 +267,7 @@ async function fetchOpenversePage(query: string): Promise<OpenverseRaw[]> {
       res = await fetch(url.toString(), {
         headers: {
           Accept: 'application/json',
-          'User-Agent': 'LoyalaAI-Catalog/1.0 (menu photos; https://fmagence.online)',
+          'User-Agent': 'LoyalaAI-Catalog/1.0 (menu photos; https://loyala.fmagence.com)',
         },
         signal: AbortSignal.timeout(12_000),
         cache: 'no-store',
