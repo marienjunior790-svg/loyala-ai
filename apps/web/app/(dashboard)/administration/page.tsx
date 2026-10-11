@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 import { requireAuth } from '@/lib/auth/guard';
+import { getSession } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
 import { getOrganization, listOrganizationMembers } from '@loyala/domain-crm';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { ModuleError } from '@/components/dashboard/module-error';
 import { resolveOrgRole } from '@/lib/auth/role-map';
 import { planLabel, planStatusLabel, roleLabel } from '@/lib/labels';
+import { getCountryOption } from '@/lib/countries';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,9 +24,10 @@ export default async function AdministrationPage() {
   const supabase = await createClient();
 
   try {
-    const [org, members] = await Promise.all([
+    const [org, members, user] = await Promise.all([
       getOrganization(supabase, ctx.organizationId),
       listOrganizationMembers(supabase, ctx.organizationId),
+      getSession(),
     ]);
 
     return (
@@ -50,7 +53,8 @@ export default async function AdministrationPage() {
                 <code className="text-xs">{org?.slug}</code>
               </p>
               <p>
-                <span className="text-muted-foreground">Pays :</span> {org?.country_code}
+                <span className="text-muted-foreground">Pays :</span>{' '}
+                {getCountryOption(org?.country_code ?? '')?.label ?? org?.country_code}
               </p>
               <p>
                 <span className="text-muted-foreground">Plan :</span> {planLabel(org?.plan)} (
@@ -64,12 +68,27 @@ export default async function AdministrationPage() {
               <CardTitle>Équipe active</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              {members.map((m) => (
-                <div key={m.user_id} className="flex items-center justify-between text-sm">
-                  <code className="text-xs">{m.user_id.slice(0, 8)}…</code>
-                  <Badge variant="secondary">{roleLabel(resolveOrgRole(m.role_code))}</Badge>
-                </div>
-              ))}
+              {members.map((m) => {
+                const isMe = m.user_id === ctx.userId;
+                return (
+                  <div key={m.user_id} className="flex items-center justify-between gap-3 text-sm">
+                    <div className="min-w-0">
+                      <p className="truncate font-medium">
+                        {isMe ? (user?.email ?? 'Vous') : 'Membre de l’équipe'}
+                        {isMe && <span className="ml-1.5 text-muted-foreground">(vous)</span>}
+                      </p>
+                      {m.joined_at && (
+                        <p className="text-xs text-muted-foreground">
+                          Depuis le {new Date(m.joined_at).toLocaleDateString('fr-FR')}
+                        </p>
+                      )}
+                    </div>
+                    <Badge variant="secondary" className="shrink-0">
+                      {roleLabel(resolveOrgRole(m.role_code))}
+                    </Badge>
+                  </div>
+                );
+              })}
               {members.length === 0 && (
                 <p className="text-sm text-muted-foreground">Aucun membre visible</p>
               )}
