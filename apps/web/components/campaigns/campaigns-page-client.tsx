@@ -20,6 +20,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { WorkerIntegrationStatus } from '@/components/worker/worker-integration-status';
+import { campaignStatusLabel, campaignTypeLabel } from '@/lib/labels';
 import {
   generateInactiveCampaignAction,
   generateBirthdayCampaignAction,
@@ -348,8 +349,8 @@ export function CampaignsPageClient({
                   <div className="space-y-1">
                     <CardTitle className="text-base">{c.name}</CardTitle>
                     <div className="flex flex-wrap gap-2">
-                      <Badge variant="secondary">{c.type}</Badge>
-                      <Badge variant={statusVariant(c.status)}>{c.status}</Badge>
+                      <Badge variant="secondary">{campaignTypeLabel(c.type)}</Badge>
+                      <Badge variant={statusVariant(c.status)}>{campaignStatusLabel(c.status)}</Badge>
                       {c.scheduled_at && (
                         <Badge variant="outline">
                           {new Date(c.scheduled_at).toLocaleString('fr-FR')}

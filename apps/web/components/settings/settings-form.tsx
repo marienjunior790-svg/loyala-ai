@@ -23,6 +23,7 @@ export function SettingsForm({ org }: { org: Organization }) {
     (org.settings as Record<string, unknown>)?.google_review_auto_request !== false;
   const [countryCode, setCountryCode] = useState(org.country_code || 'CG');
   const country = useMemo(() => getCountryOption(countryCode), [countryCode]);
+  const [logoName, setLogoName] = useState<string | null>(null);
 
   return (
     <form action={action} className="space-y-6" encType="multipart/form-data">
@@ -102,8 +103,22 @@ export function SettingsForm({ org }: { org: Organization }) {
             Demander automatiquement un avis Google après chaque visite
           </label>
           <div>
-            <label className="text-sm text-muted-foreground">Logo (Supabase Storage)</label>
-            <Input name="logo" type="file" accept="image/*" className="mt-1" />
+            <span className="text-sm text-muted-foreground">Logo du restaurant</span>
+            <label className="mt-1 flex cursor-pointer items-center gap-3 rounded-md border border-input bg-background/40 px-3 py-2 text-sm transition-colors hover:border-primary/50 focus-within:ring-2 focus-within:ring-ring">
+              <span className="rounded-md bg-primary/15 px-2.5 py-1 font-medium text-primary">
+                Choisir une image
+              </span>
+              <span className="truncate text-muted-foreground">
+                {logoName ?? 'Aucun fichier sélectionné'}
+              </span>
+              <input
+                name="logo"
+                type="file"
+                accept="image/*"
+                className="sr-only"
+                onChange={(e) => setLogoName(e.target.files?.[0]?.name ?? null)}
+              />
+            </label>
           </div>
           <Button type="submit" disabled={pending}>
             {pending ? 'Enregistrement...' : 'Enregistrer'}

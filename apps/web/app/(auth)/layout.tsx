@@ -13,7 +13,11 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
     <main className="flex min-h-screen flex-col items-center justify-center gap-8 px-4 py-10">
       <AuthBackdrop3D />
       <Link href="/" aria-label="Loyala AI — accueil" className="rounded-2xl">
-        <BrandLockup size={84} priority />
+        <BrandLockup
+          size={84}
+          priority
+          className="[filter:drop-shadow(0_0_10px_rgba(0,0,0,0.9))_drop-shadow(0_0_28px_rgba(0,0,0,0.7))]"
+        />
       </Link>
       <AuthGlassCard>{children}</AuthGlassCard>
       <p className="text-xs text-muted-foreground">© {new Date().getFullYear()} Loyala AI · Dakar</p>

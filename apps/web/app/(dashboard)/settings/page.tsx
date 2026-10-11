@@ -6,6 +6,7 @@ import { SettingsForm } from '@/components/settings/settings-form';
 import { WhatsAppBusinessSettings } from '@/components/settings/whatsapp-business-settings';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ModuleError } from '@/components/dashboard/module-error';
+import { roleLabel } from '@/lib/labels';
 
 export const dynamic = 'force-dynamic';
 
@@ -56,7 +57,7 @@ export default async function SettingsPage() {
           </CardContent>
         </Card>
 
-        <p className="text-xs text-muted-foreground">Rôle actuel : {ctx.role}</p>
+        <p className="text-xs text-muted-foreground">Rôle actuel : {roleLabel(ctx.role)}</p>
       </div>
     );
   } catch (e) {

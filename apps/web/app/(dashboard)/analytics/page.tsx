@@ -3,6 +3,7 @@ import { requireAuth } from '@/lib/auth/guard';
 import { getDashboardMetrics } from '@/lib/dashboard/metrics';
 import { getSegmentBreakdown } from '@/lib/dashboard/charts';
 import { createClient } from '@/lib/supabase/server';
+import { segmentLabel } from '@/lib/labels';
 import { KpiGrid } from '@/components/dashboard/kpi-card';
 import { AnalyticsPanel } from '@/components/dashboard/analytics-panel';
 import { DashboardOverviewSkeleton } from '@/components/dashboard/dashboard-skeleton';
@@ -62,7 +63,7 @@ async function AnalyticsContent() {
                 className="rounded-lg border border-border p-3 text-center hover:border-primary/30"
               >
                 <p className="text-2xl font-semibold">{s.count}</p>
-                <p className="text-xs capitalize text-muted-foreground">{s.segment}</p>
+                <p className="text-xs text-muted-foreground">{segmentLabel(s.segment)}</p>
               </Link>
             ))}
           </div>

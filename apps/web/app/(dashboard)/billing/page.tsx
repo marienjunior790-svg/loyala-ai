@@ -13,6 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ModuleError } from '@/components/dashboard/module-error';
+import { planStatusLabel } from '@/lib/labels';
 
 export const dynamic = 'force-dynamic';
 
@@ -70,7 +71,7 @@ export default async function BillingPage() {
               {BILLING_PLANS.find((p) => p.code === planCode)?.name ?? planCode}
             </p>
             <Badge variant={org?.plan_status === 'active' ? 'success' : 'secondary'}>
-              {org?.plan_status ?? 'trialing'}
+              {planStatusLabel(org?.plan_status ?? 'trialing')}
             </Badge>
           </div>
           {subscription?.current_period_end && (
@@ -81,7 +82,8 @@ export default async function BillingPage() {
           )}
           {!billingEnabled && (
             <p className="text-sm text-amber-500">
-              Paiements OpenPay non activés en production (`BILLING_ENABLED`).
+              Le paiement en ligne par Mobile Money arrive bientôt. Contactez-nous pour passer au plan
+              Pro dès maintenant.
             </p>
           )}
         </CardContent>

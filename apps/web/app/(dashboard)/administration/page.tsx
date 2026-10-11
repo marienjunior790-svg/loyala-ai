@@ -5,6 +5,8 @@ import { getOrganization, listOrganizationMembers } from '@loyala/domain-crm';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ModuleError } from '@/components/dashboard/module-error';
+import { resolveOrgRole } from '@/lib/auth/role-map';
+import { planLabel, planStatusLabel, roleLabel } from '@/lib/labels';
 
 export const dynamic = 'force-dynamic';
 
@@ -51,7 +53,8 @@ export default async function AdministrationPage() {
                 <span className="text-muted-foreground">Pays :</span> {org?.country_code}
               </p>
               <p>
-                <span className="text-muted-foreground">Plan :</span> {org?.plan} ({org?.plan_status})
+                <span className="text-muted-foreground">Plan :</span> {planLabel(org?.plan)} (
+                {planStatusLabel(org?.plan_status)})
               </p>
             </CardContent>
           </Card>
@@ -64,7 +67,7 @@ export default async function AdministrationPage() {
               {members.map((m) => (
                 <div key={m.user_id} className="flex items-center justify-between text-sm">
                   <code className="text-xs">{m.user_id.slice(0, 8)}…</code>
-                  <Badge variant="secondary">{m.role_code?.replace('org_', '') ?? '—'}</Badge>
+                  <Badge variant="secondary">{roleLabel(resolveOrgRole(m.role_code))}</Badge>
                 </div>
               ))}
               {members.length === 0 && (

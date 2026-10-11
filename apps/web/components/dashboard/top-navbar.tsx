@@ -4,10 +4,11 @@ import Link from 'next/link';
 import { Menu, Bell, Search, LogOut } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { useLiquidGlass } from '@/components/glass/use-liquid-glass';
 import { logoutAction } from '@/app/(auth)/_actions/auth';
 import { cn } from '@/lib/utils';
+import { resolveOrgRole } from '@/lib/auth/role-map';
+import { roleLabel } from '@/lib/labels';
 
 interface TopNavbarProps {
   title: string;
@@ -25,6 +26,7 @@ export function TopNavbar({
   onMenuClick,
 }: TopNavbarProps) {
   const { rootRef, glassRef, mirror, active } = useLiquidGlass<HTMLElement>();
+  const roleName = role ? roleLabel(resolveOrgRole(role)) : 'Membre';
 
   return (
     <header ref={rootRef} className="sticky top-0 z-30 px-3 pt-3 lg:pl-0">
@@ -83,19 +85,10 @@ export function TopNavbar({
           <div className="hidden items-center gap-2 sm:flex">
             <Avatar className="ring-1 ring-primary/30">
               <AvatarFallback className="bg-primary/15 text-primary">
-                {(role ?? 'U').slice(0, 2).toUpperCase()}
+                {roleName.slice(0, 2).toUpperCase()}
               </AvatarFallback>
             </Avatar>
-            <div className="hidden md:block">
-              <p className="text-sm font-medium leading-none capitalize">
-                {role?.replace('org_', '') ?? 'Membre'}
-              </p>
-              {role && (
-                <Badge variant="secondary" className="mt-1 text-[10px]">
-                  {role}
-                </Badge>
-              )}
-            </div>
+            <p className="hidden text-sm font-medium leading-none md:block">{roleName}</p>
           </div>
 
           <form action={logoutAction}>
