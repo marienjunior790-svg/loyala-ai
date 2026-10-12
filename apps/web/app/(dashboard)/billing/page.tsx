@@ -6,7 +6,6 @@ import {
   BILLING_PLANS,
   PUBLIC_BILLING_PLANS,
   formatEur,
-  formatFcfa,
   getActiveSubscription,
   normalizePlanCode,
 } from '@loyala/domain-billing';
@@ -116,11 +115,11 @@ export default async function BillingPage() {
                     {plan.amountXaf === 0 ? ' pour toujours' : ' / mois'}
                   </span>
                 </p>
-                {plan.amountXaf > 0 && (
-                  <p className="text-xs text-muted-foreground">
-                    soit {formatFcfa(plan.amountXaf)} en Mobile Money
-                  </p>
-                )}
+                <p className="text-xs text-muted-foreground">
+                  {plan.amountXaf > 0
+                    ? 'Sans engagement, résiliable à tout moment'
+                    : 'Sans carte bancaire'}
+                </p>
               </CardHeader>
               <CardContent className="space-y-4">
                 <ul className="space-y-1 text-sm text-muted-foreground">
