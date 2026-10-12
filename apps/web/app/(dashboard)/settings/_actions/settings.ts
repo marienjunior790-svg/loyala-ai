@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { requireAuth } from '@/lib/auth/guard';
 import { hasPermission } from '@loyala/core-iam';
 import { createClient } from '@/lib/supabase/server';
-import { updateOrganization } from '@loyala/domain-crm';
+import { updateMyProfile, updateOrganization } from '@loyala/domain-crm';
 import { uploadOrgLogo } from '@loyala/integrations';
 
 export type SettingsActionState = { error?: string; success?: string };
@@ -71,5 +71,28 @@ export async function updateOrganizationSettingsAction(
     return { success: 'Paramètres enregistrés' };
   } catch (e) {
     return { error: e instanceof Error ? e.message : 'Erreur sauvegarde' };
+  }
+}
+
+export async function updateProfileAction(
+  _prev: SettingsActionState,
+  formData: FormData
+): Promise<SettingsActionState> {
+  await requireAuth();
+  const fullName = String(formData.get('fullName') ?? '').trim();
+  if (fullName.length > 120) return { error: 'Nom trop long (120 caractères max)' };
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: 'Session expirée' };
+
+  try {
+    await updateMyProfile(supabase, { id: user.id, email: user.email }, { fullName });
+    revalidatePath('/', 'layout');
+    return { success: 'Profil enregistré' };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : 'Erreur sauvegarde profil' };
   }
 }

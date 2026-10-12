@@ -14,6 +14,7 @@ interface DashboardShellProps {
   title: string;
   subtitle?: string;
   role?: string;
+  displayName?: string;
   unreadNotifications?: number;
 }
 
@@ -22,6 +23,7 @@ export function DashboardShell({
   title,
   subtitle,
   role,
+  displayName,
   unreadNotifications = 0,
 }: DashboardShellProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -74,6 +76,7 @@ export function DashboardShell({
           title={title}
           subtitle={subtitle}
           role={role}
+          displayName={displayName}
           unreadNotifications={unreadNotifications}
           onMenuClick={() => setMobileOpen(true)}
         />

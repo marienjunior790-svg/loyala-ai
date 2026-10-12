@@ -14,14 +14,22 @@ interface TopNavbarProps {
   title: string;
   subtitle?: string;
   role?: string;
+  displayName?: string;
   unreadNotifications?: number;
   onMenuClick?: () => void;
+}
+
+function initials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  const letters = parts.length > 1 ? parts[0][0] + parts[parts.length - 1][0] : name.slice(0, 2);
+  return letters.toUpperCase();
 }
 
 export function TopNavbar({
   title,
   subtitle,
   role,
+  displayName,
   unreadNotifications = 0,
   onMenuClick,
 }: TopNavbarProps) {
@@ -85,10 +93,15 @@ export function TopNavbar({
           <div className="hidden items-center gap-2 sm:flex">
             <Avatar className="ring-1 ring-primary/30">
               <AvatarFallback className="bg-primary/15 text-primary">
-                {roleName.slice(0, 2).toUpperCase()}
+                {initials(displayName ?? roleName)}
               </AvatarFallback>
             </Avatar>
-            <p className="hidden text-sm font-medium leading-none md:block">{roleName}</p>
+            <div className="hidden max-w-[160px] md:block">
+              <p className="truncate text-sm font-medium leading-none">{displayName ?? roleName}</p>
+              {displayName && (
+                <p className="mt-1 text-[11px] leading-none text-muted-foreground">{roleName}</p>
+              )}
+            </div>
           </div>
 
           <form action={logoutAction}>

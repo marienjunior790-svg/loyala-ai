@@ -1,7 +1,9 @@
 import { requireAuth } from '@/lib/auth/guard';
 import { hasPermission } from '@loyala/core-iam';
 import { createClient } from '@/lib/supabase/server';
-import { getOrganization, getWhatsAppConnectionPublic } from '@loyala/domain-crm';
+import { getSession } from '@/lib/auth/session';
+import { getMyProfile, getOrganization, getWhatsAppConnectionPublic } from '@loyala/domain-crm';
+import { ProfileForm } from '@/components/settings/profile-form';
 import { SettingsForm } from '@/components/settings/settings-form';
 import { WhatsAppBusinessSettings } from '@/components/settings/whatsapp-business-settings';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -21,7 +23,11 @@ export default async function SettingsPage() {
     const org = await getOrganization(supabase, ctx.organizationId);
     if (!org) return <ModuleError message="Organisation introuvable" />;
 
-    const connection = await getWhatsAppConnectionPublic(supabase, ctx.organizationId);
+    const [connection, user] = await Promise.all([
+      getWhatsAppConnectionPublic(supabase, ctx.organizationId),
+      getSession(),
+    ]);
+    const profile = await getMyProfile(supabase, ctx.userId).catch(() => null);
 
     return (
       <div className="space-y-6 animate-fade-in">
@@ -31,6 +37,8 @@ export default async function SettingsPage() {
             Configuration de votre restaurant
           </p>
         </div>
+
+        <ProfileForm fullName={profile?.full_name ?? ''} email={user?.email ?? ''} />
 
         <SettingsForm org={org} />
 

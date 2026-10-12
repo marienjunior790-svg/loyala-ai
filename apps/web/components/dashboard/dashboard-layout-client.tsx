@@ -34,12 +34,14 @@ function resolvePageMeta(pathname: string) {
 interface DashboardLayoutClientProps {
   children: React.ReactNode;
   role?: string;
+  displayName?: string;
   unreadNotifications?: number;
 }
 
 export function DashboardLayoutClient({
   children,
   role,
+  displayName,
   unreadNotifications = 0,
 }: DashboardLayoutClientProps) {
   const pathname = usePathname();
@@ -50,6 +52,7 @@ export function DashboardLayoutClient({
       title={title}
       subtitle={subtitle}
       role={role}
+      displayName={displayName}
       unreadNotifications={unreadNotifications}
     >
       {children}

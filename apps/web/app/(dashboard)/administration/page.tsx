@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation';
 import { requireAuth } from '@/lib/auth/guard';
 import { getSession } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
-import { getOrganization, listOrganizationMembers } from '@loyala/domain-crm';
+import { getOrganization, listOrganizationTeam } from '@loyala/domain-crm';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ModuleError } from '@/components/dashboard/module-error';
@@ -26,7 +26,7 @@ export default async function AdministrationPage() {
   try {
     const [org, members, user] = await Promise.all([
       getOrganization(supabase, ctx.organizationId),
-      listOrganizationMembers(supabase, ctx.organizationId),
+      listOrganizationTeam(supabase, ctx.organizationId),
       getSession(),
     ]);
 
@@ -70,18 +70,25 @@ export default async function AdministrationPage() {
             <CardContent className="space-y-3">
               {members.map((m) => {
                 const isMe = m.user_id === ctx.userId;
+                const email = m.email ?? (isMe ? user?.email : null);
+                const name = m.full_name ?? email ?? 'Membre de l’équipe';
                 return (
                   <div key={m.user_id} className="flex items-center justify-between gap-3 text-sm">
                     <div className="min-w-0">
                       <p className="truncate font-medium">
-                        {isMe ? (user?.email ?? 'Vous') : 'Membre de l’équipe'}
+                        {name}
                         {isMe && <span className="ml-1.5 text-muted-foreground">(vous)</span>}
                       </p>
-                      {m.joined_at && (
-                        <p className="text-xs text-muted-foreground">
-                          Depuis le {new Date(m.joined_at).toLocaleDateString('fr-FR')}
-                        </p>
-                      )}
+                      <p className="truncate text-xs text-muted-foreground">
+                        {[
+                          m.full_name ? email : null,
+                          m.joined_at
+                            ? `Depuis le ${new Date(m.joined_at).toLocaleDateString('fr-FR')}`
+                            : null,
+                        ]
+                          .filter(Boolean)
+                          .join(' · ')}
+                      </p>
                     </div>
                     <Badge variant="secondary" className="shrink-0">
                       {roleLabel(resolveOrgRole(m.role_code))}

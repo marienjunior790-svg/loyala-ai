@@ -3,6 +3,7 @@ export * from './whatsapp-connections';
 export * from './clients';
 export * from './segments';
 export * from './organizations';
+export * from './profiles';
 export * from './campaigns';
 export * from './campaign-automation';
 export * from './scheduled-campaigns';

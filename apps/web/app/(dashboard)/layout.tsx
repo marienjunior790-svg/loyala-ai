@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { getAuthContext } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
-import { countUnreadNotifications } from '@loyala/domain-crm';
+import { countUnreadNotifications, getMyProfile } from '@loyala/domain-crm';
 import { DashboardLayoutClient } from '@/components/dashboard/dashboard-layout-client';
 
 export const metadata: Metadata = {
@@ -11,19 +11,22 @@ export const metadata: Metadata = {
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const ctx = await getAuthContext();
   let unreadNotifications = 0;
+  let displayName: string | undefined;
 
   if (ctx?.userId) {
-    try {
-      const supabase = await createClient();
-      unreadNotifications = await countUnreadNotifications(supabase, ctx.userId);
-    } catch {
-      unreadNotifications = 0;
-    }
+    const supabase = await createClient();
+    const [unread, profile] = await Promise.all([
+      countUnreadNotifications(supabase, ctx.userId).catch(() => 0),
+      getMyProfile(supabase, ctx.userId).catch(() => null),
+    ]);
+    unreadNotifications = unread;
+    displayName = profile?.full_name ?? undefined;
   }
 
   return (
     <DashboardLayoutClient
       role={ctx?.role}
+      displayName={displayName}
       unreadNotifications={unreadNotifications}
     >
       {children}
