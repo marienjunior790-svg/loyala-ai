@@ -41,7 +41,7 @@ export function HeroSection() {
             </Button>
             <Button size="lg" variant="glass" className="h-12 rounded-full px-8 text-base" asChild>
               <Link href="/signup">
-                Essai gratuit 24 heures
+                Créer mon compte gratuit
                 <ArrowRight className="ml-1 h-4 w-4" />
               </Link>
             </Button>

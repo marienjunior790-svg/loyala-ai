@@ -3,11 +3,7 @@ import { Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { PRICING_PLANS } from '@/lib/marketing/config';
-import { buildDemoBookingMessage, buildWhatsAppUrl } from '@/lib/whatsapp';
-import { DEMO_WHATSAPP } from '@/lib/marketing/config';
 import { cn } from '@/lib/utils';
-
-const demoUrl = buildWhatsAppUrl(DEMO_WHATSAPP, buildDemoBookingMessage());
 
 export function PricingSection() {
   return (
@@ -16,10 +12,11 @@ export function PricingSection() {
         <div className="mx-auto max-w-2xl text-center">
           <h2 className="text-3xl font-semibold tracking-tight">Tarifs simples, ROI clair</h2>
           <p className="mt-4 text-muted-foreground">
-            Un client qui revient paie votre abonnement. Pas de frais cachés.
+            Commencez gratuitement avec toutes les fonctionnalités. Passez à Pro quand vos
+            relances tournent à plein régime. Pas de frais cachés.
           </p>
         </div>
-        <div className="mt-16 mx-auto grid max-w-3xl gap-6 md:grid-cols-2">
+        <div className="mx-auto mt-16 grid max-w-5xl gap-6 md:grid-cols-3">
           {PRICING_PLANS.map((plan) => (
             <Card
               key={plan.id}
@@ -29,14 +26,21 @@ export function PricingSection() {
                   'glass-liquid bg-gradient-to-b from-primary/10 to-transparent shadow-glow-lg ring-1 ring-primary/25'
               )}
             >
-              {plan.highlighted && (
-                <span className="absolute -top-3 left-1/2 z-10 -translate-x-1/2 rounded-full bg-primary px-3 py-0.5 text-xs font-medium text-primary-foreground shadow-glow">
-                  Le plus choisi
+              {plan.badge && (
+                <span
+                  className={cn(
+                    'absolute -top-3 left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded-full px-3 py-0.5 text-xs font-medium',
+                    plan.highlighted
+                      ? 'bg-primary text-primary-foreground shadow-glow'
+                      : 'border border-amber-300/40 bg-amber-300/15 text-amber-200'
+                  )}
+                >
+                  {plan.badge}
                 </span>
               )}
               <CardContent className="flex flex-1 flex-col p-8">
                 <p className="text-sm font-medium text-muted-foreground">{plan.name}</p>
-                <div className="mt-4 flex items-baseline gap-1">
+                <div className="mt-4 flex items-baseline gap-1.5">
                   <span
                     className={cn(
                       'text-3xl font-semibold tracking-tight',
@@ -47,7 +51,8 @@ export function PricingSection() {
                   </span>
                   <span className="text-sm text-muted-foreground">{plan.period}</span>
                 </div>
-                <p className="mt-2 text-sm text-muted-foreground">{plan.description}</p>
+                <p className="mt-1 text-xs text-muted-foreground">{plan.priceNote}</p>
+                <p className="mt-3 text-sm text-muted-foreground">{plan.description}</p>
                 <ul className="mt-8 flex-1 space-y-3">
                   {plan.features.map((f) => (
                     <li key={f} className="flex items-start gap-2 text-sm">
@@ -61,13 +66,7 @@ export function PricingSection() {
                   variant={plan.highlighted ? 'default' : 'outline'}
                   asChild
                 >
-                  {plan.ctaType === 'demo' ? (
-                    <a href={demoUrl} target="_blank" rel="noopener noreferrer">
-                      {plan.cta}
-                    </a>
-                  ) : (
-                    <Link href={plan.href}>{plan.cta}</Link>
-                  )}
+                  <Link href={plan.href}>{plan.cta}</Link>
                 </Button>
               </CardContent>
             </Card>

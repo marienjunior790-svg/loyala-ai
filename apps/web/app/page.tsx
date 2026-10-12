@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { LandingPage } from '@/components/marketing/landing-page';
 import { SkipLink } from '@/components/ui/skip-link';
 import { getPublicAppUrl } from '@/lib/app-url';
+import { PUBLIC_BILLING_PLANS, xafToEur } from '@loyala/domain-billing';
 
 export const metadata: Metadata = {
   title: 'Accueil',
@@ -23,12 +24,13 @@ const jsonLd = {
   operatingSystem: 'Web',
   url: appUrl,
   description: 'CRM IA WhatsApp pour restaurants africains',
-  offers: {
+  offers: PUBLIC_BILLING_PLANS.map((plan) => ({
     '@type': 'Offer',
-    price: '0',
-    priceCurrency: 'XOF',
-    description: 'Essai gratuit 24 heures',
-  },
+    name: plan.name,
+    price: xafToEur(plan.amountXaf).toFixed(2),
+    priceCurrency: 'EUR',
+    description: plan.description,
+  })),
 };
 
 export default function HomePage() {

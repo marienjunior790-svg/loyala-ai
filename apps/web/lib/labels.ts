@@ -17,14 +17,14 @@ const ROLES: Record<string, string> = {
 };
 
 const PLANS: Record<string, string> = {
-  trial: 'Essai',
+  trial: 'Gratuit',
   free: 'Gratuit',
-  pro: 'Pro',
-  growth: 'Growth',
+  growth: 'Pro',
+  pro: 'Pro+',
 };
 
 const PLAN_STATUSES: Record<string, string> = {
-  trialing: 'Essai en cours',
+  trialing: 'Actif',
   active: 'Actif',
   past_due: 'Paiement en retard',
   canceled: 'Résilié',

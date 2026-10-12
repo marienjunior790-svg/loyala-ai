@@ -1,7 +1,8 @@
 import Link from 'next/link';
 import { requireAuth } from '@/lib/auth/guard';
 import { createClient } from '@/lib/supabase/server';
-import { listInvoices, formatFcfa } from '@loyala/domain-billing';
+import { listInvoices, formatEur, formatFcfa } from '@loyala/domain-billing';
+import { planLabel } from '@/lib/labels';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -51,7 +52,8 @@ export default async function BillingInvoicesPage() {
               <div>
                 <p className="font-medium">{String(inv.number)}</p>
                 <p className="text-xs text-muted-foreground">
-                  {inv.plan_code} · {formatFcfa(Number(inv.amount))} ·{' '}
+                  {planLabel(String(inv.plan_code))} · {formatEur(Number(inv.amount))} (
+                  {formatFcfa(Number(inv.amount))}) ·{' '}
                   {new Date(String(inv.issued_at)).toLocaleDateString('fr-FR')}
                 </p>
               </div>

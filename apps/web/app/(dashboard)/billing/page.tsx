@@ -4,6 +4,8 @@ import { createClient } from '@/lib/supabase/server';
 import { getOrganization } from '@loyala/domain-crm';
 import {
   BILLING_PLANS,
+  PUBLIC_BILLING_PLANS,
+  formatEur,
   formatFcfa,
   getActiveSubscription,
   normalizePlanCode,
@@ -82,53 +84,64 @@ export default async function BillingPage() {
           )}
           {!billingEnabled && (
             <p className="text-sm text-amber-500">
-              Le paiement en ligne par Mobile Money arrive bientôt. Contactez-nous pour passer au plan
-              Pro dès maintenant.
+              Le paiement en ligne par Mobile Money arrive bientôt. Contactez-nous pour passer à Pro
+              ou Pro+ dès maintenant.
             </p>
           )}
         </CardContent>
       </Card>
 
-      <div className="grid gap-4 md:grid-cols-2">
-        {BILLING_PLANS.filter((p) => p.publicOffer).map((plan) => (
-          <Card
-            key={plan.code}
-            className={
-              planCode === plan.code
-                ? 'border-primary/40'
-                : plan.highlighted
-                  ? 'border-primary/20'
-                  : ''
-            }
-          >
-            <CardHeader>
-              <CardTitle className="text-base">{plan.name}</CardTitle>
-              <p className="text-2xl font-bold">
-                {plan.amountXaf === 0 ? '0' : formatFcfa(plan.amountXaf).replace(' FCFA', '')}
-                <span className="text-sm font-normal text-muted-foreground">
-                  {' '}
-                  {plan.amountXaf === 0
-                    ? plan.periodDays <= 1
-                      ? '24 heures'
-                      : `${plan.periodDays} jours`
-                    : 'FCFA / mois'}
-                </span>
-              </p>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <ul className="space-y-1 text-sm text-muted-foreground">
-                {plan.features.slice(0, 4).map((f) => (
-                  <li key={f}>• {f}</li>
-                ))}
-              </ul>
-              {plan.code !== 'trial' && canManage && (
-                <Button asChild className="w-full" disabled={!billingEnabled}>
-                  <Link href={`/billing/checkout?plan=${plan.code}`}>Choisir {plan.name}</Link>
-                </Button>
-              )}
-            </CardContent>
-          </Card>
-        ))}
+      <div className="grid gap-4 md:grid-cols-3">
+        {PUBLIC_BILLING_PLANS.map((plan) => {
+          const current = planCode === plan.code;
+          return (
+            <Card
+              key={plan.code}
+              className={
+                current ? 'border-primary/40' : plan.highlighted ? 'border-primary/20' : ''
+              }
+            >
+              <CardHeader>
+                <div className="flex items-center justify-between gap-2">
+                  <CardTitle className="text-base">{plan.name}</CardTitle>
+                  {current ? (
+                    <Badge variant="success">Votre offre</Badge>
+                  ) : (
+                    plan.badge && <Badge variant="secondary">{plan.badge}</Badge>
+                  )}
+                </div>
+                <p className="text-2xl font-bold">
+                  {formatEur(plan.amountXaf)}
+                  <span className="text-sm font-normal text-muted-foreground">
+                    {plan.amountXaf === 0 ? ' pour toujours' : ' / mois'}
+                  </span>
+                </p>
+                {plan.amountXaf > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    soit {formatFcfa(plan.amountXaf)} en Mobile Money
+                  </p>
+                )}
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <ul className="space-y-1 text-sm text-muted-foreground">
+                  {plan.features.map((f) => (
+                    <li key={f}>• {f}</li>
+                  ))}
+                </ul>
+                {plan.amountXaf > 0 && !current && canManage && (
+                  <Button
+                    asChild
+                    className="w-full"
+                    variant={plan.highlighted ? 'default' : 'outline'}
+                    disabled={!billingEnabled}
+                  >
+                    <Link href={`/billing/checkout?plan=${plan.code}`}>Choisir {plan.name}</Link>
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
     </div>
   );

@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { requireAuth } from '@/lib/auth/guard';
 import { hasPermission } from '@loyala/core-iam';
-import { getPlan, formatFcfa, type PlanCode } from '@loyala/domain-billing';
+import { getPlan, formatEur, formatFcfa, type PlanCode } from '@loyala/domain-billing';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { CheckoutForm } from '@/components/billing/checkout-form';
@@ -41,7 +41,7 @@ export default async function CheckoutPage({
           <CheckoutForm
             planCode={planCode === 'growth' ? 'growth' : 'pro'}
             planName={plan.name}
-            amountLabel={formatFcfa(plan.amountXaf)}
+            amountLabel={`${formatEur(plan.amountXaf)} (${formatFcfa(plan.amountXaf)})`}
           />
         </CardContent>
       </Card>

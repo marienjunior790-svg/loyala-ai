@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { requireAuth } from '@/lib/auth/guard';
 import { createClient } from '@/lib/supabase/server';
-import { listPayments, formatFcfa } from '@loyala/domain-billing';
+import { listPayments, formatEur, formatFcfa } from '@loyala/domain-billing';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -49,7 +49,12 @@ export default async function BillingHistoryPage() {
               className="flex flex-wrap items-center justify-between gap-2 border-b border-border/50 py-2 text-sm last:border-0"
             >
               <div>
-                <p className="font-medium">{formatFcfa(Number(p.amount))}</p>
+                <p className="font-medium">
+                  {formatEur(Number(p.amount))}{' '}
+                  <span className="text-xs font-normal text-muted-foreground">
+                    ({formatFcfa(Number(p.amount))})
+                  </span>
+                </p>
                 <p className="text-xs text-muted-foreground">
                   {new Date(String(p.created_at)).toLocaleString('fr-FR')}
                   {p.phone ? ` · ${p.phone}` : ''}

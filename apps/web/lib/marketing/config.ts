@@ -1,5 +1,6 @@
 import {
   PUBLIC_BILLING_PLANS as DOMAIN_PLANS,
+  formatEur,
   formatFcfa,
 } from '@loyala/domain-billing';
 
@@ -15,23 +16,20 @@ export const DEMO_WHATSAPP = normalizeWhatsAppDigits(
   process.env.NEXT_PUBLIC_DEMO_WHATSAPP ?? '065719922'
 );
 
-function periodLabel(amountXaf: number, periodDays: number): string {
-  if (amountXaf === 0) {
-    return periodDays <= 1 ? '24 heures' : `${periodDays} jours`;
-  }
-  return 'FCFA / mois';
-}
-
-/** Marketing pricing — public offers only (Gratuit 24h + Pro). */
-export const PRICING_PLANS = DOMAIN_PLANS.map((plan) => ({
-  id: plan.code,
-  name: plan.name,
-  price: plan.amountXaf === 0 ? '0' : formatFcfa(plan.amountXaf).replace(' FCFA', ''),
-  period: periodLabel(plan.amountXaf, plan.periodDays),
-  description: plan.description,
-  features: [...plan.features],
-  cta: plan.code === 'trial' ? 'Démarrer gratuitement' : 'Choisir Pro',
-  href: plan.code === 'trial' ? '/signup' : '/billing/checkout?plan=pro',
-  ctaType: (plan.code === 'trial' ? 'signup' : 'signup') as 'signup' | 'demo',
-  highlighted: Boolean(plan.highlighted),
-}));
+/** Marketing pricing — Gratuit, Pro, Pro+ (prices in euros, charged in FCFA). */
+export const PRICING_PLANS = DOMAIN_PLANS.map((plan) => {
+  const free = plan.amountXaf === 0;
+  return {
+    id: plan.code,
+    name: plan.name,
+    price: formatEur(plan.amountXaf),
+    period: free ? 'pour toujours' : '/ mois',
+    priceNote: free ? 'Sans carte bancaire' : `soit ${formatFcfa(plan.amountXaf)} / mois`,
+    description: plan.description,
+    features: [...plan.features],
+    cta: free ? 'Créer mon compte gratuit' : `Choisir ${plan.name}`,
+    href: free ? '/signup' : `/billing/checkout?plan=${plan.code}`,
+    highlighted: Boolean(plan.highlighted),
+    badge: plan.badge,
+  };
+});
