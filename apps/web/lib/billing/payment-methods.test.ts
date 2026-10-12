@@ -19,4 +19,12 @@ describe('payment methods', () => {
     vi.stubEnv('PAYPAL_ENABLED', 'true');
     expect(isPaymentMethodLive('paypal')).toBe(true);
   });
+
+  it('needs both the flag and the Stripe key for cards', () => {
+    vi.stubEnv('STRIPE_SECRET_KEY', '');
+    vi.stubEnv('CARD_PAYMENTS_ENABLED', 'true');
+    expect(isPaymentMethodLive('card')).toBe(false);
+    vi.stubEnv('STRIPE_SECRET_KEY', 'sk_test_x');
+    expect(isPaymentMethodLive('card')).toBe(true);
+  });
 });

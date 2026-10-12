@@ -2,13 +2,14 @@
 
 import { useActionState, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { CreditCard, Landmark, MessageCircle, Smartphone, Wallet } from 'lucide-react';
+import { CreditCard, Landmark, Lock, MessageCircle, Smartphone, Wallet } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
   startCheckoutAction,
   type CheckoutActionState,
 } from '@/app/(dashboard)/billing/_actions/checkout';
+import { startCardCheckoutAction } from '@/app/(dashboard)/billing/_actions/stripe';
 import { PAYMENT_METHODS, type PaymentMethodId } from '@/lib/billing/payment-methods';
 import { cn } from '@/lib/utils';
 
@@ -47,12 +48,22 @@ export function CheckoutForm({
 }) {
   const router = useRouter();
   const [state, formAction, pending] = useActionState(startCheckoutAction, initial);
-  const [method, setMethod] = useState<PaymentMethodId>('mobile_money');
+  const [cardState, cardAction, cardPending] = useActionState(startCardCheckoutAction, initial);
+  const [method, setMethod] = useState<PaymentMethodId>(
+    liveMethods.includes('card') ? 'card' : 'mobile_money'
+  );
   const live = liveMethods.includes(method);
 
   useEffect(() => {
     if (state.redirectTo) router.push(state.redirectTo);
   }, [state.redirectTo, router]);
+
+  useEffect(() => {
+    const target = cardState.redirectTo;
+    if (!target) return;
+    if (target.startsWith('http')) window.location.assign(target);
+    else router.push(target);
+  }, [cardState.redirectTo, router]);
 
   return (
     <div className="space-y-5">
@@ -143,7 +154,24 @@ export function CheckoutForm({
         </form>
       )}
 
-      {(method === 'card' || method === 'paypal') && (
+      {method === 'card' && live && (
+        <form action={cardAction} className="space-y-4">
+          <input type="hidden" name="planCode" value={planCode} />
+          <p className="flex items-start gap-2 rounded-lg border border-border/70 bg-background/40 p-3 text-sm text-muted-foreground">
+            <Lock className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+            Vous allez être redirigé vers la page de paiement sécurisée Stripe : carte Visa ou
+            Mastercard, Apple Pay ou Google Pay. Prélèvement de {amountEur} chaque mois, résiliable
+            à tout moment depuis votre espace.
+          </p>
+          {cardState.error && <p className="text-sm text-destructive">{cardState.error}</p>}
+          {cardState.success && <p className="text-sm text-emerald-400">{cardState.success}</p>}
+          <Button type="submit" disabled={cardPending} className="w-full">
+            {cardPending ? 'Redirection…' : `Payer ${amountEur} par carte`}
+          </Button>
+        </form>
+      )}
+
+      {((method === 'card' && !live) || method === 'paypal') && (
         <div className="space-y-4">
           <p className="rounded-lg border border-border/70 bg-background/40 p-3 text-sm text-muted-foreground">
             {live

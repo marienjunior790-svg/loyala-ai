@@ -7,7 +7,9 @@ import {
   normalizePlanCode,
   formatFcfa,
   formatEur,
+  formatPaymentAmount,
   xafToEur,
+  xafToEurCents,
 } from './plans';
 
 describe('billing plans catalogue', () => {
@@ -45,5 +47,15 @@ describe('billing plans catalogue', () => {
     expect(xafToEur(655957)).toBe(1000);
     expect(formatEur(30000).replace(/\s/g, ' ')).toBe('45,73 €');
     expect(formatEur(0).replace(/\s/g, ' ')).toBe('0 €');
+  });
+
+  it('charges cards in euro cents', () => {
+    expect(xafToEurCents(30000)).toBe(4573);
+    expect(xafToEurCents(80000)).toBe(12196);
+  });
+
+  it('formats stored payment amounts by currency', () => {
+    expect(formatPaymentAmount(4573, 'EUR').replace(/\s/g, ' ')).toBe('45,73 €');
+    expect(formatPaymentAmount(30000, 'XAF').replace(/\s/g, ' ')).toBe('45,73 € (30 000 FCFA)');
   });
 });

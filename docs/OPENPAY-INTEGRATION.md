@@ -66,6 +66,18 @@ Webhooks/refunds/status **non documentés** sur openpay.cg → stubs typés. Col
 | Plan not updating | Apply 029; RPC `apply_openpay_payment_succeeded` |
 | Double pending | TTL 15 min anti-double dans `startCheckout` |
 
-## Purge Stripe
+## Carte bancaire, Apple Pay, Google Pay (Stripe)
 
-`STRIPE_SECRET_KEY` retiré de `packages/validation`. Ne pas réintroduire.
+Stripe Checkout hébergé, en abonnement mensuel en euros (`xafToEurCents`). Mobile Money reste sur OpenPay.
+
+| Variable Vercel | Rôle |
+|-----------------|------|
+| `STRIPE_SECRET_KEY` | Clé secrète Stripe (`sk_test_…` puis `sk_live_…`) |
+| `STRIPE_WEBHOOK_SECRET` | Secret de signature de l'endpoint webhook (`whsec_…`) |
+| `BILLING_WEBHOOK_SECRET` | Secret partagé avec la RPC `apply_stripe_billing_event` (migration 039) |
+| `CARD_PAYMENTS_ENABLED` | `true` pour afficher le paiement par carte |
+
+- Webhook Stripe : `https://loyala.fmagence.com/api/billing/stripe/webhook`, événements `invoice.paid`, `invoice.payment_failed`, `customer.subscription.updated`, `customer.subscription.deleted`.
+- La RPC n'accepte l'appel que si `sha256(BILLING_WEBHOOK_SECRET)` est présent dans `billing_webhook_secrets` (voir l'en-tête de la migration 039). Pas de clé `service_role` côté web.
+- Résiliation et changement de carte : portail client Stripe (bouton « Gérer ma carte ou résilier » sur `/billing`). Le portail doit être activé une fois dans le dashboard Stripe (Paramètres → Billing → Portail client).
+- Changement d'offre Pro ↔ Pro+ : mise à jour de l'abonnement Stripe existant, au prorata.

@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { requireAuth } from '@/lib/auth/guard';
 import { createClient } from '@/lib/supabase/server';
-import { listPayments, formatEur, formatFcfa } from '@loyala/domain-billing';
+import { listPayments, formatPaymentAmount } from '@loyala/domain-billing';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -26,7 +26,7 @@ export default async function BillingHistoryPage() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-semibold tracking-tight">Historique paiements</h2>
-          <p className="mt-1 text-sm text-muted-foreground">Transactions OpenPay Congo</p>
+          <p className="mt-1 text-sm text-muted-foreground">Mobile Money et carte bancaire</p>
         </div>
         <Button asChild variant="outline" size="sm">
           <Link href="/billing">← Abonnement</Link>
@@ -50,13 +50,11 @@ export default async function BillingHistoryPage() {
             >
               <div>
                 <p className="font-medium">
-                  {formatEur(Number(p.amount))}{' '}
-                  <span className="text-xs font-normal text-muted-foreground">
-                    ({formatFcfa(Number(p.amount))})
-                  </span>
+                  {formatPaymentAmount(Number(p.amount), p.currency as string | null)}
                 </p>
                 <p className="text-xs text-muted-foreground">
                   {new Date(String(p.created_at)).toLocaleString('fr-FR')}
+                  {` · ${p.provider === 'stripe' ? 'Carte bancaire' : 'Mobile Money'}`}
                   {p.phone ? ` · ${p.phone}` : ''}
                 </p>
               </div>

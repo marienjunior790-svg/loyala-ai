@@ -15,6 +15,9 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ModuleError } from '@/components/dashboard/module-error';
 import { planStatusLabel } from '@/lib/labels';
+import { isPaymentMethodLive } from '@/lib/billing/payment-methods';
+import { isStripeConfigured } from '@/lib/billing/stripe';
+import { ManageSubscriptionButton } from '@/components/billing/manage-subscription-button';
 
 export const dynamic = 'force-dynamic';
 
@@ -39,7 +42,8 @@ export default async function BillingPage() {
   }
 
   const planCode = normalizePlanCode(org?.plan);
-  const billingEnabled = process.env.BILLING_ENABLED === 'true';
+  const billingEnabled = process.env.BILLING_ENABLED === 'true' || isPaymentMethodLive('card');
+  const paidByCard = subscription?.provider === 'stripe';
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -47,7 +51,7 @@ export default async function BillingPage() {
         <div>
           <h2 className="text-2xl font-semibold tracking-tight">Paiement & abonnement</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            OpenPay Congo — Mobile Money (MTN / Airtel)
+            Mobile Money, carte bancaire, Apple Pay, Google Pay ou virement
           </p>
         </div>
         <div className="flex gap-2">
@@ -75,16 +79,26 @@ export default async function BillingPage() {
               {planStatusLabel(org?.plan_status ?? 'trialing')}
             </Badge>
           </div>
-          {subscription?.current_period_end && (
-            <p className="text-sm text-muted-foreground">
-              Période jusqu&apos;au{' '}
-              {new Date(String(subscription.current_period_end)).toLocaleDateString('fr-FR')}
+          {subscription?.cancel_at ? (
+            <p className="text-sm text-amber-500">
+              Résiliation prévue le{' '}
+              {new Date(String(subscription.cancel_at)).toLocaleDateString('fr-FR')} : votre offre
+              reste active jusqu&apos;à cette date.
             </p>
+          ) : (
+            subscription?.current_period_end && (
+              <p className="text-sm text-muted-foreground">
+                {paidByCard ? 'Prochain prélèvement le' : 'Période jusqu’au'}{' '}
+                {new Date(String(subscription.current_period_end)).toLocaleDateString('fr-FR')}
+                {paidByCard ? ' · carte bancaire' : ''}
+              </p>
+            )
           )}
+          {paidByCard && canManage && isStripeConfigured() && <ManageSubscriptionButton />}
           {!billingEnabled && (
             <p className="text-sm text-amber-500">
-              Le paiement en ligne par Mobile Money arrive bientôt. Contactez-nous pour passer à Pro
-              ou Pro+ dès maintenant.
+              Le paiement en ligne arrive bientôt. Contactez-nous pour passer à Pro ou Pro+ dès
+              maintenant.
             </p>
           )}
         </CardContent>

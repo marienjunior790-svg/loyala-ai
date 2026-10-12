@@ -107,12 +107,31 @@ export function xafToEur(amountXaf: number): number {
   return Math.round((amountXaf / XAF_PER_EUR) * 100) / 100;
 }
 
-export function formatEur(amountXaf: number): string {
-  const eur = xafToEur(amountXaf);
+/** Card payments are charged in euro cents. */
+export function xafToEurCents(amountXaf: number): number {
+  return Math.round(xafToEur(amountXaf) * 100);
+}
+
+function formatEurValue(eur: number): string {
   return new Intl.NumberFormat('fr-FR', {
     style: 'currency',
     currency: 'EUR',
     minimumFractionDigits: Number.isInteger(eur) ? 0 : 2,
     maximumFractionDigits: 2,
   }).format(eur);
+}
+
+export function formatEur(amountXaf: number): string {
+  return formatEurValue(xafToEur(amountXaf));
+}
+
+/**
+ * `payments.amount` / `invoices.amount` are stored in the charge currency's smallest unit:
+ * FCFA for Mobile Money (XAF), cents for card payments (EUR).
+ */
+export function formatPaymentAmount(amount: number, currency: string | null | undefined): string {
+  if ((currency ?? 'XAF').toUpperCase() === 'EUR') {
+    return formatEurValue(amount / 100);
+  }
+  return `${formatEur(amount)} (${formatFcfa(amount)})`;
 }

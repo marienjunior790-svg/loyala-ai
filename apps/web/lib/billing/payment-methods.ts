@@ -27,7 +27,9 @@ export const PAYMENT_BRANDS = [
 /** Card/PayPal stay "Bientôt" until a processor is configured. */
 export function isPaymentMethodLive(id: PaymentMethodId): boolean {
   if (id === 'mobile_money' || id === 'bank_transfer') return true;
-  if (id === 'card') return process.env.CARD_PAYMENTS_ENABLED === 'true';
+  if (id === 'card') {
+    return process.env.CARD_PAYMENTS_ENABLED === 'true' && Boolean(process.env.STRIPE_SECRET_KEY);
+  }
   return process.env.PAYPAL_ENABLED === 'true';
 }
 
