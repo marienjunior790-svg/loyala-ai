@@ -8,6 +8,8 @@ export interface BillingPlan {
   periodDays: number;
   description: string;
   features: string[];
+  /** Listed with a cross on pricing cards (not included in this plan). */
+  excludedFeatures?: string[];
   highlighted?: boolean;
   /** Short ribbon shown above the card (e.g. "Le plus choisi"). */
   badge?: string;
@@ -28,12 +30,12 @@ export const BILLING_PLANS: readonly BillingPlan[] = [
     periodDays: 0,
     description: 'Pour démarrer tout de suite, sans limite de durée',
     features: [
-      'Toutes les fonctionnalités incluses',
       'CRM clients et relances WhatsApp',
       'Campagnes, fidélité et avis Google',
-      'Tableau de bord et analytics',
+      'Tableau de bord',
       'Sans engagement, gratuit pour toujours',
     ],
+    excludedFeatures: ['Analyse IA'],
     publicOffer: true,
   },
   {
@@ -44,6 +46,7 @@ export const BILLING_PLANS: readonly BillingPlan[] = [
     description: 'Pour les restaurants qui relancent chaque semaine',
     features: [
       'Tout le plan Gratuit',
+      'Analyse IA',
       'Clients illimités',
       'Messages WhatsApp illimités',
       '1 numéro WhatsApp Business',

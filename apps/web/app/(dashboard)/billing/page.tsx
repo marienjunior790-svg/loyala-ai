@@ -126,6 +126,11 @@ export default async function BillingPage() {
                   {plan.features.map((f) => (
                     <li key={f}>• {f}</li>
                   ))}
+                  {plan.excludedFeatures?.map((f) => (
+                    <li key={f} className="text-muted-foreground/60">
+                      ✕ <span className="line-through">{f}</span>
+                    </li>
+                  ))}
                 </ul>
                 {plan.amountXaf > 0 && !current && canManage && (
                   <Button

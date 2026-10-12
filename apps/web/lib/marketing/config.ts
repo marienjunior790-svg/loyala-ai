@@ -23,6 +23,7 @@ export const PRICING_PLANS = DOMAIN_PLANS.map((plan) => {
     priceNote: free ? 'Sans carte bancaire' : 'Sans engagement, résiliable à tout moment',
     description: plan.description,
     features: [...plan.features],
+    excludedFeatures: [...(plan.excludedFeatures ?? [])],
     cta: free ? 'Créer mon compte gratuit' : `Choisir ${plan.name}`,
     href: free ? '/signup' : `/billing/checkout?plan=${plan.code}`,
     highlighted: Boolean(plan.highlighted),

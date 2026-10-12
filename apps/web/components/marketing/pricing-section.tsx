@@ -1,8 +1,9 @@
 import Link from 'next/link';
-import { Check } from 'lucide-react';
+import { Check, Lock, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { PRICING_PLANS } from '@/lib/marketing/config';
+import { PAYMENT_BRANDS } from '@/lib/billing/payment-methods';
 import { cn } from '@/lib/utils';
 
 export function PricingSection() {
@@ -60,6 +61,13 @@ export function PricingSection() {
                       {f}
                     </li>
                   ))}
+                  {plan.excludedFeatures.map((f) => (
+                    <li key={f} className="flex items-start gap-2 text-sm text-muted-foreground/70">
+                      <X className="mt-0.5 h-4 w-4 shrink-0 text-red-400/80" aria-hidden />
+                      <span className="line-through decoration-muted-foreground/40">{f}</span>
+                      <span className="sr-only">(non inclus)</span>
+                    </li>
+                  ))}
                 </ul>
                 <Button
                   className="mt-8 w-full rounded-full"
@@ -71,6 +79,22 @@ export function PricingSection() {
               </CardContent>
             </Card>
           ))}
+        </div>
+        <div className="mx-auto mt-10 flex max-w-5xl flex-col items-center gap-3 text-center">
+          <p className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
+            <Lock className="h-3.5 w-3.5" aria-hidden />
+            Paiement sécurisé
+          </p>
+          <ul className="flex flex-wrap justify-center gap-2">
+            {PAYMENT_BRANDS.map((brand) => (
+              <li
+                key={brand}
+                className="rounded-full border border-border/60 bg-background/40 px-3 py-1 text-xs text-foreground/80 backdrop-blur"
+              >
+                {brand}
+              </li>
+            ))}
+          </ul>
         </div>
       </div>
     </section>
