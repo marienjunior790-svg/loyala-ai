@@ -8,10 +8,30 @@ import {
   ignoreWhatsAppLead,
   listPendingWhatsAppLeads,
   markWhatsAppLeadConverted,
-  normalizeAddressForChannel,
   getOrganization,
 } from '@loyala/domain-crm';
+import { normalizeInternationalPhone, normalizePhoneE164 } from '@loyala/integrations/phone';
 import { createClientSchema } from '@loyala/validation';
+
+type ServerSupabase = Awaited<ReturnType<typeof createClient>>;
+
+/** Client existant du restaurant pour ce numéro (comparaison au format international). */
+async function findClientIdByPhone(
+  supabase: ServerSupabase,
+  organizationId: string,
+  e164: string
+): Promise<string | null> {
+  const { data, error } = await supabase
+    .from('clients')
+    .select('id')
+    .eq('organization_id', organizationId)
+    .eq('phone_e164', e164)
+    .is('deleted_at', null)
+    .order('created_at', { ascending: true })
+    .limit(1);
+  if (error) throw new Error(error.message);
+  return data?.[0]?.id ?? null;
+}
 
 export type LeadActionState = { error?: string; success?: string };
 
@@ -25,17 +45,12 @@ export async function convertWhatsAppLeadAction(
     const lead = leads.find((l) => l.id === leadId);
     if (!lead) return { error: 'Contact introuvable ou déjà traité' };
 
-    const normalized = normalizeAddressForChannel('whatsapp', lead.phone);
-    const { data: existing } = await supabase
-      .from('clients')
-      .select('id')
-      .eq('organization_id', ctx.organizationId)
-      .is('deleted_at', null)
-      .or(`phone.eq.${lead.phone},phone.eq.${normalized},phone.eq.+${normalized}`)
-      .maybeSingle();
+    const e164 = normalizeInternationalPhone(lead.phone_normalized) ?? normalizeInternationalPhone(lead.phone);
+    if (!e164) return { error: 'Numéro WhatsApp du contact non reconnu' };
+    const existingId = await findClientIdByPhone(supabase, ctx.organizationId, e164);
 
-    if (existing?.id) {
-      await markWhatsAppLeadConverted(supabase, ctx.organizationId, leadId, existing.id);
+    if (existingId) {
+      await markWhatsAppLeadConverted(supabase, ctx.organizationId, leadId, existingId);
       revalidatePath('/clients');
       revalidatePath('/clients/collecter');
       return { success: 'Contact déjà client — associé sans doublon' };
@@ -47,10 +62,9 @@ export async function convertWhatsAppLeadAction(
 
     const parsed = createClientSchema.safeParse({
       fullName,
-      phone: lead.phone_normalized.startsWith('+')
-        ? lead.phone_normalized
-        : `+${lead.phone_normalized}`,
+      phone: e164,
       optInWhatsapp: true,
+      whatsappConsentSource: 'message_entrant',
       acquisitionSource: lead.acquisition_source || 'whatsapp_inbound',
       whatsappProfileName: lead.profile_name || '',
       notes: 'Créé depuis un message WhatsApp entrant',
@@ -89,6 +103,12 @@ export type CsvImportState = {
   skipped?: number;
   errors?: string[];
 };
+
+/** Sans colonne de consentement, un contact importé n'est pas contactable. */
+function csvOptIn(raw: string | undefined): boolean {
+  if (raw === undefined) return false;
+  return !['', '0', 'false', 'non', 'no'].includes(raw.trim().toLowerCase());
+}
 
 /** Simple CSV import: expects headers name/full_name/nom + phone/telephone/whatsapp */
 export async function importClientsCsvAction(formData: FormData): Promise<CsvImportState> {
@@ -129,6 +149,7 @@ export async function importClientsCsvAction(formData: FormData): Promise<CsvImp
     }
 
     const supabase = await createClient();
+    const country = (await getOrganization(supabase, ctx.organizationId))?.country_code ?? null;
     let created = 0;
     let skipped = 0;
     const errors: string[] = [];
@@ -143,27 +164,24 @@ export async function importClientsCsvAction(formData: FormData): Promise<CsvImp
       }
 
       const acquisitionSource = sourceIdx >= 0 ? (cols[sourceIdx] ?? '').trim() : 'csv_import';
-      const optRaw = optInIdx >= 0 ? (cols[optInIdx] ?? 'true').trim().toLowerCase() : 'true';
-      const optInWhatsapp = !['0', 'false', 'non', 'no'].includes(optRaw);
+      const optInWhatsapp = csvOptIn(optInIdx >= 0 ? cols[optInIdx] : undefined);
 
-      const normalized = normalizeAddressForChannel('whatsapp', phone);
-      const { data: existing } = await supabase
-        .from('clients')
-        .select('id')
-        .eq('organization_id', ctx.organizationId)
-        .is('deleted_at', null)
-        .or(`phone.eq.${phone.replace(/\s/g, '')},phone.eq.${normalized},phone.eq.+${normalized}`)
-        .maybeSingle();
-
-      if (existing?.id) {
+      const e164 = normalizePhoneE164(phone, country);
+      if (!e164) {
+        errors.push(`Ligne ${i + 1}: numéro « ${phone} » non reconnu`);
+        skipped += 1;
+        continue;
+      }
+      if (await findClientIdByPhone(supabase, ctx.organizationId, e164)) {
         skipped += 1;
         continue;
       }
 
       const parsed = createClientSchema.safeParse({
         fullName,
-        phone: normalized.startsWith('+') ? normalized : `+${normalized}`,
+        phone: e164,
         optInWhatsapp,
+        whatsappConsentSource: 'import',
         acquisitionSource: acquisitionSource || 'csv_import',
       });
       if (!parsed.success) {
@@ -215,6 +233,7 @@ export async function importClientsCsvMappedAction(input: {
     }
 
     const supabase = await createClient();
+    const country = (await getOrganization(supabase, ctx.organizationId))?.country_code ?? null;
     let created = 0;
     let skipped = 0;
     const errors: string[] = [];
@@ -229,27 +248,24 @@ export async function importClientsCsvMappedAction(input: {
       }
 
       const acquisitionSource = sourceIdx >= 0 ? (cols[sourceIdx] ?? '').trim() : 'csv_import';
-      const optRaw = optInIdx >= 0 ? (cols[optInIdx] ?? 'true').trim().toLowerCase() : 'true';
-      const optInWhatsapp = !['0', 'false', 'non', 'no'].includes(optRaw);
+      const optInWhatsapp = csvOptIn(optInIdx >= 0 ? cols[optInIdx] : undefined);
 
-      const normalized = normalizeAddressForChannel('whatsapp', phone);
-      const { data: existing } = await supabase
-        .from('clients')
-        .select('id')
-        .eq('organization_id', ctx.organizationId)
-        .is('deleted_at', null)
-        .or(`phone.eq.${phone.replace(/\s/g, '')},phone.eq.${normalized},phone.eq.+${normalized}`)
-        .maybeSingle();
-
-      if (existing?.id) {
+      const e164 = normalizePhoneE164(phone, country);
+      if (!e164) {
+        errors.push(`Ligne ${i + 1}: numéro « ${phone} » non reconnu`);
+        skipped += 1;
+        continue;
+      }
+      if (await findClientIdByPhone(supabase, ctx.organizationId, e164)) {
         skipped += 1;
         continue;
       }
 
       const parsed = createClientSchema.safeParse({
         fullName,
-        phone: normalized.startsWith('+') ? normalized : `+${normalized}`,
+        phone: e164,
         optInWhatsapp,
+        whatsappConsentSource: 'import',
         acquisitionSource: acquisitionSource || 'csv_import',
       });
       if (!parsed.success) {

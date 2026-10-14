@@ -14,12 +14,23 @@ import {
   validateSelections,
   filterAvailableGroups,
   effectiveMax,
+  ORDER_TYPES,
+  ORDER_TYPE_LABELS,
+  PAYMENT_METHODS,
+  PAYMENT_METHOD_LABELS,
   type OptionGroup,
   type OptionSelections,
   type OptionQuantities,
 } from '@loyala/domain-crm';
 
 const initial: VisitActionState = {};
+
+const SELECT_CLASS =
+  'mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus:ring-1 focus:ring-ring';
+
+function currencyLabel(currency: string): string {
+  return currency === 'XOF' || currency === 'XAF' ? 'FCFA' : currency;
+}
 
 function todayInputValue(): string {
   return new Date().toISOString().slice(0, 10);
@@ -52,8 +63,7 @@ interface RecordVisitDialogProps {
 }
 
 function formatMoney(amount: number, currency = 'XOF'): string {
-  const label = currency === 'XOF' ? 'FCFA' : currency;
-  return `${Math.round(amount).toLocaleString('fr-FR')} ${label}`;
+  return `${Math.round(amount).toLocaleString('fr-FR')} ${currencyLabel(currency)}`;
 }
 
 export function RecordVisitDialog({ clientId, clientName, catalogItems }: RecordVisitDialogProps) {
@@ -61,6 +71,7 @@ export function RecordVisitDialog({ clientId, clientName, catalogItems }: Record
   const [open, setOpen] = useState(false);
   const [state, formAction, pending] = useActionState(recordVisitAction, initial);
   const [lines, setLines] = useState<SaleLine[]>([]);
+  const [discount, setDiscount] = useState('');
   const [search, setSearch] = useState('');
   const [configuring, setConfiguring] = useState<{
     item: CatalogPickerItem;
@@ -76,6 +87,7 @@ export function RecordVisitDialog({ clientId, clientName, catalogItems }: Record
       }
       setOpen(false);
       setLines([]);
+      setDiscount('');
       setSearch('');
       setConfiguring(null);
       router.refresh();
@@ -87,6 +99,7 @@ export function RecordVisitDialog({ clientId, clientName, catalogItems }: Record
     () => lines.reduce((sum, l) => sum + l.quantity * l.unitPrice, 0),
     [lines]
   );
+  const discountValue = Math.max(Number(discount) || 0, 0);
 
   const searchResults = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -193,13 +206,13 @@ export function RecordVisitDialog({ clientId, clientName, catalogItems }: Record
     <>
       <Button type="button" onClick={() => setOpen(true)}>
         <CalendarPlus className="h-4 w-4" />
-        Enregistrer une visite
+        Enregistrer une commande
       </Button>
 
       <GlassDialog
         open={open}
         onClose={() => setOpen(false)}
-        eyebrow="Nouvelle visite"
+        eyebrow="Nouvelle commande"
         title={clientName}
         size="lg"
       >
@@ -208,18 +221,47 @@ export function RecordVisitDialog({ clientId, clientName, catalogItems }: Record
             <input type="hidden" name="clientId" value={clientId} />
             <input type="hidden" name="itemsJson" value={itemsJson} />
 
-            <div>
-              <label htmlFor="visitedAt" className="text-sm text-muted-foreground">
-                Date
-              </label>
-              <Input
-                id="visitedAt"
-                name="visitedAt"
-                type="date"
-                required
-                defaultValue={todayInputValue()}
-                className="mt-1"
-              />
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div>
+                <label htmlFor="visitedAt" className="text-sm text-muted-foreground">
+                  Date
+                </label>
+                <Input
+                  id="visitedAt"
+                  name="visitedAt"
+                  type="date"
+                  required
+                  defaultValue={todayInputValue()}
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <label htmlFor="orderType" className="text-sm text-muted-foreground">
+                  Type
+                </label>
+                <select id="orderType" name="orderType" defaultValue="sur_place" className={SELECT_CLASS}>
+                  {ORDER_TYPES.map((type) => (
+                    <option key={type} value={type}>
+                      {ORDER_TYPE_LABELS[type]}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label htmlFor="paymentMethod" className="text-sm text-muted-foreground">
+                  Paiement
+                </label>
+                <select id="paymentMethod" name="paymentMethod" required defaultValue="" className={SELECT_CLASS}>
+                  <option value="" disabled>
+                    Choisir…
+                  </option>
+                  {PAYMENT_METHODS.map((method) => (
+                    <option key={method} value={method}>
+                      {PAYMENT_METHOD_LABELS[method]}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
 
             <div>
@@ -325,28 +367,59 @@ export function RecordVisitDialog({ clientId, clientName, catalogItems }: Record
                   </div>
                 ))}
                 <div className="flex items-center justify-between border-t border-border pt-2">
-                  <span className="text-sm font-semibold">TOTAL</span>
-                  <span className="text-base font-bold text-primary">{formatMoney(total, currency)}</span>
+                  <span className="text-sm text-muted-foreground">Sous-total</span>
+                  <span className="text-sm font-medium">{formatMoney(total, currency)}</span>
+                </div>
+                {discountValue > 0 && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Remise</span>
+                    <span className="text-sm font-medium">− {formatMoney(discountValue, currency)}</span>
+                  </div>
+                )}
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-semibold">TOTAL PAYÉ</span>
+                  <span className="text-base font-bold text-primary">
+                    {formatMoney(Math.max(total - discountValue, 0), currency)}
+                  </span>
                 </div>
               </div>
             )}
 
-            {lines.length === 0 && (
+            <div className="grid gap-3 sm:grid-cols-2">
+              {lines.length === 0 && (
+                <div>
+                  <label htmlFor="amount" className="text-sm text-muted-foreground">
+                    Montant de la commande ({currencyLabel(currency)})
+                  </label>
+                  <Input
+                    id="amount"
+                    name="amount"
+                    type="number"
+                    min={0}
+                    step={1}
+                    required
+                    placeholder="Ex. 15000"
+                    className="mt-1"
+                  />
+                </div>
+              )}
               <div>
-                <label htmlFor="amount" className="text-sm text-muted-foreground">
-                  Montant manuel (XOF, facultatif)
+                <label htmlFor="discount" className="text-sm text-muted-foreground">
+                  Remise (facultatif)
                 </label>
                 <Input
-                  id="amount"
-                  name="amount"
+                  id="discount"
+                  name="discount"
                   type="number"
                   min={0}
                   step={1}
-                  placeholder="Ex. 15000"
+                  value={discount}
+                  onChange={(e) => setDiscount(e.target.value)}
+                  placeholder="0"
                   className="mt-1"
                 />
               </div>
-            )}
+            </div>
 
             <div>
               <label htmlFor="notes" className="text-sm text-muted-foreground">

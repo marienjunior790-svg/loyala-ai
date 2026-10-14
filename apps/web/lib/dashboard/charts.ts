@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { ChartPoint } from './types';
-import { listClients, computeClientSegment } from '@loyala/domain-crm';
+import { listClients, computeClientSegment, REVENUE_ORDER_STATUSES } from '@loyala/domain-crm';
 
 const WEEK_LABELS = ['S-3+', 'S-2', 'S-1', 'Cette semaine'] as const;
 
@@ -29,8 +29,8 @@ export function toChartThousands(amountXof: number): number {
 }
 
 /**
- * Visites clients — counts real rows in `client_visits` (visit + expense)
- * over the last 4 weeks. Does not depend on segment sync.
+ * Commandes clients — counts paid orders in `client_visits` over the last
+ * 4 weeks (cancelled and refunded orders excluded). Does not depend on segment sync.
  */
 export async function getVisitsChart(
   supabase: SupabaseClient,
@@ -40,15 +40,14 @@ export async function getVisitsChart(
 
   const { data, error } = await supabase
     .from('client_visits')
-    .select('visited_at, kind')
+    .select('visited_at')
     .eq('organization_id', organizationId)
+    .in('status', [...REVENUE_ORDER_STATUSES])
     .gte('visited_at', since);
 
   if (error) throw new Error(error.message);
 
-  const stamps = (data ?? [])
-    .filter((row) => row.kind === 'visit' || row.kind === 'expense')
-    .map((row) => String(row.visited_at));
+  const stamps = (data ?? []).map((row) => String(row.visited_at));
 
   // Fallback: if no visit rows in window but clients have last_visit_at, use those
   // so the chart still reflects CRM activity instead of a blank empty state.

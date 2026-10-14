@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { phoneDigitsForWhatsApp } from '@loyala/integrations/phone';
 
 export const WHATSAPP_SESSION_WINDOW_MS = 24 * 60 * 60 * 1000;
 
@@ -27,15 +28,14 @@ function assertOk(error: { message: string } | null): void {
   if (error) throw new Error(error.message);
 }
 
-/** Normalize to E.164 digits (no +) — aligned with Meta Cloud API. */
-export function normalizeAddressForChannel(channel: ConversationChannel, raw: string): string {
-  const digits = raw.replace(/\D/g, '');
-  if (channel !== 'whatsapp') return digits;
-  if (digits.startsWith('242')) return digits;
-  if (digits.startsWith('221')) return digits;
-  if (digits.startsWith('225')) return digits;
-  if (digits.startsWith('0')) return `242${digits.slice(1)}`;
-  return digits;
+/** Chiffres E.164 sans « + » (format Meta Cloud API) ; même règle que clients.phone_e164. */
+export function normalizeAddressForChannel(
+  channel: ConversationChannel,
+  raw: string,
+  country?: string | null
+): string {
+  if (channel !== 'whatsapp') return raw.replace(/\D/g, '');
+  return phoneDigitsForWhatsApp(raw, country);
 }
 
 export function isSessionOpen(
@@ -103,23 +103,38 @@ export async function findClientsByWhatsAppAddress(
     }
   }
 
-  let clientQuery = supabase
+  let byE164 = supabase
     .from('clients')
     .select('id, organization_id, phone')
     .is('deleted_at', null)
+    .eq('phone_e164', `+${normalized}`)
+    .limit(50);
+  // Fiches dont le pays du restaurant n'a pas permis de calculer phone_e164.
+  let withoutE164 = supabase
+    .from('clients')
+    .select('id, organization_id, phone')
+    .is('deleted_at', null)
+    .is('phone_e164', null)
     .not('phone', 'is', null)
     .limit(500);
 
   if (opts?.organizationId) {
-    clientQuery = clientQuery.eq('organization_id', opts.organizationId);
+    byE164 = byE164.eq('organization_id', opts.organizationId);
+    withoutE164 = withoutE164.eq('organization_id', opts.organizationId);
   }
 
-  const { data: clients, error: clientError } = await clientQuery;
-  assertOk(clientError);
+  const [exact, fallback] = await Promise.all([byE164, withoutE164]);
+  assertOk(exact.error);
+  assertOk(fallback.error);
 
-  for (const client of clients ?? []) {
-    const phone = String(client.phone ?? '');
-    if (normalizeAddressForChannel('whatsapp', phone) !== normalized) continue;
+  const candidates = [
+    ...(exact.data ?? []),
+    ...(fallback.data ?? []).filter(
+      (client) => normalizeAddressForChannel('whatsapp', String(client.phone ?? '')) === normalized
+    ),
+  ];
+
+  for (const client of candidates) {
     const key = `${client.organization_id}:${client.id}`;
     if (!matches.has(key)) {
       matches.set(key, {

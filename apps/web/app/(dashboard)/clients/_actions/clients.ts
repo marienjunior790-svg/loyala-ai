@@ -89,7 +89,7 @@ export async function updateClientAction(
     phone: formData.get('phone') || undefined,
     email: formData.get('email') || undefined,
     dateOfBirth: formData.get('dateOfBirth') || undefined,
-    optInWhatsapp: formData.get('optInWhatsapp') === 'on',
+    whatsappConsent: formData.get('whatsappConsent') || undefined,
     notes: formData.get('notes') || undefined,
   });
 

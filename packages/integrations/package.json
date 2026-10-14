@@ -6,7 +6,8 @@
   "types": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts",
-    "./crypto/secrets": "./src/crypto/secrets.ts"
+    "./crypto/secrets": "./src/crypto/secrets.ts",
+    "./phone": "./src/phone.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

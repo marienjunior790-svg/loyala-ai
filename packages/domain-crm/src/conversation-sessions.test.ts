@@ -25,11 +25,17 @@ describe('isSessionOpen', () => {
 });
 
 describe('normalizeAddressForChannel', () => {
-  it('normalizes local Congo numbers for whatsapp', () => {
-    expect(normalizeAddressForChannel('whatsapp', '065719922')).toBe('24265719922');
+  it('garde le 0 des numéros congolais locaux (+242 06…)', () => {
+    expect(normalizeAddressForChannel('whatsapp', '065719922')).toBe('242065719922');
+    expect(normalizeAddressForChannel('whatsapp', '05 123 45 67')).toBe('242051234567');
   });
 
-  it('keeps international digits', () => {
+  it('reconnaît l’adresse envoyée par Meta (indicatif sans +)', () => {
+    expect(normalizeAddressForChannel('whatsapp', '242061234567')).toBe('242061234567');
     expect(normalizeAddressForChannel('whatsapp', '221771234567')).toBe('221771234567');
+  });
+
+  it('utilise le pays du restaurant quand il est fourni', () => {
+    expect(normalizeAddressForChannel('whatsapp', '77 123 45 67', 'SN')).toBe('221771234567');
   });
 });

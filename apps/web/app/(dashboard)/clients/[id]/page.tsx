@@ -2,7 +2,8 @@ import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 import { ArrowLeft, History, Pencil } from 'lucide-react';
 import { requireAuthPermission } from '@/lib/auth/guard';
-import { canWriteClients, canDeleteClients } from '@/lib/auth/clients-access';
+import { canWriteClients, canDeleteClients, canRefundOrder } from '@/lib/auth/clients-access';
+import { hasPermission } from '@loyala/core-iam';
 import { createClient } from '@/lib/supabase/server';
 import {
   getClient,
@@ -11,19 +12,22 @@ import {
   computeClientPurchaseInsights,
   getItemOptions,
   getWhatsAppConnectionPublic,
+  getOrganization,
+  computeClientProfile,
+  getClientSpendRank,
+  WHATSAPP_CONSENT_LABELS,
 } from '@loyala/domain-crm';
 import { DeleteClientButton } from './delete-client-button';
 import { WhatsAppRelaunchButton } from '@/components/clients/whatsapp-relaunch-button';
 import { RecordVisitDialog } from '@/components/clients/record-visit-dialog';
 import { ClientHistorySection } from '@/components/clients/client-history-section';
 import { ClientCrmInsights } from '@/components/clients/client-crm-insights';
+import { SpendChart } from '@/components/clients/dashboard/spend-chart';
+import { ProductBars } from '@/components/clients/dashboard/clients-dashboard';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-
-function formatXof(amount: number): string {
-  return `${Math.round(amount).toLocaleString('fr-FR')} XOF`;
-}
+import { formatMoney } from '@/lib/clients/money';
 
 function formatDateTime(iso: string | null): string {
   if (!iso) return '—';
@@ -48,18 +52,36 @@ export default async function ClientDetailPage({
   const ctx = await requireAuthPermission('clients:read');
   const canWrite = canWriteClients(ctx);
   const canDelete = canDeleteClients(ctx);
+  const canManageOrders = hasPermission(ctx, 'orders:manage');
+  const canRefund = canRefundOrder(ctx);
 
   const supabase = await createClient();
   const client = await getClient(supabase, ctx.organizationId, id);
 
   if (!client) notFound();
 
-  const [visits, catalogItems, connection] = await Promise.all([
+  const [visits, catalogItems, connection, org, spendRank] = await Promise.all([
     listClientPurchases(supabase, ctx.organizationId, id),
     listCatalogItems(supabase, ctx.organizationId, { activeOnly: true }),
     getWhatsAppConnectionPublic(supabase, ctx.organizationId),
+    getOrganization(supabase, ctx.organizationId).catch(() => null),
+    getClientSpendRank(supabase, ctx.organizationId, Number(client.total_spent ?? 0)).catch(() => null),
   ]);
+  const currency = org?.currency ?? 'XOF';
+  const timezone = org?.timezone ?? 'Africa/Dakar';
   const insights = computeClientPurchaseInsights(visits);
+  const profile = computeClientProfile({ visits, now: new Date(), timezone });
+  const monthPoints = profile.months.map((point) => ({
+    key: point.key,
+    label: point.label,
+    title: new Date(`${point.key}-01T00:00:00Z`).toLocaleDateString('fr-FR', {
+      month: 'long',
+      year: 'numeric',
+      timeZone: 'UTC',
+    }),
+    spent: point.spent,
+    visits: point.visits,
+  }));
   const whatsappReady = connection.isReady;
   const pickerItems = catalogItems.map((i) => ({
     id: i.id,
@@ -88,7 +110,12 @@ export default async function ClientDetailPage({
               {client.segment}
             </Badge>
           </div>
-          <p className="mt-1 text-sm text-muted-foreground">{client.phone}</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {client.phone}
+            {client.phone_e164 && client.phone_e164 !== client.phone ? (
+              <span title="Format international utilisé pour WhatsApp"> · {client.phone_e164}</span>
+            ) : null}
+          </p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" asChild>
@@ -132,12 +159,18 @@ export default async function ClientDetailPage({
             </div>
           )}
           <div>
-            <p className="text-xs text-muted-foreground">Visites</p>
+            <p className="text-xs text-muted-foreground">Commandes payées</p>
             <p className="mt-1 text-sm font-medium">{client.visit_count}</p>
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Dépenses totales</p>
-            <p className="mt-1 text-sm font-medium">{formatXof(Number(client.total_spent))}</p>
+            <p className="mt-1 text-sm font-medium">{formatMoney(Number(client.total_spent), currency)}</p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Classement</p>
+            <p className="mt-1 text-sm font-medium">
+              {spendRank?.rank ? `${spendRank.rank}ᵉ sur ${spendRank.ranked.toLocaleString('fr-FR')} clients` : '—'}
+            </p>
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Dernière visite</p>
@@ -149,7 +182,15 @@ export default async function ClientDetailPage({
           </div>
           <div>
             <p className="text-xs text-muted-foreground">WhatsApp</p>
-            <p className="mt-1 text-sm">{client.opt_in_whatsapp ? 'Opt-in' : 'Non opt-in'}</p>
+            <p className="mt-1 text-sm">
+              {WHATSAPP_CONSENT_LABELS[client.whatsapp_consent] ?? '—'}
+              {client.whatsapp_consent_at && (
+                <span className="text-muted-foreground">
+                  {' '}
+                  · {new Date(client.whatsapp_consent_at).toLocaleDateString('fr-FR')}
+                </span>
+              )}
+            </p>
           </div>
           {client.notes && (
             <div className="sm:col-span-2 lg:col-span-4">
@@ -159,6 +200,33 @@ export default async function ClientDetailPage({
           )}
         </CardContent>
       </Card>
+
+      <div className="grid gap-6 lg:grid-cols-5">
+        <Card className="lg:col-span-3">
+          <CardHeader>
+            <CardTitle className="text-lg">Dépenses sur 12 mois</CardTitle>
+            <CardDescription>Survolez un mois pour voir le détail</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <SpendChart points={monthPoints} currency={currency} totalLabel="Total sur 12 mois" />
+          </CardContent>
+        </Card>
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle className="text-lg">Ses plats préférés</CardTitle>
+            <CardDescription>Depuis son premier passage</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {profile.topProducts.length > 0 ? (
+              <ProductBars products={profile.topProducts.slice(0, 5)} currency={currency} />
+            ) : (
+              <p className="py-6 text-center text-sm text-muted-foreground">
+                Aucun plat enregistré pour ce client pour l’instant.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
 
       <Card>
         <CardHeader>
@@ -178,6 +246,8 @@ export default async function ClientDetailPage({
             clientId={client.id}
             visits={visits}
             canWrite={canWrite}
+            canManageOrders={canManageOrders}
+            canRefund={canRefund}
             currentUserId={ctx.userId}
           />
         </CardContent>

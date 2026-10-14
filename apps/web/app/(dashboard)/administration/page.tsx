@@ -72,6 +72,7 @@ export default async function AdministrationPage() {
                 const isMe = m.user_id === ctx.userId;
                 const email = m.email ?? (isMe ? user?.email : null);
                 const name = m.full_name ?? email ?? 'Membre de l’équipe';
+                const role = resolveOrgRole(m.role_code);
                 return (
                   <div key={m.user_id} className="flex items-center justify-between gap-3 text-sm">
                     <div className="min-w-0">
@@ -91,7 +92,7 @@ export default async function AdministrationPage() {
                       </p>
                     </div>
                     <Badge variant="secondary" className="shrink-0">
-                      {roleLabel(resolveOrgRole(m.role_code))}
+                      {role ? roleLabel(role) : 'Rôle non reconnu'}
                     </Badge>
                   </div>
                 );

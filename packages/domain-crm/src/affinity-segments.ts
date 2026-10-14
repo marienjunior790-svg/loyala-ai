@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { REVENUE_ORDER_STATUSES } from './orders';
 
 export interface AffinityCount {
   name: string;
@@ -104,6 +105,7 @@ export async function getAffinitySegments(
     .from('client_visits')
     .select('id, client_id')
     .eq('organization_id', organizationId)
+    .in('status', [...REVENUE_ORDER_STATUSES])
     .limit(10000);
 
   if (visitsRes.error) {

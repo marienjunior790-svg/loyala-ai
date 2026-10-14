@@ -34,7 +34,8 @@ export function TopNavbar({
   onMenuClick,
 }: TopNavbarProps) {
   const { rootRef, glassRef, mirror, active } = useLiquidGlass<HTMLElement>();
-  const roleName = role ? roleLabel(resolveOrgRole(role)) : 'Membre';
+  const resolvedRole = resolveOrgRole(role);
+  const roleName = resolvedRole ? roleLabel(resolvedRole) : 'Membre';
 
   return (
     <header ref={rootRef} className="sticky top-0 z-30 px-3 pt-3 lg:pl-0">

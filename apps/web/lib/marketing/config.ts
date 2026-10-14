@@ -1,15 +1,10 @@
 import { PUBLIC_BILLING_PLANS as DOMAIN_PLANS, formatEur } from '@loyala/domain-billing';
+import { phoneDigitsForWhatsApp } from '@loyala/integrations/phone';
 
-/** Normalise un numéro local Congo (ex. 065719922) vers format wa.me +242 */
-function normalizeWhatsAppDigits(raw: string): string {
-  const digits = raw.replace(/\D/g, '');
-  if (digits.startsWith('242')) return digits;
-  if (digits.startsWith('0')) return `242${digits.slice(1)}`;
-  return digits;
-}
-
-export const DEMO_WHATSAPP = normalizeWhatsAppDigits(
-  process.env.NEXT_PUBLIC_DEMO_WHATSAPP ?? '065719922'
+/** Numéro de démonstration FM Agence (Congo) au format wa.me : 242 06… */
+export const DEMO_WHATSAPP = phoneDigitsForWhatsApp(
+  process.env.NEXT_PUBLIC_DEMO_WHATSAPP ?? '065719922',
+  'CG'
 );
 
 /** Marketing pricing — Gratuit, Pro, Pro+ (prices in euros, charged in FCFA). */

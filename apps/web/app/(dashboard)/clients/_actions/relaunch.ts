@@ -61,10 +61,11 @@ export async function relaunchClientWhatsAppAction(
       restaurantName: org?.name,
     });
 
+    const phone = client.phone_e164 || client.phone;
     try {
       const result = await sendWhatsAppMessage({
         type: 'text',
-        phone: client.phone,
+        phone,
         body,
         config,
       });
@@ -78,7 +79,7 @@ export async function relaunchClientWhatsAppAction(
       await recordOutboundConversationSession(supabase, {
         organizationId: ctx.organizationId,
         clientId: client.id,
-        phone: client.phone,
+        phone,
       });
 
       return { success: 'Relance envoyée via WhatsApp Business de votre restaurant' };

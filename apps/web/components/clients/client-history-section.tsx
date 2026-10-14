@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { ShoppingBag, CalendarDays } from 'lucide-react';
-import type { ClientVisitWithItems } from '@loyala/domain-crm';
+import { countsAsRevenue, orderNetAmount, type ClientVisitWithItems } from '@loyala/domain-crm';
 import { ClientVisitsHistory } from '@/components/clients/client-visits-history';
 
 function formatDate(iso: string): string {
@@ -21,6 +21,8 @@ interface ClientHistorySectionProps {
   clientId: string;
   visits: ClientVisitWithItems[];
   canWrite: boolean;
+  canManageOrders: boolean;
+  canRefund: boolean;
   currentUserId: string;
 }
 
@@ -28,11 +30,15 @@ export function ClientHistorySection({
   clientId,
   visits,
   canWrite,
+  canManageOrders,
+  canRefund,
   currentUserId,
 }: ClientHistorySectionProps) {
   const [tab, setTab] = useState<'visits' | 'purchases'>('visits');
 
-  const purchases = visits.filter((v) => v.items.length > 0 || Number(v.amount ?? 0) > 0);
+  const purchases = visits.filter(
+    (v) => countsAsRevenue(v) && (v.items.length > 0 || orderNetAmount(v) > 0)
+  );
 
   return (
     <div className="space-y-4">
@@ -47,7 +53,7 @@ export function ClientHistorySection({
           }`}
         >
           <CalendarDays className="h-4 w-4" />
-          Visites
+          Commandes
         </button>
         <button
           type="button"
@@ -68,6 +74,8 @@ export function ClientHistorySection({
           clientId={clientId}
           visits={visits}
           canWrite={canWrite}
+          canManageOrders={canManageOrders}
+          canRefund={canRefund}
           currentUserId={currentUserId}
         />
       ) : purchases.length === 0 ? (
@@ -81,7 +89,7 @@ export function ClientHistorySection({
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="text-sm font-medium">{formatDate(visit.visited_at)}</p>
                 <p className="text-base font-bold text-primary">
-                  {formatMoney(Number(visit.amount ?? 0))}
+                  {formatMoney(orderNetAmount(visit))}
                 </p>
               </div>
 

@@ -4,7 +4,7 @@ import { requireAuth } from '@/lib/auth/guard';
 import { createClient } from '@/lib/supabase/server';
 import { getWorkerHealth } from '@/lib/worker/client';
 import { getAutomationStatus } from '@/lib/worker/automation-status';
-import { listCampaigns } from '@loyala/domain-crm';
+import { getWhatsappConsentCounts, listCampaigns } from '@loyala/domain-crm';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,10 +29,12 @@ export default async function CampaignsPage() {
     } catch (e) {
       listError = e instanceof Error ? e.message : 'Chargement impossible';
     }
+    const consent = await getWhatsappConsentCounts(supabase, ctx.organizationId).catch(() => null);
 
     return (
       <CampaignsPageClient
         campaigns={campaigns}
+        consent={consent}
         automationStatus={automationStatus}
         error={listError}
         canWrite={['org_owner', 'org_admin', 'org_manager', 'org_staff'].includes(ctx.role)}

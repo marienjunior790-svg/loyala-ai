@@ -63,15 +63,20 @@ export function EditClientForm({ client }: { client: Client }) {
               className={inputClass}
             />
           </div>
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              name="optInWhatsapp"
-              type="checkbox"
-              defaultChecked={client.opt_in_whatsapp}
-              className="rounded"
-            />
-            Opt-in WhatsApp
-          </label>
+          <div>
+            <label className="text-sm text-muted-foreground">Messages WhatsApp</label>
+            <select name="whatsappConsent" defaultValue={client.whatsapp_consent} className={inputClass}>
+              <option value="accorde">Le client a donné son accord</option>
+              <option value="a_confirmer">Consentement à confirmer</option>
+              <option value="refuse">Pas d’accord</option>
+            </select>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {client.whatsapp_consent_at
+                ? `Dernière mise à jour le ${new Date(client.whatsapp_consent_at).toLocaleDateString('fr-FR')}. `
+                : ''}
+              Chaque changement est daté et conservé.
+            </p>
+          </div>
           <div className="flex gap-3 pt-2">
             <Button type="submit" disabled={pending}>
               {pending ? 'Enregistrement...' : 'Enregistrer'}

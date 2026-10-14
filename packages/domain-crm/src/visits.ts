@@ -1,23 +1,37 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type {
-  RecordExpenseInput,
+  CancelOrderInput,
   RecordVisitInput,
+  RefundOrderInput,
   UpdateVisitInput,
   VisitItemInput,
 } from '@loyala/validation';
 import { computeClientSegment, type ClientSegment } from './segments';
 import type { Client } from './clients';
-import { awardLoyaltyPointsForSpend } from './loyalty';
+import { countsAsRevenue, orderNetAmount, type OrderSource, type OrderStatus, type OrderType, type PaymentMethod } from './orders';
 
+/** Depuis la migration 040, toutes les commandes ont kind = 'visit' ; legacy_kind garde l'origine. */
 export type ClientVisitKind = 'visit' | 'expense';
 
+/** Une commande client (table client_visits). */
 export interface ClientVisit {
   id: string;
   organization_id: string;
   client_id: string;
   kind: ClientVisitKind;
+  legacy_kind: ClientVisitKind | null;
   visited_at: string;
   amount: number | null;
+  subtotal: number;
+  discount_amount: number;
+  refunded_amount: number;
+  status: OrderStatus;
+  source: OrderSource;
+  order_type: OrderType;
+  payment_method: PaymentMethod | null;
+  cancelled_at: string | null;
+  cancel_reason: string | null;
+  refunded_at: string | null;
   notes: string | null;
   created_by: string | null;
   created_at: string;
@@ -42,31 +56,15 @@ export interface ClientVisitWithItems extends ClientVisit {
   items: VisitItem[];
 }
 
+export interface OrderOperationResult {
+  order: ClientVisit;
+  /** Points ajoutés (positif) ou retirés (négatif) par l'opération. */
+  pointsDelta: number;
+}
+
 /** Pure helper — total from line items. */
 export function computeVisitItemsTotal(items: Pick<VisitItemInput, 'quantity' | 'unitPrice'>[]): number {
   return items.reduce((sum, i) => sum + Number(i.quantity) * Number(i.unitPrice), 0);
-}
-
-async function insertVisitItems(
-  supabase: SupabaseClient,
-  organizationId: string,
-  visitId: string,
-  items: VisitItemInput[]
-): Promise<void> {
-  if (items.length === 0) return;
-  const rows = items.map((i) => ({
-    organization_id: organizationId,
-    visit_id: visitId,
-    catalog_item_id: i.catalogItemId || null,
-    name: i.name.trim(),
-    category_name: i.categoryName?.trim() || null,
-    item_type: i.itemType ?? null,
-    quantity: i.quantity,
-    unit_price: i.unitPrice,
-    line_total: Number(i.quantity) * Number(i.unitPrice),
-  }));
-  const { error } = await supabase.from('visit_items').insert(rows);
-  if (error) throw new Error(error.message);
 }
 
 export interface ClientVisitAggregates {
@@ -75,25 +73,21 @@ export interface ClientVisitAggregates {
   total_spent: number;
 }
 
-/** Pure aggregate recompute from visit rows — used by tests and DB sync. */
+/** Mêmes règles que refresh_client_aggregates : commandes payées, montant net. */
 export function computeClientAggregatesFromVisits(
-  visits: Pick<ClientVisit, 'kind' | 'visited_at' | 'amount'>[]
+  visits: (Pick<ClientVisit, 'visited_at' | 'amount'> & Partial<Pick<ClientVisit, 'status' | 'refunded_amount'>>)[]
 ): ClientVisitAggregates {
-  const visitRows = visits.filter((v) => v.kind === 'visit');
+  const counted = visits.filter((v) => countsAsRevenue(v));
   let last_visit_at: string | null = null;
-
-  for (const row of visitRows) {
+  for (const row of counted) {
     if (!last_visit_at || new Date(row.visited_at) > new Date(last_visit_at)) {
       last_visit_at = row.visited_at;
     }
   }
-
-  const total_spent = visits.reduce((sum, row) => sum + Number(row.amount ?? 0), 0);
-
   return {
-    visit_count: visitRows.length,
+    visit_count: counted.length,
     last_visit_at,
-    total_spent,
+    total_spent: counted.reduce((sum, row) => sum + orderNetAmount(row), 0),
   };
 }
 
@@ -102,48 +96,63 @@ function parseVisitedAt(isoOrDate: string): string {
   return new Date(`${isoOrDate}T12:00:00`).toISOString();
 }
 
-async function loadClientVisitsForAggregate(
+function toRpcItems(items: VisitItemInput[] | undefined) {
+  if (!items || items.length === 0) return null;
+  return items.map((i) => ({
+    catalog_item_id: i.catalogItemId || null,
+    name: i.name.trim(),
+    category_name: i.categoryName?.trim() || null,
+    item_type: i.itemType ?? null,
+    quantity: Number(i.quantity),
+    unit_price: Number(i.unitPrice),
+  }));
+}
+
+function toOperationResult(data: unknown): OrderOperationResult {
+  const result = data as { order: ClientVisit; points_delta: number };
+  return { order: result.order, pointsDelta: Number(result.points_delta ?? 0) };
+}
+
+/** Le segment reste calculé côté application : on le réaligne après chaque opération. */
+async function syncClientSegment(
   supabase: SupabaseClient,
   organizationId: string,
   clientId: string
-): Promise<Pick<ClientVisit, 'kind' | 'visited_at' | 'amount'>[]> {
+): Promise<ClientVisitAggregates> {
   const { data, error } = await supabase
-    .from('client_visits')
-    .select('kind, visited_at, amount')
+    .from('clients')
+    .select('visit_count, last_visit_at, total_spent, segment')
+    .eq('id', clientId)
     .eq('organization_id', organizationId)
-    .eq('client_id', clientId);
-
+    .single();
   if (error) throw new Error(error.message);
-  return (data ?? []) as Pick<ClientVisit, 'kind' | 'visited_at' | 'amount'>[];
+
+  const aggregates: ClientVisitAggregates = {
+    visit_count: Number(data.visit_count ?? 0),
+    last_visit_at: data.last_visit_at ?? null,
+    total_spent: Number(data.total_spent ?? 0),
+  };
+  const segment = computeClientSegment(aggregates);
+  if (segment !== data.segment) {
+    const { error: updateError } = await supabase
+      .from('clients')
+      .update({ segment })
+      .eq('id', clientId)
+      .eq('organization_id', organizationId);
+    if (updateError) throw new Error(updateError.message);
+  }
+  return aggregates;
 }
 
+/** Recalcule totaux (en base, à partir des commandes payées) puis segment. */
 export async function recalculateClientAggregates(
   supabase: SupabaseClient,
   organizationId: string,
   clientId: string
 ): Promise<ClientVisitAggregates> {
-  const rows = await loadClientVisitsForAggregate(supabase, organizationId, clientId);
-  const aggregates = computeClientAggregatesFromVisits(rows);
-
-  const segment = computeClientSegment({
-    visit_count: aggregates.visit_count,
-    last_visit_at: aggregates.last_visit_at,
-    total_spent: aggregates.total_spent,
-  });
-
-  const { error } = await supabase
-    .from('clients')
-    .update({
-      visit_count: aggregates.visit_count,
-      last_visit_at: aggregates.last_visit_at,
-      total_spent: aggregates.total_spent,
-      segment,
-    })
-    .eq('id', clientId)
-    .eq('organization_id', organizationId);
-
+  const { error } = await supabase.rpc('refresh_client_aggregates', { p_client_id: clientId });
   if (error) throw new Error(error.message);
-  return aggregates;
+  return syncClientSegment(supabase, organizationId, clientId);
 }
 
 export async function listClientVisits(
@@ -164,119 +173,120 @@ export async function listClientVisits(
   return (data ?? []) as ClientVisit[];
 }
 
+/** Enregistre une commande payée en une transaction : lignes, remise, points, totaux, historique. */
 export async function recordClientVisit(
   supabase: SupabaseClient,
   organizationId: string,
-  input: RecordVisitInput & { createdBy: string }
-): Promise<ClientVisit> {
-  const items = input.items ?? [];
-  // When line items are provided, the total is derived from them (source of truth).
-  const amount = items.length > 0 ? computeVisitItemsTotal(items) : input.amount ?? null;
-
-  const { data, error } = await supabase
-    .from('client_visits')
-    .insert({
-      organization_id: organizationId,
-      client_id: input.clientId,
-      kind: 'visit',
-      visited_at: parseVisitedAt(input.visitedAt),
-      amount,
-      notes: input.notes?.trim() || null,
-      created_by: input.createdBy,
-    })
-    .select()
-    .single();
-
-  if (error) throw new Error(error.message);
-
-  const visit = data as ClientVisit;
-  await insertVisitItems(supabase, organizationId, visit.id, items);
-  await recalculateClientAggregates(supabase, organizationId, input.clientId);
-  await awardLoyaltyPointsForSpend(supabase, organizationId, {
-    clientId: input.clientId,
-    amount,
-    kind: 'visit',
-    visitedAt: input.visitedAt,
-    createdBy: input.createdBy,
+  input: RecordVisitInput
+): Promise<OrderOperationResult> {
+  const items = toRpcItems(input.items);
+  const { data, error } = await supabase.rpc('record_client_order', {
+    p_organization_id: organizationId,
+    p_client_id: input.clientId,
+    p_ordered_at: parseVisitedAt(input.visitedAt),
+    p_order_type: input.orderType,
+    p_payment_method: input.paymentMethod,
+    p_items: items,
+    p_amount: items ? null : input.amount ?? null,
+    p_discount: input.discount ?? 0,
+    p_notes: input.notes?.trim() || null,
   });
-  return visit;
+  if (error) throw new Error(error.message);
+  await syncClientSegment(supabase, organizationId, input.clientId);
+  return toOperationResult(data);
 }
 
-export async function recordClientExpense(
-  supabase: SupabaseClient,
-  organizationId: string,
-  input: RecordExpenseInput & { createdBy: string }
-): Promise<ClientVisit> {
-  const { data, error } = await supabase
-    .from('client_visits')
-    .insert({
-      organization_id: organizationId,
-      client_id: input.clientId,
-      kind: 'expense',
-      visited_at: parseVisitedAt(input.visitedAt),
-      amount: input.amount,
-      notes: input.notes?.trim() || null,
-      created_by: input.createdBy,
-    })
-    .select()
-    .single();
-
-  if (error) throw new Error(error.message);
-  await recalculateClientAggregates(supabase, organizationId, input.clientId);
-  await awardLoyaltyPointsForSpend(supabase, organizationId, {
-    clientId: input.clientId,
-    amount: input.amount,
-    kind: 'expense',
-    visitedAt: input.visitedAt,
-    createdBy: input.createdBy,
-  });
-  return data as ClientVisit;
-}
-
+/** Modifie date, type, paiement, remise, note — et le montant seulement pour une commande sans lignes. */
 export async function updateClientVisit(
   supabase: SupabaseClient,
   organizationId: string,
   input: UpdateVisitInput
-): Promise<ClientVisit> {
-  const payload: Record<string, unknown> = {
-    visited_at: parseVisitedAt(input.visitedAt),
-    amount: input.amount ?? null,
-    notes: input.notes?.trim() || null,
-  };
-
-  const { data, error } = await supabase
-    .from('client_visits')
-    .update(payload)
-    .eq('id', input.visitId)
-    .eq('client_id', input.clientId)
-    .eq('organization_id', organizationId)
-    .select()
-    .single();
-
+): Promise<OrderOperationResult> {
+  const { data, error } = await supabase.rpc('update_client_order', {
+    p_organization_id: organizationId,
+    p_order_id: input.visitId,
+    p_ordered_at: parseVisitedAt(input.visitedAt),
+    p_order_type: input.orderType ?? null,
+    p_payment_method: input.paymentMethod ?? null,
+    p_items: null,
+    p_amount: input.amount ?? null,
+    p_discount: input.discount ?? null,
+    p_notes: input.notes ?? '',
+  });
   if (error) throw new Error(error.message);
-  await recalculateClientAggregates(supabase, organizationId, input.clientId);
-  return data as ClientVisit;
+  await syncClientSegment(supabase, organizationId, input.clientId);
+  return toOperationResult(data);
 }
 
-export async function deleteClientVisit(
+/** Annule une commande avec un motif : elle reste dans l'historique, ses points sont retirés. */
+export async function cancelClientOrder(
   supabase: SupabaseClient,
   organizationId: string,
-  clientId: string,
-  visitId: string
-): Promise<void> {
-  const { error } = await supabase
-    .from('client_visits')
-    .delete()
-    .eq('id', visitId)
-    .eq('client_id', clientId)
-    .eq('organization_id', organizationId);
-
+  input: CancelOrderInput
+): Promise<OrderOperationResult> {
+  const { data, error } = await supabase.rpc('cancel_client_order', {
+    p_organization_id: organizationId,
+    p_order_id: input.visitId,
+    p_reason: input.reason,
+  });
   if (error) throw new Error(error.message);
-  await recalculateClientAggregates(supabase, organizationId, clientId);
+  await syncClientSegment(supabase, organizationId, input.clientId);
+  return toOperationResult(data);
+}
+
+export async function refundClientOrder(
+  supabase: SupabaseClient,
+  organizationId: string,
+  input: RefundOrderInput
+): Promise<OrderOperationResult> {
+  const { data, error } = await supabase.rpc('refund_client_order', {
+    p_organization_id: organizationId,
+    p_order_id: input.visitId,
+    p_amount: input.amount,
+    p_reason: input.reason,
+  });
+  if (error) throw new Error(error.message);
+  await syncClientSegment(supabase, organizationId, input.clientId);
+  return toOperationResult(data);
 }
 
 export function segmentAfterVisit(client: Pick<Client, 'visit_count' | 'last_visit_at' | 'total_spent'>): ClientSegment {
   return computeClientSegment(client);
+}
+
+export interface ClientOrderEvent {
+  id: string;
+  order_id: string;
+  event: 'migrated' | 'created' | 'updated' | 'cancelled' | 'refunded';
+  status_after: OrderStatus;
+  amount_after: number | null;
+  reason: string | null;
+  changes: Record<string, { avant: unknown; apres: unknown }>;
+  actor_id: string | null;
+  created_at: string;
+}
+
+/** Historique daté des commandes d'un client (création, modification, annulation, remboursement). */
+export async function listOrderEvents(
+  supabase: SupabaseClient,
+  organizationId: string,
+  orderIds: string[]
+): Promise<Map<string, ClientOrderEvent[]>> {
+  const map = new Map<string, ClientOrderEvent[]>();
+  if (orderIds.length === 0) return map;
+  const { data, error } = await supabase
+    .from('client_order_events')
+    .select('id, order_id, event, status_after, amount_after, reason, changes, actor_id, created_at')
+    .eq('organization_id', organizationId)
+    .in('order_id', orderIds)
+    .order('created_at', { ascending: true });
+  if (error) throw new Error(error.message);
+  for (const row of (data ?? []) as ClientOrderEvent[]) {
+    const list = map.get(row.order_id) ?? [];
+    list.push(row);
+    map.set(row.order_id, list);
+  }
+  return map;
 }
 
 export async function listVisitItemsByVisitIds(

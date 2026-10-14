@@ -1,14 +1,11 @@
-/** Normalise un numéro local (ex. 065719922) vers indicatif +242 pour wa.me */
-function normalizePhoneDigits(raw: string): string {
-  const digits = raw.replace(/\D/g, '');
-  if (digits.startsWith('242')) return digits;
-  if (digits.startsWith('0')) return `242${digits.slice(1)}`;
-  return digits;
-}
+import { phoneDigitsForWhatsApp } from '@loyala/integrations/phone';
 
-/** Build a wa.me deep link (digits only for phone). */
-export function buildWhatsAppUrl(phone: string, message: string): string {
-  const digits = normalizePhoneDigits(phone);
+/**
+ * Lien wa.me. Passez de préférence clients.phone_e164 ; à défaut le numéro saisi
+ * et le pays du restaurant (sans pays, un numéro en 0… est supposé congolais).
+ */
+export function buildWhatsAppUrl(phone: string, message: string, country?: string | null): string {
+  const digits = phoneDigitsForWhatsApp(phone, country);
   const text = encodeURIComponent(message);
   return `https://wa.me/${digits}?text=${text}`;
 }

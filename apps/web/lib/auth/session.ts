@@ -1,11 +1,12 @@
 import { cache } from 'react';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { createClient } from '../supabase/server';
 import { createAdminClient } from '@loyala/db';
-import { ORG_COOKIE_NAME, type AuthContext, type OrgRole } from '@loyala/core-iam';
+import { ORG_COOKIE_NAME, type AuthContext } from '@loyala/core-iam';
 import { cookies } from 'next/headers';
 import { getSupabaseEnv, getServiceRoleKey } from '../supabase/env';
 import { getActiveMembership } from './membership';
-import { resolveOrgRole, normalizeOrgRole } from './role-map';
+import { resolveOrgRole } from './role-map';
 import { authDebug } from './debug';
 
 export const getSession = cache(async () => {
@@ -28,14 +29,55 @@ export const getSession = cache(async () => {
   return user;
 });
 
+export type AuthAccess =
+  | { status: 'anonymous' }
+  | { status: 'no_membership'; userId: string }
+  /** Membre actif dont le rôle est absent, inconnu ou illisible : aucun accès. */
+  | { status: 'denied'; userId: string; organizationId: string }
+  | { status: 'ok'; ctx: AuthContext };
+
+async function lookupRoleCode(
+  supabase: SupabaseClient,
+  userId: string,
+  organizationId: string
+): Promise<string | null> {
+  const { data: member, error: memberError } = await supabase
+    .from('organization_members')
+    .select('role_id')
+    .eq('user_id', userId)
+    .eq('organization_id', organizationId)
+    .eq('status', 'active')
+    .maybeSingle();
+
+  if (memberError || !member?.role_id) {
+    authDebug('getAuthAccess', {
+      userId,
+      organizationId,
+      reason: memberError ? 'member_lookup_failed' : 'no_role',
+      error: memberError?.message ?? null,
+    });
+    return null;
+  }
+
+  const { data: roleRow, error: roleError } = await supabase
+    .from('roles')
+    .select('code')
+    .eq('id', member.role_id)
+    .maybeSingle();
+
+  if (roleError) {
+    authDebug('getAuthAccess', { userId, reason: 'role_lookup_failed', error: roleError.message });
+  }
+  return roleRow?.code ?? null;
+}
+
 /**
- * Resolves tenant context for the current request.
- * Returns null only when the user has no active membership — not when unauthenticated.
- * Call getSession() separately to distinguish login vs onboarding redirects.
+ * Resolves tenant access for the current request. Refus par défaut : seul un
+ * rôle reconnu donne un contexte ; un rôle absent ou inconnu donne « denied ».
  */
-export const getAuthContext = cache(async (): Promise<AuthContext | null> => {
+export const getAuthAccess = cache(async (): Promise<AuthAccess> => {
   const user = await getSession();
-  if (!user) return null;
+  if (!user) return { status: 'anonymous' };
 
   const cookieStore = await cookies();
   const orgCookie = cookieStore.get(ORG_COOKIE_NAME)?.value;
@@ -43,18 +85,13 @@ export const getAuthContext = cache(async (): Promise<AuthContext | null> => {
   const supabase = await createClient();
   const active = await getActiveMembership(supabase);
   if (!active) {
-    authDebug('getAuthContext', {
-      userId: user.id,
-      orgCookie,
-      reason: 'no_active_membership',
-    });
-    return null;
+    authDebug('getAuthAccess', { userId: user.id, orgCookie, reason: 'no_active_membership' });
+    return { status: 'no_membership', userId: user.id };
   }
 
   const organizationId = active.organization_id;
-
   if (orgCookie && orgCookie !== organizationId) {
-    authDebug('getAuthContext', {
+    authDebug('getAuthAccess', {
       userId: user.id,
       orgCookie,
       resolvedOrg: organizationId,
@@ -62,78 +99,27 @@ export const getAuthContext = cache(async (): Promise<AuthContext | null> => {
     });
   }
 
-  if (active.role_code) {
-    const role = normalizeOrgRole(resolveOrgRole(active.role_code));
-    authDebug('getAuthContext', {
+  const roleCode = active.role_code ?? (await lookupRoleCode(supabase, user.id, organizationId));
+  const role = resolveOrgRole(roleCode);
+  if (!role) {
+    authDebug('getAuthAccess', {
       userId: user.id,
       organizationId,
-      role,
-      source: 'rpc',
-      ok: true,
+      roleCode: roleCode ?? null,
+      reason: 'role_not_recognized',
+      ok: false,
     });
-    return {
-      userId: user.id,
-      organizationId,
-      role,
-    };
+    return { status: 'denied', userId: user.id, organizationId };
   }
 
-  const { data: member, error: memberError } = await supabase
-    .from('organization_members')
-    .select('organization_id, role_id')
-    .eq('user_id', user.id)
-    .eq('organization_id', organizationId)
-    .eq('status', 'active')
-    .maybeSingle();
+  authDebug('getAuthAccess', { userId: user.id, organizationId, role, ok: true });
+  return { status: 'ok', ctx: { userId: user.id, organizationId, role } };
+});
 
-  if (memberError || !member) {
-    authDebug('getAuthContext', {
-      userId: user.id,
-      organizationId,
-      reason: 'member_lookup_failed_rpc_fallback',
-      error: memberError?.message ?? 'no_row',
-    });
-    return {
-      userId: user.id,
-      organizationId,
-      role: 'org_owner',
-    };
-  }
-
-  let role: OrgRole = 'org_owner';
-
-  if (member.role_id) {
-    const { data: roleRow, error: roleError } = await supabase
-      .from('roles')
-      .select('code')
-      .eq('id', member.role_id)
-      .maybeSingle();
-
-    if (roleError) {
-      authDebug('getAuthContext', {
-        userId: user.id,
-        reason: 'role_lookup_failed',
-        error: roleError.message,
-      });
-    }
-    if (roleRow?.code) {
-      role = normalizeOrgRole(resolveOrgRole(roleRow.code));
-    }
-  }
-
-  authDebug('getAuthContext', {
-    userId: user.id,
-    organizationId: member.organization_id,
-    role,
-    roleId: member.role_id,
-    ok: true,
-  });
-
-  return {
-    userId: user.id,
-    organizationId: member.organization_id,
-    role: normalizeOrgRole(role),
-  };
+/** Contexte d'un membre au rôle reconnu ; null sinon (non connecté, sans restaurant ou rôle refusé). */
+export const getAuthContext = cache(async (): Promise<AuthContext | null> => {
+  const access = await getAuthAccess();
+  return access.status === 'ok' ? access.ctx : null;
 });
 
 /** Admin client — onboarding & tests only */
