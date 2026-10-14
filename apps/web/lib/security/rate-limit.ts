@@ -41,6 +41,20 @@ function memoryRateLimit(
   };
 }
 
+/** Upstash REST replies `{"result": 3}`; tolerate a bare number too. */
+export function parseUpstashCount(body: string): number {
+  try {
+    const parsed: unknown = JSON.parse(body);
+    if (typeof parsed === 'number') return parsed;
+    if (parsed && typeof parsed === 'object' && 'result' in parsed) {
+      return Number((parsed as { result: unknown }).result);
+    }
+  } catch {
+    /* not JSON */
+  }
+  return Number(body);
+}
+
 async function upstashRateLimit(
   key: string,
   limit: number,
@@ -53,17 +67,27 @@ async function upstashRateLimit(
   const windowMs = windowSec * 1000;
   const now = Date.now();
   const bucketKey = `rl:${key}:${Math.floor(now / windowMs)}`;
+  const headers = { Authorization: `Bearer ${token}` };
 
-  const incrRes = await fetch(`${url}/incr/${encodeURIComponent(bucketKey)}`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  if (!incrRes.ok) return null;
-
-  const count = Number(await incrRes.text());
-  if (count === 1) {
-    await fetch(`${url}/expire/${encodeURIComponent(bucketKey)}/${windowSec}`, {
-      headers: { Authorization: `Bearer ${token}` },
+  let count: number;
+  try {
+    const incrRes = await fetch(`${url}/incr/${encodeURIComponent(bucketKey)}`, {
+      headers,
+      signal: AbortSignal.timeout(2000),
     });
+    if (!incrRes.ok) return null;
+    count = parseUpstashCount(await incrRes.text());
+    if (!Number.isFinite(count)) return null;
+    if (count === 1) {
+      await fetch(`${url}/expire/${encodeURIComponent(bucketKey)}/${windowSec}`, {
+        headers,
+        signal: AbortSignal.timeout(2000),
+      });
+    }
+  } catch (e) {
+    // An unreachable Redis must not take down every rate-limited action.
+    console.warn('[rate-limit] Upstash unreachable, using in-memory fallback:', (e as Error).message);
+    return null;
   }
 
   const resetAt = (Math.floor(now / windowMs) + 1) * windowMs;
