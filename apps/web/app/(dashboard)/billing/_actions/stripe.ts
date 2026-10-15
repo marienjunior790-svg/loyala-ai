@@ -117,6 +117,8 @@ export async function startCardCheckoutAction(
           ? { customer_email: user.email }
           : {}),
       client_reference_id: ctx.organizationId,
+      // Charge exactly the euro price shown in Loyala, without Stripe's FX markup.
+      adaptive_pricing: { enabled: false },
       metadata,
       subscription_data: { metadata },
       locale: 'fr',
