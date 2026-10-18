@@ -1,13 +1,14 @@
-'use server';
+﻿'use server';
 
 import { revalidatePath } from 'next/cache';
 import { requireAuthPermission } from '@/lib/auth/guard';
+import { canChangeOrder, canRefundOrder, type OrderAuthorship } from '@/lib/auth/clients-access';
 import { createClient } from '@/lib/supabase/server';
 import {
   recordClientVisit,
-  recordClientExpense,
   updateClientVisit,
-  deleteClientVisit,
+  cancelClientOrder,
+  refundClientOrder,
   getClient,
   getOrganization,
   getGoogleReviewUrl,
@@ -18,8 +19,9 @@ import {
 } from '@loyala/domain-crm';
 import {
   recordVisitSchema,
-  recordExpenseSchema,
   updateVisitSchema,
+  cancelOrderSchema,
+  refundOrderSchema,
 } from '@loyala/validation';
 import { recordDomainEvent } from '@/lib/audit/record-domain-event';
 
@@ -46,6 +48,31 @@ function revalidateVisitPaths(clientId: string) {
   }
 }
 
+const ORDER_CHANGE_DENIED =
+  'Après 15 minutes, ou pour la commande d’un autre membre, seul un gérant, un administrateur ou le propriétaire peut modifier ou annuler.';
+const REFUND_DENIED = 'Seuls le propriétaire, un administrateur ou un gérant peuvent rembourser une commande.';
+
+async function loadOrderAuthorship(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  organizationId: string,
+  orderId: string
+): Promise<OrderAuthorship | null> {
+  const { data, error } = await supabase
+    .from('client_visits')
+    .select('created_by, created_at')
+    .eq('id', orderId)
+    .eq('organization_id', organizationId)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+function pointsNote(pointsDelta: number): string {
+  if (pointsDelta === 0) return '';
+  const abs = Math.abs(pointsDelta);
+  return pointsDelta > 0 ? ` · +${abs} pts` : ` · ${abs} pts retirés`;
+}
+
 async function buildPostVisitReviewUrl(
   supabase: Awaited<ReturnType<typeof createClient>>,
   organizationId: string,
@@ -69,7 +96,7 @@ async function buildPostVisitReviewUrl(
       restaurantName: org.name,
       reviewUrl,
     });
-    const wa = buildWhatsAppUrl(client.phone, message);
+    const wa = buildWhatsAppUrl(client.phone_e164 || client.phone, message, org.country_code);
 
     await createNotification(supabase, {
       organizationId,
@@ -106,7 +133,10 @@ export async function recordVisitAction(
   const parsed = recordVisitSchema.safeParse({
     clientId: formData.get('clientId'),
     visitedAt: formData.get('visitedAt'),
+    orderType: formData.get('orderType') || undefined,
+    paymentMethod: formData.get('paymentMethod') || undefined,
     amount: formData.get('amount') || undefined,
+    discount: formData.get('discount') || undefined,
     notes: formData.get('notes') || undefined,
     items,
   });
@@ -118,10 +148,7 @@ export async function recordVisitAction(
   const supabase = await createClient();
 
   try {
-    const visit = await recordClientVisit(supabase, ctx.organizationId, {
-      ...parsed.data,
-      createdBy: ctx.userId,
-    });
+    const { order, pointsDelta } = await recordClientVisit(supabase, ctx.organizationId, parsed.data);
 
     await recordDomainEvent(supabase, {
       organizationId: ctx.organizationId,
@@ -130,9 +157,12 @@ export async function recordVisitAction(
       aggregateId: parsed.data.clientId,
       actorId: ctx.userId,
       payload: {
-        visitId: visit.id,
-        amount: visit.amount,
-        visitedAt: visit.visited_at,
+        visitId: order.id,
+        amount: order.amount,
+        visitedAt: order.visited_at,
+        orderType: order.order_type,
+        paymentMethod: order.payment_method,
+        pointsDelta,
       },
     }).catch(() => undefined);
 
@@ -146,57 +176,12 @@ export async function recordVisitAction(
     revalidateVisitPaths(parsed.data.clientId);
     return {
       success: reviewWhatsappUrl
-        ? 'Visite enregistrée — demande d’avis Google prête'
-        : 'Visite enregistrée',
+        ? `Commande enregistrée${pointsNote(pointsDelta)} — demande d’avis Google prête`
+        : `Commande enregistrée${pointsNote(pointsDelta)}`,
       reviewWhatsappUrl,
     };
   } catch (e) {
-    return { error: e instanceof Error ? e.message : 'Erreur enregistrement visite' };
-  }
-}
-
-export async function recordExpenseAction(
-  _prev: VisitActionState,
-  formData: FormData
-): Promise<VisitActionState> {
-  const ctx = await requireAuthPermission('clients:write');
-
-  const parsed = recordExpenseSchema.safeParse({
-    clientId: formData.get('clientId'),
-    visitedAt: formData.get('visitedAt'),
-    amount: formData.get('amount'),
-    notes: formData.get('notes') || undefined,
-  });
-
-  if (!parsed.success) {
-    return { error: parsed.error.errors[0]?.message ?? 'Données invalides' };
-  }
-
-  const supabase = await createClient();
-
-  try {
-    const expense = await recordClientExpense(supabase, ctx.organizationId, {
-      ...parsed.data,
-      createdBy: ctx.userId,
-    });
-
-    await recordDomainEvent(supabase, {
-      organizationId: ctx.organizationId,
-      eventType: 'client.expense.recorded',
-      aggregateType: 'client',
-      aggregateId: parsed.data.clientId,
-      actorId: ctx.userId,
-      payload: {
-        visitId: expense.id,
-        amount: expense.amount,
-        visitedAt: expense.visited_at,
-      },
-    }).catch(() => undefined);
-
-    revalidateVisitPaths(parsed.data.clientId);
-    return { success: 'Dépense enregistrée' };
-  } catch (e) {
-    return { error: e instanceof Error ? e.message : 'Erreur enregistrement dépense' };
+    return { error: e instanceof Error ? e.message : 'Erreur enregistrement commande' };
   }
 }
 
@@ -210,8 +195,11 @@ export async function updateVisitAction(
     visitId: formData.get('visitId'),
     clientId: formData.get('clientId'),
     visitedAt: formData.get('visitedAt'),
+    orderType: formData.get('orderType') || undefined,
+    paymentMethod: formData.get('paymentMethod') || undefined,
     amount: formData.get('amount') || undefined,
-    notes: formData.get('notes') || undefined,
+    discount: formData.get('discount') || undefined,
+    notes: formData.get('notes') ?? undefined,
   });
 
   if (!parsed.success) {
@@ -221,26 +209,87 @@ export async function updateVisitAction(
   const supabase = await createClient();
 
   try {
-    await updateClientVisit(supabase, ctx.organizationId, parsed.data);
+    const order = await loadOrderAuthorship(supabase, ctx.organizationId, parsed.data.visitId);
+    if (!order) return { error: 'Commande introuvable' };
+    if (!canChangeOrder(ctx, order)) return { error: ORDER_CHANGE_DENIED };
+
+    const { pointsDelta } = await updateClientVisit(supabase, ctx.organizationId, parsed.data);
     revalidateVisitPaths(parsed.data.clientId);
-    return { success: 'Visite mise à jour' };
+    return { success: `Commande mise à jour${pointsNote(pointsDelta)}` };
   } catch (e) {
     return { error: e instanceof Error ? e.message : 'Erreur mise à jour' };
   }
 }
 
-export async function deleteVisitAction(
-  clientId: string,
-  visitId: string
+export async function cancelVisitAction(
+  _prev: VisitActionState,
+  formData: FormData
 ): Promise<VisitActionState> {
   const ctx = await requireAuthPermission('clients:write');
-  const supabase = await createClient();
 
+  const parsed = cancelOrderSchema.safeParse({
+    visitId: formData.get('visitId'),
+    clientId: formData.get('clientId'),
+    reason: formData.get('reason'),
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.errors[0]?.message ?? 'Données invalides' };
+  }
+
+  const supabase = await createClient();
   try {
-    await deleteClientVisit(supabase, ctx.organizationId, clientId, visitId);
-    revalidateVisitPaths(clientId);
-    return { success: 'Visite supprimée' };
+    const authorship = await loadOrderAuthorship(supabase, ctx.organizationId, parsed.data.visitId);
+    if (!authorship) return { error: 'Commande introuvable' };
+    if (!canChangeOrder(ctx, authorship)) return { error: ORDER_CHANGE_DENIED };
+
+    const { order, pointsDelta } = await cancelClientOrder(supabase, ctx.organizationId, parsed.data);
+    await recordDomainEvent(supabase, {
+      organizationId: ctx.organizationId,
+      eventType: 'client.visit.cancelled',
+      aggregateType: 'client',
+      aggregateId: parsed.data.clientId,
+      actorId: ctx.userId,
+      payload: { visitId: order.id, amount: order.amount, reason: parsed.data.reason, pointsDelta },
+    }).catch(() => undefined);
+    revalidateVisitPaths(parsed.data.clientId);
+    const untouched = pointsDelta === 0 && order.source === 'historique' ? ' · points d’origine non reliés, solde inchangé' : '';
+    return { success: `Commande annulée${pointsNote(pointsDelta)}${untouched}` };
   } catch (e) {
-    return { error: e instanceof Error ? e.message : 'Erreur suppression' };
+    return { error: e instanceof Error ? e.message : 'Erreur annulation' };
+  }
+}
+
+export async function refundVisitAction(
+  _prev: VisitActionState,
+  formData: FormData
+): Promise<VisitActionState> {
+  const ctx = await requireAuthPermission('clients:write');
+  if (!canRefundOrder(ctx)) return { error: REFUND_DENIED };
+
+  const parsed = refundOrderSchema.safeParse({
+    visitId: formData.get('visitId'),
+    clientId: formData.get('clientId'),
+    amount: formData.get('amount'),
+    reason: formData.get('reason'),
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.errors[0]?.message ?? 'Données invalides' };
+  }
+
+  const supabase = await createClient();
+  try {
+    const { order, pointsDelta } = await refundClientOrder(supabase, ctx.organizationId, parsed.data);
+    await recordDomainEvent(supabase, {
+      organizationId: ctx.organizationId,
+      eventType: 'client.visit.refunded',
+      aggregateType: 'client',
+      aggregateId: parsed.data.clientId,
+      actorId: ctx.userId,
+      payload: { visitId: order.id, refunded: parsed.data.amount, reason: parsed.data.reason, pointsDelta },
+    }).catch(() => undefined);
+    revalidateVisitPaths(parsed.data.clientId);
+    return { success: `Remboursement enregistré${pointsNote(pointsDelta)}` };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : 'Erreur remboursement' };
   }
 }

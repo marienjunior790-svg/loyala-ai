@@ -115,7 +115,7 @@ export async function fetchBirthdayClientsToday(
 
   const { data, error } = await admin
     .from('clients')
-    .select('id, full_name, phone, date_of_birth, opt_in_whatsapp')
+    .select('id, full_name, phone, phone_e164, date_of_birth, opt_in_whatsapp')
     .eq('organization_id', organizationId)
     .is('deleted_at', null)
     .not('date_of_birth', 'is', null);
@@ -131,7 +131,7 @@ export async function fetchBirthdayClientsToday(
       clientId: String(row.id),
       fullName: String(row.full_name),
       birthday: String(row.date_of_birth),
-      phone: String(row.phone ?? ''),
+      phone: String(row.phone_e164 || row.phone || ''),
       optInWhatsapp: row.opt_in_whatsapp !== false,
     }));
 }
@@ -146,7 +146,7 @@ export async function fetchInactiveClientsForRelaunch(
 
   const { data, error } = await admin
     .from('clients')
-    .select('id, full_name, phone, last_visit_at, visit_count, total_spent, loyalty_points, opt_in_whatsapp')
+    .select('id, full_name, phone, phone_e164, last_visit_at, visit_count, total_spent, loyalty_points, opt_in_whatsapp')
     .eq('organization_id', organizationId)
     .is('deleted_at', null)
     .or(`last_visit_at.is.null,last_visit_at.lt.${cutoff.toISOString()}`);
@@ -156,7 +156,7 @@ export async function fetchInactiveClientsForRelaunch(
   return (data ?? []).map((row) => ({
     clientId: String(row.id),
     fullName: String(row.full_name),
-    phone: String(row.phone),
+    phone: String(row.phone_e164 || row.phone),
     lastVisitAt: row.last_visit_at ? String(row.last_visit_at) : null,
     visitCount: Number(row.visit_count ?? 0),
     totalSpent: Number(row.total_spent ?? 0),

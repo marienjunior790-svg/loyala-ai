@@ -22,21 +22,27 @@ export type Permission =
   | 'inbox:reply'
   | 'clients:read'
   | 'clients:write'
-  | 'clients:delete';
+  | 'clients:delete'
+  | 'loyalty:adjust'
+  /** Modifier ou annuler n'importe quelle commande, à tout moment. */
+  | 'orders:manage'
+  | 'orders:refund';
 
 /** Role → permissions map */
 export const ROLE_PERMISSIONS: Record<OrgRole, readonly Permission[]> = {
   org_owner: [
     'org:read', 'org:settings', 'team:invite', 'analytics:read',
     'inbox:read', 'inbox:reply', 'clients:read', 'clients:write', 'clients:delete',
+    'loyalty:adjust', 'orders:manage', 'orders:refund',
   ],
   org_admin: [
     'org:read', 'org:settings', 'team:invite', 'analytics:read',
     'inbox:read', 'inbox:reply', 'clients:read', 'clients:write', 'clients:delete',
+    'loyalty:adjust', 'orders:manage', 'orders:refund',
   ],
   org_manager: [
     'org:read', 'analytics:read', 'inbox:read', 'inbox:reply',
-    'clients:read', 'clients:write',
+    'clients:read', 'clients:write', 'loyalty:adjust', 'orders:manage', 'orders:refund',
   ],
   org_staff: ['org:read', 'inbox:read', 'inbox:reply', 'clients:read', 'clients:write'],
   org_viewer: ['org:read', 'analytics:read', 'clients:read'],
@@ -48,14 +54,13 @@ export interface AuthContext {
   role: OrgRole;
 }
 
+/** Refus par défaut : un rôle absent ou inconnu n'a aucune permission. */
 export function hasPermission(ctx: AuthContext, permission: Permission): boolean {
-  const role: OrgRole = isOrgRole(ctx.role) ? ctx.role : 'org_viewer';
-  const permissions = ROLE_PERMISSIONS[role];
-  if (!permissions) return false;
-  return permissions.includes(permission);
+  if (!isOrgRole(ctx.role)) return false;
+  return ROLE_PERMISSIONS[ctx.role].includes(permission);
 }
 
-function isOrgRole(value: unknown): value is OrgRole {
+export function isOrgRole(value: unknown): value is OrgRole {
   return typeof value === 'string' && (ORG_ROLES as readonly string[]).includes(value);
 }
 

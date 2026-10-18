@@ -18,6 +18,8 @@ interface ClientsAcquisitionShellProps {
   whatsappPhone: string;
   phoneNumberId: string;
   apiConfigured: boolean;
+  /** Panneau d'acquisition et demandes WhatsApp : affichés dans l'onglet Fichier clients. */
+  showAcquisition?: boolean;
 }
 
 export function ClientsAcquisitionShell({
@@ -27,6 +29,7 @@ export function ClientsAcquisitionShell({
   whatsappPhone,
   phoneNumberId,
   apiConfigured,
+  showAcquisition = true,
 }: ClientsAcquisitionShellProps) {
   const [connectOpen, setConnectOpen] = useState(false);
 
@@ -36,7 +39,7 @@ export function ClientsAcquisitionShell({
         <div>
           <h2 className="text-2xl font-semibold tracking-tight">Clients</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Relancez vos clients inactifs en 1 clic via WhatsApp
+            Vos meilleurs clients, ce qu’ils dépensent et ce qu’ils commandent
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -60,13 +63,17 @@ export function ClientsAcquisitionShell({
         </div>
       </div>
 
-      <ClientsAcquisitionPanel
-        stats={stats}
-        canWrite={canWrite}
-        onConnectWhatsApp={() => setConnectOpen(true)}
-      />
+      {showAcquisition && (
+        <>
+          <ClientsAcquisitionPanel
+            stats={stats}
+            canWrite={canWrite}
+            onConnectWhatsApp={() => setConnectOpen(true)}
+          />
 
-      <WhatsAppLeadsInbox leads={leads} />
+          <WhatsAppLeadsInbox leads={leads} />
+        </>
+      )}
 
       <ConnectWhatsAppDialog
         open={connectOpen}

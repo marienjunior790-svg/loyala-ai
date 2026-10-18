@@ -36,7 +36,7 @@ import {
   duplicateCampaignAction,
   type CampaignCrudState,
 } from '@/app/(dashboard)/campaigns/_actions/campaigns';
-import type { Campaign } from '@loyala/domain-crm';
+import type { Campaign, WhatsappConsentCounts } from '@loyala/domain-crm';
 import type { AutomationStatus } from '@/lib/worker/automation-status';
 
 const initialModule: ModuleActionState = {};
@@ -44,6 +44,7 @@ const initialCrud: CampaignCrudState = {};
 
 interface CampaignsPageClientProps {
   campaigns: Campaign[];
+  consent?: WhatsappConsentCounts | null;
   automationStatus: AutomationStatus;
   error?: string | null;
   canWrite?: boolean;
@@ -78,6 +79,7 @@ function toLocalInputValue(iso: string | null | undefined): string {
 
 export function CampaignsPageClient({
   campaigns,
+  consent,
   automationStatus,
   error,
   canWrite = false,
@@ -154,6 +156,24 @@ export function CampaignsPageClient({
       )}
 
       <WorkerIntegrationStatus status={automationStatus} />
+
+      {consent && (
+        <Card>
+          <CardContent className="flex flex-wrap items-center gap-x-6 gap-y-2 p-4 text-sm">
+            <span className="font-medium">Consentement WhatsApp</span>
+            <span>
+              <strong>{consent.accorde.toLocaleString('fr-FR')}</strong> accord donné
+            </span>
+            <span className="text-amber-600 dark:text-amber-400">
+              <strong>{consent.a_confirmer.toLocaleString('fr-FR')}</strong> à confirmer — contactables,
+              accord d’origine non daté
+            </span>
+            <span className="text-muted-foreground">
+              <strong>{consent.refuse.toLocaleString('fr-FR')}</strong> sans accord, exclus des envois
+            </span>
+          </CardContent>
+        </Card>
+      )}
 
       {!canWrite && (
         <Card className="border-amber-500/30 bg-amber-500/5">

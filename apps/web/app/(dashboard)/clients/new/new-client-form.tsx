@@ -90,9 +90,9 @@ export function NewClientForm({ whatsappReady = false }: { whatsappReady?: boole
               className="mt-1 w-full rounded-lg border border-input bg-background px-4 py-2.5 text-sm outline-none ring-offset-background focus:ring-2 focus:ring-ring"
             />
           </div>
-          <label className="flex items-center gap-2 text-sm">
-            <input name="optInWhatsapp" type="checkbox" defaultChecked className="rounded" />
-            Opt-in WhatsApp
+          <label className="flex items-start gap-2 text-sm">
+            <input name="optInWhatsapp" type="checkbox" className="mt-0.5 rounded" />
+            Le client accepte de recevoir des messages WhatsApp du restaurant
           </label>
           <div className="flex gap-3 pt-2">
             <Button type="submit" disabled={pending}>

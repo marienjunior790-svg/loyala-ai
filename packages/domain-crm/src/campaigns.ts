@@ -45,7 +45,7 @@ export interface CampaignSend {
   whatsapp_url: string | null;
   sent_at: string | null;
   created_at: string;
-  clients?: { full_name: string; phone: string } | null;
+  clients?: { full_name: string; phone: string; phone_e164?: string | null } | null;
 }
 
 export interface CreateCampaignInput {
@@ -428,7 +428,7 @@ export async function listPendingCampaignSendsForCampaign(
 ): Promise<CampaignSend[]> {
   const { data, error } = await supabase
     .from('campaign_sends')
-    .select('*, clients(full_name, phone)')
+    .select('*, clients(full_name, phone, phone_e164)')
     .eq('organization_id', organizationId)
     .eq('campaign_id', campaignId)
     .eq('status', 'pending')

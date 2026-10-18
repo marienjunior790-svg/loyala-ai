@@ -1,4 +1,5 @@
 import { requireAuth } from '@/lib/auth/guard';
+import { canAdjustLoyalty } from '@/lib/auth/clients-access';
 import { createClient } from '@/lib/supabase/server';
 import {
   getLoyaltySummary,
@@ -30,6 +31,7 @@ export default async function LoyaltyPage() {
           loyalty_points: c.loyalty_points,
         }))}
         transactions={transactions}
+        canAdjust={canAdjustLoyalty(ctx)}
       />
     );
   } catch (e) {

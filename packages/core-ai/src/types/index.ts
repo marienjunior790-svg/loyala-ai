@@ -20,7 +20,8 @@ export type AIUseCase =
   | 'review.response.suggest'
   | 'crm_summary'
   | 'rfm_analysis'
-  | 'support_reply';
+  | 'support_reply'
+  | 'marketing.assistant.answer'
 
 export type PromptKey = AIUseCase | string;
 

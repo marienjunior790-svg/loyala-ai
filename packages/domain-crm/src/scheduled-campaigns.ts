@@ -89,6 +89,7 @@ function toClientForCampaign(client: Client): ClientForCampaign {
     id: client.id,
     full_name: client.full_name,
     phone: client.phone,
+    phone_e164: client.phone_e164,
     opt_in_whatsapp: client.opt_in_whatsapp,
   };
 }
@@ -123,7 +124,7 @@ export async function appendBroadcastCampaignSends(
       campaignId: params.campaignId,
       clientId: client.id,
       messageBody: body,
-      whatsappUrl: buildWhatsAppUrl(client.phone, body),
+      whatsappUrl: buildWhatsAppUrl(client.phone_e164 || client.phone, body),
     });
     sendCount += 1;
   }
@@ -160,7 +161,7 @@ export async function appendCampaignSendsFromPlans(
       campaignId: params.campaignId,
       clientId: client.id,
       messageBody: body,
-      whatsappUrl: buildWhatsAppUrl(client.phone, body),
+      whatsappUrl: buildWhatsAppUrl(client.phone_e164 || client.phone, body),
     });
     sendCount += 1;
   }

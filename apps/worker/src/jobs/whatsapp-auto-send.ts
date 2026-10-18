@@ -59,7 +59,7 @@ export function isEligibleForAutoSend(
     return true;
   }
   if (config.testPhone) {
-    const sendPhone = send.clients?.phone ?? '';
+    const sendPhone = send.clients?.phone_e164 || send.clients?.phone || '';
     return (
       Boolean(sendPhone) &&
       normalizePhoneForWhatsApp(sendPhone) === normalizePhoneForWhatsApp(config.testPhone)
@@ -69,7 +69,7 @@ export function isEligibleForAutoSend(
 }
 
 function resolveSendPhone(send: CampaignSend): string {
-  const phone = send.clients?.phone?.trim();
+  const phone = send.clients?.phone_e164?.trim() || send.clients?.phone?.trim();
   if (!phone) {
     throw new Error(`Campaign send ${send.id} has no client phone`);
   }

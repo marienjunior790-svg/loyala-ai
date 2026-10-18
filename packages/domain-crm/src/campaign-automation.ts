@@ -14,6 +14,8 @@ export interface ClientForCampaign {
   id: string;
   full_name: string;
   phone: string;
+  /** Format international calculé par la base (prioritaire pour WhatsApp). */
+  phone_e164?: string | null;
   opt_in_whatsapp?: boolean;
 }
 
@@ -83,7 +85,7 @@ export async function persistCampaignPlans(
         clientName: client.full_name,
         restaurantName: params.restaurantName,
       });
-    const url = buildWhatsAppUrl(client.phone, body);
+    const url = buildWhatsAppUrl(client.phone_e164 || client.phone, body);
     await createCampaignSend(supabase, params.organizationId, {
       campaignId: campaign.id,
       clientId: client.id,

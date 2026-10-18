@@ -6,3 +6,4 @@ export * from './visits';
 export * from './catalog';
 export * from './env';
 export * from './billing';
+export * from './mi';

@@ -13,6 +13,7 @@ import {
   CreditCard,
   Shield,
   Settings,
+  Sparkles,
 } from 'lucide-react';
 
 export interface NavItem {
@@ -33,6 +34,13 @@ export const mainNav: NavItem[] = [
   { label: 'Fidélité', href: '/loyalty', icon: Gift, description: 'Points et récompenses', mobile: false },
   { label: 'Avis Google', href: '/reviews', icon: Star, description: 'Réputation', mobile: false },
   { label: 'Analytics', href: '/analytics', icon: BarChart3, description: 'Rapports', mobile: false },
+  {
+    label: 'Marketing IA',
+    href: '/marketing-intelligence',
+    icon: Sparkles,
+    description: 'Assistant marketing consultatif',
+    mobile: false,
+  },
   { label: 'Notifications', href: '/notifications', icon: Bell, description: 'Alertes', mobile: false },
   { label: 'Paiement', href: '/billing', icon: CreditCard, description: 'Abonnement', mobile: false },
   { label: 'Administration', href: '/administration', icon: Shield, description: 'Équipe et org', mobile: false },

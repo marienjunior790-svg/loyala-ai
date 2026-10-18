@@ -242,7 +242,10 @@ export function listClientDomainEvents(
 
 export interface BuildClientTimelineInput {
   client: Pick<Client, 'id' | 'full_name' | 'created_at' | 'notes'>;
-  visits?: Array<ClientVisit & { items?: ClientVisitWithItems['items'] }>;
+  visits?: Array<
+    Pick<ClientVisit, 'id' | 'kind' | 'visited_at' | 'amount' | 'notes' | 'created_by'> &
+      Partial<ClientVisit> & { items?: ClientVisitWithItems['items'] }
+  >;
   messages?: ClientMessageRow[];
   campaignSends?: ClientCampaignSendRow[];
   loyalty?: ClientLoyaltyRow[];
@@ -351,7 +354,17 @@ export function buildClientTimeline(input: BuildClientTimelineInput): ClientTime
   }
 
   for (const visit of input.visits ?? []) {
-    const isExpense = visit.kind === 'expense';
+    const status = visit.status ?? 'paid';
+    const takeaway = visit.order_type === 'a_emporter' || visit.order_type === 'livraison' || visit.kind === 'expense';
+    const label = takeaway ? 'Commande à emporter / livraison' : 'Visite';
+    const title =
+      status === 'cancelled'
+        ? `${label} annulée`
+        : status === 'refunded'
+          ? `${label} remboursée`
+          : status === 'partially_refunded'
+            ? `${label} remboursée en partie`
+            : `${label} enregistrée`;
     const items = visit.items ?? [];
     const itemsSummary = items.length
       ? items.map((i) => `${i.name} ×${Number(i.quantity)}`).join(', ')
@@ -359,18 +372,24 @@ export function buildClientTimeline(input: BuildClientTimelineInput): ClientTime
     events.push({
       id: `visit:${visit.id}`,
       category: 'purchase',
-      icon: '🛍️',
-      title: isExpense ? 'Dépense enregistrée' : 'Visite enregistrée',
+      icon: status === 'cancelled' ? '🚫' : '🛍️',
+      title,
       summary:
+        (status === 'cancelled' && visit.cancel_reason ? `Motif : ${visit.cancel_reason}` : null) ??
         itemsSummary ??
         (visit.amount != null && Number(visit.amount) > 0
           ? formatXof(Number(visit.amount))
-          : visit.notes || (isExpense ? 'Dépense' : 'Visite')),
+          : visit.notes || label),
       timestamp: visit.visited_at,
       actor: actorLabel(visit.created_by, currentUserId),
       source: 'client_visits',
       details: {
         kind: visit.kind,
+        status,
+        orderType: visit.order_type,
+        paymentMethod: visit.payment_method,
+        refundedAmount: visit.refunded_amount,
+        cancelReason: visit.cancel_reason,
         items: items.map((i) => ({
           name: i.name,
           quantity: Number(i.quantity),

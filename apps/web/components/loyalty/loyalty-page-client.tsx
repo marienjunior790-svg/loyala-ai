@@ -19,9 +19,10 @@ interface LoyaltyPageClientProps {
   };
   clients: Pick<Client, 'id' | 'full_name' | 'loyalty_points'>[];
   transactions: LoyaltyTransaction[];
+  canAdjust: boolean;
 }
 
-export function LoyaltyPageClient({ summary, clients, transactions }: LoyaltyPageClientProps) {
+export function LoyaltyPageClient({ summary, clients, transactions, canAdjust }: LoyaltyPageClientProps) {
   const [state, formAction, pending] = useActionState(addPointsAction, initial);
 
   return (
@@ -32,12 +33,14 @@ export function LoyaltyPageClient({ summary, clients, transactions }: LoyaltyPag
           <div className="text-sm text-muted-foreground">
             <p className="font-medium text-foreground">Fidélisation automatique active</p>
             <p className="mt-1">
-              À chaque visite ou dépense enregistrée :{' '}
+              À chaque commande payée :{' '}
               <span className="font-medium text-foreground">
                 1 point pour {LOYALTY_XOF_PER_POINT.toLocaleString('fr-FR')} XOF
               </span>{' '}
-              dépensés. L’ajustement manuel ci-dessous reste disponible pour les bonus /
-              corrections.
+              dépensés, retirés si la commande est annulée ou remboursée.
+              {canAdjust
+                ? ' L’ajustement manuel ci-dessous reste disponible pour les bonus / corrections.'
+                : ' L’ajustement manuel est réservé au propriétaire, aux administrateurs et aux gérants.'}
             </p>
           </div>
         </div>
@@ -73,6 +76,7 @@ export function LoyaltyPageClient({ summary, clients, transactions }: LoyaltyPag
         </Card>
       </div>
 
+      {canAdjust && (
       <Card>
         <CardHeader>
           <CardTitle>Ajustement manuel</CardTitle>
@@ -110,6 +114,7 @@ export function LoyaltyPageClient({ summary, clients, transactions }: LoyaltyPag
           </form>
         </CardContent>
       </Card>
+      )}
 
       <Card>
         <CardHeader>
@@ -118,7 +123,7 @@ export function LoyaltyPageClient({ summary, clients, transactions }: LoyaltyPag
         <CardContent>
           {transactions.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              Aucune transaction pour le moment. Enregistrez une visite avec un montant pour
+              Aucune transaction pour le moment. Enregistrez une commande payée pour
               créditer automatiquement des points.
             </p>
           ) : (

@@ -1,16 +1,9 @@
 import { redirect } from 'next/navigation';
-import { getAuthContext, getSession } from './session';
+import { getAuthAccess } from './session';
 import { hasPermission, type AuthContext, type Permission } from '@loyala/core-iam';
-import { normalizeOrgRole } from './role-map';
 import { authDebug } from './debug';
 
-function withSafeContext(ctx: AuthContext): AuthContext {
-  return {
-    userId: ctx.userId,
-    organizationId: ctx.organizationId,
-    role: normalizeOrgRole(ctx.role ?? 'org_owner'),
-  };
-}
+export const ACCESS_DENIED_PATH = '/acces-refuse';
 
 /**
  * Pure permission decision — membership + role map only.
@@ -25,10 +18,10 @@ export function evaluateAuthPermission(
 }
 
 export async function requireAuth(): Promise<AuthContext> {
-  const raw = await getAuthContext();
+  const access = await getAuthAccess();
 
-  if (raw?.organizationId) {
-    const ctx = withSafeContext(raw);
+  if (access.status === 'ok') {
+    const { ctx } = access;
     authDebug('requireAuth', {
       decision: 'allow',
       userId: ctx.userId,
@@ -39,8 +32,19 @@ export async function requireAuth(): Promise<AuthContext> {
     return ctx;
   }
 
-  const user = await getSession();
-  if (!user) {
+  if (access.status === 'denied') {
+    authDebug('requireAuth', {
+      decision: 'redirect_access_denied',
+      userId: access.userId,
+      organizationId: access.organizationId,
+      role: null,
+      hasMembership: true,
+      redirect: ACCESS_DENIED_PATH,
+    });
+    redirect(ACCESS_DENIED_PATH);
+  }
+
+  if (access.status === 'anonymous') {
     authDebug('requireAuth', {
       decision: 'redirect_login',
       userId: null,
@@ -54,7 +58,7 @@ export async function requireAuth(): Promise<AuthContext> {
 
   authDebug('requireAuth', {
     decision: 'redirect_onboarding',
-    userId: user.id,
+    userId: access.userId,
     organizationId: null,
     role: null,
     hasMembership: false,

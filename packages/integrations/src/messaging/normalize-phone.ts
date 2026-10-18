@@ -1,9 +1,6 @@
-/** E.164 digits only (no +) for Meta WhatsApp Cloud API. */
-export function normalizePhoneForWhatsApp(raw: string): string {
-  const digits = raw.replace(/\D/g, '');
-  if (digits.startsWith('242')) return digits;
-  if (digits.startsWith('221')) return digits;
-  if (digits.startsWith('225')) return digits;
-  if (digits.startsWith('0')) return `242${digits.slice(1)}`;
-  return digits;
+import { phoneDigitsForWhatsApp } from '../phone';
+
+/** Chiffres E.164 sans « + » pour l'API WhatsApp Cloud de Meta. */
+export function normalizePhoneForWhatsApp(raw: string, country?: string | null): string {
+  return phoneDigitsForWhatsApp(raw, country);
 }

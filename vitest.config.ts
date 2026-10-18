@@ -16,6 +16,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': resolve(__dirname, 'apps/web'),
+      '@loyala/core-ai': resolve(__dirname, 'packages/core-ai/src'),
       '@loyala/core-iam': resolve(__dirname, 'packages/core-iam/src'),
       '@loyala/db': resolve(__dirname, 'packages/db/src'),
       '@loyala/domain-crm/whatsapp-secure': resolve(

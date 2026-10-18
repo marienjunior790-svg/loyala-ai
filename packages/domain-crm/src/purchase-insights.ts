@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { countsAsRevenue, orderNetAmount } from './orders';
 import { listClientsPurchases, type ClientVisitWithItems, type VisitItem } from './visits';
 
 export interface ClientPurchaseInsights {
@@ -40,10 +41,10 @@ function topByQuantity(
 export function computeClientPurchaseInsights(
   visits: ClientVisitWithItems[]
 ): ClientPurchaseInsights {
-  const sales = visits.filter((v) => v.kind === 'visit');
-  const purchasingVisits = sales.filter((v) => Number(v.amount ?? 0) > 0);
+  const sales = visits.filter((v) => countsAsRevenue(v));
+  const purchasingVisits = sales.filter((v) => orderNetAmount(v) > 0);
 
-  const totalSpent = sales.reduce((sum, v) => sum + Number(v.amount ?? 0), 0);
+  const totalSpent = sales.reduce((sum, v) => sum + orderNetAmount(v), 0);
   const visitCount = sales.length;
   const purchaseCount = purchasingVisits.length;
   const averageBasket = purchaseCount > 0 ? totalSpent / purchaseCount : 0;
@@ -64,7 +65,7 @@ export function computeClientPurchaseInsights(
     }
     monthTotals.set(
       monthKey(v.visited_at),
-      (monthTotals.get(monthKey(v.visited_at)) ?? 0) + Number(v.amount ?? 0)
+      (monthTotals.get(monthKey(v.visited_at)) ?? 0) + orderNetAmount(v)
     );
     for (const item of v.items) allItems.push(item);
   }

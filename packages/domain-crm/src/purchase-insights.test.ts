@@ -6,15 +6,27 @@ function visit(
   id: string,
   visitedAt: string,
   amount: number,
-  items: Array<{ name: string; category?: string; qty: number; price: number }> = []
+  items: Array<{ name: string; category?: string; qty: number; price: number }> = [],
+  status: ClientVisitWithItems['status'] = 'paid'
 ): ClientVisitWithItems {
   return {
     id,
     organization_id: 'org',
     client_id: 'client',
     kind: 'visit',
+    legacy_kind: null,
     visited_at: visitedAt,
     amount,
+    subtotal: amount,
+    discount_amount: 0,
+    refunded_amount: 0,
+    status,
+    source: 'manual',
+    order_type: 'sur_place',
+    payment_method: 'cash',
+    cancelled_at: null,
+    cancel_reason: null,
+    refunded_at: null,
     notes: null,
     created_by: 'user',
     created_at: visitedAt,
@@ -54,6 +66,16 @@ describe('computeClientPurchaseInsights', () => {
     expect(r.purchaseCount).toBe(2);
     expect(r.averageBasket).toBe(2850);
     expect(r.lastPurchaseAt).toBe('2026-02-10T12:00:00.000Z');
+  });
+
+  it('ignore une commande annulée : ni dépense, ni plat préféré', () => {
+    const r = computeClientPurchaseInsights([
+      visit('v1', '2026-01-10T12:00:00.000Z', 5000, [{ name: 'Burger', qty: 2, price: 2500 }]),
+      visit('v2', '2026-01-11T12:00:00.000Z', 90_000, [{ name: 'Langouste', qty: 6, price: 15_000 }], 'cancelled'),
+    ]);
+    expect(r.totalSpent).toBe(5000);
+    expect(r.visitCount).toBe(1);
+    expect(r.favoriteProduct?.name).toBe('Burger');
   });
 
   it('detects favorite product and category by quantity', () => {
