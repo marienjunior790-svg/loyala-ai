@@ -106,6 +106,54 @@ describe('MI P1 cockpit UI', () => {
     expect(html).not.toContain('mi-cockpit-kpis');
   });
 
+  it('P3 : affiche propositions campagne + éditeur brouillon (sans persist)', () => {
+    const html = renderToStaticMarkup(
+      React.createElement(MiCockpit, {
+        insights: {
+          clientCount: 3,
+          campaignProposals: [
+            {
+              id: 'campaign_thank_regular',
+              objectiveId: 'thank_regular',
+              campaignType: 'loyalty',
+              priority: 'low',
+              objective: 'Remercier',
+              analyticalJustification: ['n=3'],
+              period: {
+                code: 'mois',
+                label: 'Mois',
+                from: '2026-10-01',
+                to: '2026-10-18',
+              },
+              targetingCriteria: 'regular',
+              targetSegmentKey: 'regular',
+              audienceHeadcount: 3,
+              suggestedName: 'Merci réguliers',
+              suggestedMessage: 'Merci !',
+              suggestedCta: 'À bientôt',
+              messageVariants: ['Variante'],
+              limits: ['Brouillon'],
+              sourceRefs: ['retention:thank_regular'],
+            },
+          ],
+        },
+        dataQuality: 'ok',
+        period: {
+          code: 'mois',
+          label: 'Mois',
+          from: '2026-10-01',
+          to: '2026-10-18',
+          definition: 'calendaire',
+        },
+        locale: 'fr',
+      })
+    );
+    expect(html).toContain('mi-campaign-proposals');
+    expect(html).toContain('thank_regular');
+    expect(html).toContain('Préparer le brouillon');
+    expect(html).not.toMatch(/createCampaign|sendWhatsApp/i);
+  });
+
   it('affiche KPI + tendances + opportunités depuis payload CRM', () => {
     const html = renderToStaticMarkup(
       React.createElement(MiCockpit, {

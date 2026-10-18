@@ -108,6 +108,25 @@ export interface MiInsightCustomerIntelligence {
   medianRecencyDays: number | null;
 }
 
+export interface MiInsightCampaignProposal {
+  id: string;
+  objectiveId: string;
+  campaignType: string;
+  priority: 'high' | 'medium' | 'low';
+  objective: string;
+  analyticalJustification: string[];
+  period: { code: string; label: string; from: string; to: string };
+  targetingCriteria: string;
+  targetSegmentKey: string;
+  audienceHeadcount: number;
+  suggestedName: string;
+  suggestedMessage: string;
+  suggestedCta: string;
+  messageVariants: string[];
+  limits: string[];
+  sourceRefs: string[];
+}
+
 export interface MiFormattedInsights {
   dataQuality: 'ok' | 'partial' | 'insufficient' | 'unknown';
   limits: string[];
@@ -119,6 +138,7 @@ export interface MiFormattedInsights {
   opportunities: MiInsightOpportunity[];
   customerIntelligence: MiInsightCustomerIntelligence | null;
   retentionStrategies: MiInsightRetentionStrategy[];
+  campaignProposals: MiInsightCampaignProposal[];
   topClients: MiInsightClientRow[];
   topProducts: MiInsightProductRow[];
   topCategories: MiInsightProductRow[];
@@ -351,6 +371,72 @@ function parseCustomerIntelligence(raw: unknown): MiInsightCustomerIntelligence 
   };
 }
 
+function parseCampaignProposals(raw: unknown): MiInsightCampaignProposal[] {
+  if (!Array.isArray(raw)) return [];
+  const out: MiInsightCampaignProposal[] = [];
+  for (const row of raw) {
+    if (!row || typeof row !== 'object') continue;
+    const o = row as Record<string, unknown>;
+    const id = str(o.id);
+    const objectiveId = str(o.objectiveId);
+    const campaignType = str(o.campaignType);
+    const priority = o.priority;
+    const objective = str(o.objective);
+    const targetingCriteria = str(o.targetingCriteria);
+    const targetSegmentKey = str(o.targetSegmentKey);
+    const audienceHeadcount = num(o.audienceHeadcount);
+    const suggestedName = str(o.suggestedName);
+    const suggestedMessage = str(o.suggestedMessage);
+    const suggestedCta = str(o.suggestedCta);
+    if (
+      !id ||
+      !objectiveId ||
+      !campaignType ||
+      !objective ||
+      !targetingCriteria ||
+      !targetSegmentKey ||
+      audienceHeadcount === null ||
+      !suggestedName ||
+      !suggestedMessage ||
+      !suggestedCta ||
+      (priority !== 'high' && priority !== 'medium' && priority !== 'low')
+    ) {
+      continue;
+    }
+    const periodRaw = o.period && typeof o.period === 'object' ? (o.period as Record<string, unknown>) : {};
+    out.push({
+      id,
+      objectiveId,
+      campaignType,
+      priority,
+      objective,
+      analyticalJustification: Array.isArray(o.analyticalJustification)
+        ? o.analyticalJustification.filter((x): x is string => typeof x === 'string')
+        : [],
+      period: {
+        code: str(periodRaw.code) ?? '',
+        label: str(periodRaw.label) ?? '',
+        from: str(periodRaw.from) ?? '',
+        to: str(periodRaw.to) ?? '',
+      },
+      targetingCriteria,
+      targetSegmentKey,
+      audienceHeadcount,
+      suggestedName,
+      suggestedMessage,
+      suggestedCta,
+      messageVariants: Array.isArray(o.messageVariants)
+        ? o.messageVariants.filter((x): x is string => typeof x === 'string')
+        : [],
+      limits: Array.isArray(o.limits) ? o.limits.filter((x): x is string => typeof x === 'string') : [],
+      sourceRefs: Array.isArray(o.sourceRefs)
+        ? o.sourceRefs.filter((x): x is string => typeof x === 'string')
+        : [],
+    });
+  }
+  return out;
+}
+
 function parseRetentionStrategies(raw: unknown): MiInsightRetentionStrategy[] {
   if (!Array.isArray(raw)) return [];
   const out: MiInsightRetentionStrategy[] = [];
@@ -445,6 +531,7 @@ export function formatMiInsights(
 
   const customerIntelligence = parseCustomerIntelligence(insights?.customerIntelligence);
   const retentionStrategies = parseRetentionStrategies(insights?.retentionStrategies);
+  const campaignProposals = parseCampaignProposals(insights?.campaignProposals);
 
   if (dq === 'insufficient') {
     return {
@@ -458,12 +545,16 @@ export function formatMiInsights(
       opportunities: [],
       customerIntelligence,
       retentionStrategies,
+      campaignProposals,
       topClients: [],
       topProducts: [],
       topCategories: [],
       segments: customerIntelligence?.segmentCounts ?? null,
       inactiveLoyal: [],
-      empty: retentionStrategies.length === 0 && !customerIntelligence,
+      empty:
+        retentionStrategies.length === 0 &&
+        campaignProposals.length === 0 &&
+        !customerIntelligence,
     };
   }
 
@@ -481,6 +572,7 @@ export function formatMiInsights(
     !trends &&
     opportunities.length === 0 &&
     retentionStrategies.length === 0 &&
+    campaignProposals.length === 0 &&
     !customerIntelligence &&
     topClients.length === 0 &&
     topProducts.length === 0 &&
@@ -499,6 +591,7 @@ export function formatMiInsights(
     opportunities,
     customerIntelligence,
     retentionStrategies,
+    campaignProposals,
     topClients,
     topProducts,
     topCategories,

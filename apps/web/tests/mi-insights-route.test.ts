@@ -81,6 +81,7 @@ describe('GET /api/mi/insights', () => {
         medianRecencyDays: null,
       },
       retentionStrategies: [],
+      campaignProposals: [],
     });
 
     const res = await GET(new Request('http://localhost/api/mi/insights?period=semaine'));

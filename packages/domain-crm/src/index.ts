@@ -32,3 +32,4 @@ export * from './client-history';
 export * from './mi-tools';
 export * from './mi-opportunities';
 export * from './mi-customer-intelligence';
+export * from './mi-campaign-intelligence';

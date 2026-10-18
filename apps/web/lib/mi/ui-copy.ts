@@ -19,6 +19,8 @@ export const MI_SUGGESTIONS_FR = [
   'Quels clients dois-je fidéliser en priorité ?',
   'Comment encourager mes nouveaux clients à revenir ?',
   'Quels segments méritent une action cette semaine ?',
+  'Propose-moi une campagne de réactivation',
+  'Préparer un brouillon de campagne fidélisation',
   'Donne-moi un aperçu de la performance clients.',
 ] as const;
 
@@ -31,6 +33,8 @@ export const MI_SUGGESTIONS_EN = [
   'Which clients should I prioritize for retention?',
   'How can I encourage new clients to come back?',
   'Which segments deserve an action this week?',
+  'Suggest a reactivation campaign',
+  'Prepare a loyalty campaign draft',
   'Give me an overview of client performance.',
 ] as const;
 
