@@ -14,6 +14,12 @@ import {
   resolveMiPeriod,
   buildMiPeriodMeta,
 } from './mi-tools';
+import { buildMiTrends } from './mi-opportunities';
+import {
+  buildMiCustomerIntelligence,
+  buildMiRetentionStrategies,
+  computeMedianRecencyDays,
+} from './mi-customer-intelligence';
 import type { Client } from './clients';
 
 const NOW = new Date('2026-10-14T12:00:00Z');
@@ -237,5 +243,53 @@ describe('données insuffisantes (fixtures vides)', () => {
     });
     expect(noOrders.dataQuality).toBe('insufficient');
     expect(noOrders.limits.length).toBeGreaterThan(0);
+  });
+});
+
+describe('parité KPI cockpit ↔ dashboard CRM', () => {
+  it('trends.revenue.current === dashboard.kpis.revenue', () => {
+    const dash = dashboard('mois');
+    const meta = buildMiPeriodMeta(dash);
+    const trends = buildMiTrends(dash.kpis, meta);
+    expect(trends).not.toBeNull();
+    expect(trends!.revenue.current).toBe(dash.kpis.revenue);
+    expect(trends!.revenue.previous).toBe(dash.kpis.previousRevenue);
+    expect(trends!.visits.current).toBe(dash.kpis.visits);
+    expect(trends!.clientsServed.current).toBe(dash.kpis.clientsServed);
+    expect(trends!.averageBasket.current).toBe(dash.kpis.averageBasket);
+    expect(trends!.newClients.current).toBe(dash.kpis.newClients);
+  });
+
+  it('P2 customer intel / retention alignés sur segments + KPIs dashboard', () => {
+    const dash = dashboard('mois');
+    const meta = buildMiPeriodMeta(dash);
+    const top = listTopClientsFromDashboard(dash, 10);
+    const intel = buildMiCustomerIntelligence({
+      period: meta,
+      dataQuality: 'ok',
+      kpis: dash.kpis,
+      segments: dash.segments,
+      clientCount: clients.length,
+      medianRecencyDays: computeMedianRecencyDays(clients, NOW),
+      currency: 'XOF',
+    });
+    expect(intel.metrics.find((m) => m.id === 'period_spend')?.value).toBe(dash.kpis.revenue);
+    expect(intel.metrics.find((m) => m.id === 'period_new_clients')?.value).toBe(dash.kpis.newClients);
+    expect(intel.segments?.counts).toEqual(dash.segments);
+    expect(intel.segments?.evolutionAvailable).toBe(false);
+
+    const strategies = buildMiRetentionStrategies({
+      period: meta,
+      dataQuality: 'ok',
+      segments: dash.segments,
+      inactiveLoyal: [],
+      topClients: top,
+      kpis: dash.kpis,
+      clientCount: clients.length,
+      currency: 'XOF',
+    });
+    if (top.length > 0) {
+      expect(strategies.some((s) => s.ruleId === 'recognize_top_spenders_period')).toBe(true);
+    }
   });
 });

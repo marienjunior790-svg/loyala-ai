@@ -61,4 +61,96 @@ describe('formatMiInsights', () => {
     expect(out.kpis).toBeNull();
     expect(out.topClients).toEqual([]);
   });
+
+  it('P2 : conserve retention + customer intel même si insufficient', () => {
+    const out = formatMiInsights(
+      {
+        limits: ['Aucune commande'],
+        customerIntelligence: {
+          metrics: [
+            {
+              id: 'period_spend',
+              label: 'Dépenses',
+              value: null,
+              unit: 'money',
+              source: 'kpis',
+              periodScope: 'selected_period',
+              inclusionRules: 'paid',
+              limits: ['Non établi'],
+              zeroMeans: '0 = aucune dépense',
+            },
+          ],
+          segments: {
+            counts: { inactive: 2, new: 1, regular: 0, vip: 0, at_risk: 0 },
+            evolutionAvailable: false,
+            evolutionNote: 'Pas de snapshots.',
+          },
+          medianRecencyDays: 10,
+        },
+        retentionStrategies: [
+          {
+            id: 'reactivate_inactive',
+            ruleId: 'reactivate_inactive',
+            priority: 'medium',
+            segmentKey: 'inactive',
+            headcount: 2,
+            selectionCriteria: 'inactive',
+            facts: ['n=2'],
+            period: { code: 'mois', label: 'Mois', from: 'a', to: 'b' },
+            marketingObjective: 'Réactiver',
+            suggestedAction: 'Rappel',
+            limits: ['Pas de ROI estimé'],
+            confidence: 'medium',
+          },
+        ],
+      },
+      'insufficient'
+    );
+    expect(out.kpis).toBeNull();
+    expect(out.empty).toBe(false);
+    expect(out.retentionStrategies).toHaveLength(1);
+    expect(out.customerIntelligence?.metrics[0]?.value).toBeNull();
+    expect(out.customerIntelligence?.evolutionAvailable).toBe(false);
+    expect(out.segments?.inactive).toBe(2);
+  });
+
+  it('mappe clientsServed CRM → activeClients affichage', () => {
+    const out = formatMiInsights(
+      {
+        kpis: {
+          revenue: 10_000,
+          visits: 4,
+          averageBasket: 2_500,
+          clientsServed: 3,
+          previousRevenue: 8_000,
+        },
+        trends: {
+          revenue: { current: 10_000, previous: 8_000, changePct: 25, significant: true },
+          visits: { current: 4, previous: 4, changePct: 0, significant: false },
+          clientsServed: { current: 3, previous: 2, changePct: 50, significant: false },
+          averageBasket: { current: 2_500, previous: 2_000, changePct: 25, significant: false },
+          newClients: { current: 1, previous: 1, changePct: 0, significant: false },
+          comparisonNote: 'note',
+        },
+        opportunities: [
+          {
+            id: 'revenue_rise_significant',
+            ruleId: 'revenue_rise_significant',
+            priority: 'low',
+            facts: ['CA en hausse'],
+            detectionRule: 'règle',
+            period: { code: 'mois', label: 'Mois', from: 'a', to: 'b' },
+            limits: ['limite'],
+            suggestedAction: 'action',
+          },
+        ],
+      },
+      'ok'
+    );
+    expect(out.kpis?.activeClients).toBe(3);
+    expect(out.kpis?.previousRevenue).toBe(8_000);
+    expect(out.trends?.revenue.significant).toBe(true);
+    expect(out.opportunities).toHaveLength(1);
+    expect(out.opportunities[0]?.ruleId).toBe('revenue_rise_significant');
+  });
 });

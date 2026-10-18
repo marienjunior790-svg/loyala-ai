@@ -18,6 +18,19 @@ import {
 import { listAllClients, type Client } from './clients';
 import { getOrganization } from './organizations';
 import { computeClientSegment, INACTIVE_DAYS_THRESHOLD, type ClientSegment } from './segments';
+import {
+  buildMiOpportunities,
+  buildMiTrends,
+  type MiOpportunity,
+  type MiTrends,
+} from './mi-opportunities';
+import {
+  buildMiCustomerIntelligence,
+  buildMiRetentionStrategies,
+  computeMedianRecencyDays,
+  type MiCustomerIntelligence,
+  type MiRetentionStrategy,
+} from './mi-customer-intelligence';
 
 export type MiDataQuality = 'ok' | 'partial' | 'insufficient';
 
@@ -75,6 +88,14 @@ export interface MiOrgInsights {
   segments: Record<ClientSegment, number> | null;
   inactiveLoyal: MiInactiveClient[];
   clientCount: number;
+  /** Tendances vs période précédente (null si pas de KPIs). */
+  trends: MiTrends | null;
+  /** Opportunités déterministes classées (vide si données insuffisantes). */
+  opportunities: MiOpportunity[];
+  /** Intelligence client P2 (métriques + snapshot segments). */
+  customerIntelligence: MiCustomerIntelligence;
+  /** Stratégies de fidélisation déterministes P2. */
+  retentionStrategies: MiRetentionStrategy[];
 }
 
 const PERIOD_DEFINITIONS: Record<DashboardPeriod, string> = {
@@ -263,12 +284,46 @@ export async function loadMiOrgInsights(
     hasItemsTable: dashboard.topProducts.length > 0 || dashboard.topCategories.length > 0,
   });
 
+  const periodMeta = buildMiPeriodMeta(dashboard);
+  const currency = org?.currency ?? 'XOF';
+  const trends = dataQuality === 'insufficient' ? null : buildMiTrends(dashboard.kpis, periodMeta);
+  const opportunities = buildMiOpportunities({
+    period: periodMeta,
+    dataQuality,
+    kpis: dashboard.kpis,
+    segments: dashboard.segments,
+    inactiveLoyal,
+    currency,
+  });
+
+  const now = options.now ?? new Date();
+  const medianRecencyDays = computeMedianRecencyDays(clients, now);
+  const customerIntelligence = buildMiCustomerIntelligence({
+    period: periodMeta,
+    dataQuality,
+    kpis: dashboard.kpis,
+    segments: dashboard.segments,
+    clientCount: clients.length,
+    medianRecencyDays,
+    currency,
+  });
+  const retentionStrategies = buildMiRetentionStrategies({
+    period: periodMeta,
+    dataQuality,
+    segments: dashboard.segments,
+    inactiveLoyal,
+    topClients,
+    kpis: dashboard.kpis,
+    clientCount: clients.length,
+    currency,
+  });
+
   return {
     organizationId,
     restaurantName: org?.name ?? 'Restaurant',
     timezone,
-    currency: org?.currency ?? 'XOF',
-    period: buildMiPeriodMeta(dashboard),
+    currency,
+    period: periodMeta,
     dataQuality,
     limits,
     kpis: dashboard.kpis,
@@ -278,6 +333,10 @@ export async function loadMiOrgInsights(
     segments: dashboard.segments,
     inactiveLoyal,
     clientCount: clients.length,
+    trends,
+    opportunities,
+    customerIntelligence,
+    retentionStrategies,
   };
 }
 
@@ -297,5 +356,9 @@ export function miInsightsForPrompt(insights: MiOrgInsights): Record<string, unk
     topCategories: insights.topCategories,
     segments: insights.segments,
     inactiveLoyal: insights.inactiveLoyal,
+    trends: insights.trends,
+    opportunities: insights.opportunities,
+    customerIntelligence: insights.customerIntelligence,
+    retentionStrategies: insights.retentionStrategies,
   };
 }

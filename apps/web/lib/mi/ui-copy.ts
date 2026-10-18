@@ -14,6 +14,11 @@ export const MI_SUGGESTIONS_FR = [
   'Qui sont mes meilleurs clients sur 30 jours ?',
   'Quels plats se vendent le mieux ce mois-ci ?',
   'Quels clients fidèles sont inactifs ?',
+  'Quelles sont les tendances par rapport à la période précédente ?',
+  'Quelles opportunités prioritaires vois-tu ?',
+  'Quels clients dois-je fidéliser en priorité ?',
+  'Comment encourager mes nouveaux clients à revenir ?',
+  'Quels segments méritent une action cette semaine ?',
   'Donne-moi un aperçu de la performance clients.',
 ] as const;
 
@@ -21,6 +26,11 @@ export const MI_SUGGESTIONS_EN = [
   'Who are my top clients over the last 30 days?',
   'Which dishes sell best this month?',
   'Which loyal clients are inactive?',
+  'What are the trends versus the previous period?',
+  'What are the priority opportunities?',
+  'Which clients should I prioritize for retention?',
+  'How can I encourage new clients to come back?',
+  'Which segments deserve an action this week?',
   'Give me an overview of client performance.',
 ] as const;
 

@@ -7,7 +7,43 @@ export interface MiInsightKpis {
   revenue: number;
   visits: number;
   averageBasket: number;
+  /** Alias d’affichage de clientsServed (dashboard CRM). */
   activeClients: number;
+  previousRevenue: number | null;
+  previousVisits: number | null;
+  previousAverageBasket: number | null;
+  previousClientsServed: number | null;
+  newClients: number | null;
+  previousNewClients: number | null;
+  returningClients: number | null;
+  frequency: number | null;
+}
+
+export interface MiInsightTrendPoint {
+  current: number;
+  previous: number;
+  changePct: number | null;
+  significant: boolean;
+}
+
+export interface MiInsightTrends {
+  revenue: MiInsightTrendPoint;
+  visits: MiInsightTrendPoint;
+  clientsServed: MiInsightTrendPoint;
+  averageBasket: MiInsightTrendPoint;
+  newClients: MiInsightTrendPoint;
+  comparisonNote: string;
+}
+
+export interface MiInsightOpportunity {
+  id: string;
+  ruleId: string;
+  priority: 'high' | 'medium' | 'low';
+  facts: string[];
+  detectionRule: string;
+  period: { code: string; label: string; from: string; to: string };
+  limits: string[];
+  suggestedAction: string;
 }
 
 export interface MiInsightClientRow {
@@ -37,6 +73,41 @@ export interface MiInsightInactiveRow {
   totalSpent: number;
 }
 
+export interface MiInsightCustomerMetric {
+  id: string;
+  label: string;
+  value: number | null;
+  unit: string;
+  source: string;
+  periodScope: string;
+  inclusionRules: string;
+  limits: string[];
+  zeroMeans: string;
+}
+
+export interface MiInsightRetentionStrategy {
+  id: string;
+  ruleId: string;
+  priority: 'high' | 'medium' | 'low';
+  segmentKey: string;
+  headcount: number;
+  selectionCriteria: string;
+  facts: string[];
+  period: { code: string; label: string; from: string; to: string };
+  marketingObjective: string;
+  suggestedAction: string;
+  limits: string[];
+  confidence: 'low' | 'medium';
+}
+
+export interface MiInsightCustomerIntelligence {
+  metrics: MiInsightCustomerMetric[];
+  segmentCounts: Record<string, number> | null;
+  evolutionAvailable: boolean;
+  evolutionNote: string | null;
+  medianRecencyDays: number | null;
+}
+
 export interface MiFormattedInsights {
   dataQuality: 'ok' | 'partial' | 'insufficient' | 'unknown';
   limits: string[];
@@ -44,6 +115,10 @@ export interface MiFormattedInsights {
   restaurantName: string | null;
   clientCount: number | null;
   kpis: MiInsightKpis | null;
+  trends: MiInsightTrends | null;
+  opportunities: MiInsightOpportunity[];
+  customerIntelligence: MiInsightCustomerIntelligence | null;
+  retentionStrategies: MiInsightRetentionStrategy[];
   topClients: MiInsightClientRow[];
   topProducts: MiInsightProductRow[];
   topCategories: MiInsightProductRow[];
@@ -67,11 +142,101 @@ function parseKpis(raw: unknown): MiInsightKpis | null {
   const revenue = num(o.revenue);
   const visits = num(o.visits);
   const averageBasket = num(o.averageBasket);
-  const activeClients = num(o.activeClients);
+  // Canonique CRM : clientsServed ; compat tests / payloads legacy : activeClients
+  const activeClients = num(o.clientsServed) ?? num(o.activeClients);
   if (revenue === null || visits === null || averageBasket === null || activeClients === null) {
     return null;
   }
-  return { revenue, visits, averageBasket, activeClients };
+  return {
+    revenue,
+    visits,
+    averageBasket,
+    activeClients,
+    previousRevenue: num(o.previousRevenue),
+    previousVisits: num(o.previousVisits),
+    previousAverageBasket: num(o.previousAverageBasket),
+    previousClientsServed: num(o.previousClientsServed),
+    newClients: num(o.newClients),
+    previousNewClients: num(o.previousNewClients),
+    returningClients: num(o.returningClients),
+    frequency: num(o.frequency),
+  };
+}
+
+function parseTrendPoint(raw: unknown): MiInsightTrendPoint | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const o = raw as Record<string, unknown>;
+  const current = num(o.current);
+  const previous = num(o.previous);
+  if (current === null || previous === null) return null;
+  const changePct = num(o.changePct);
+  return {
+    current,
+    previous,
+    changePct,
+    significant: Boolean(o.significant),
+  };
+}
+
+function parseTrends(raw: unknown): MiInsightTrends | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const o = raw as Record<string, unknown>;
+  const revenue = parseTrendPoint(o.revenue);
+  const visits = parseTrendPoint(o.visits);
+  const clientsServed = parseTrendPoint(o.clientsServed);
+  const averageBasket = parseTrendPoint(o.averageBasket);
+  const newClients = parseTrendPoint(o.newClients);
+  const comparisonNote = str(o.comparisonNote);
+  if (!revenue || !visits || !clientsServed || !averageBasket || !newClients || !comparisonNote) {
+    return null;
+  }
+  return { revenue, visits, clientsServed, averageBasket, newClients, comparisonNote };
+}
+
+function parseOpportunities(raw: unknown): MiInsightOpportunity[] {
+  if (!Array.isArray(raw)) return [];
+  const out: MiInsightOpportunity[] = [];
+  for (const row of raw) {
+    if (!row || typeof row !== 'object') continue;
+    const o = row as Record<string, unknown>;
+    const id = str(o.id);
+    const ruleId = str(o.ruleId);
+    const priority = o.priority;
+    const detectionRule = str(o.detectionRule);
+    const suggestedAction = str(o.suggestedAction);
+    if (
+      !id ||
+      !ruleId ||
+      (priority !== 'high' && priority !== 'medium' && priority !== 'low') ||
+      !detectionRule ||
+      !suggestedAction
+    ) {
+      continue;
+    }
+    const periodRaw = o.period && typeof o.period === 'object' ? (o.period as Record<string, unknown>) : {};
+    const facts = Array.isArray(o.facts)
+      ? o.facts.filter((x): x is string => typeof x === 'string')
+      : [];
+    const limits = Array.isArray(o.limits)
+      ? o.limits.filter((x): x is string => typeof x === 'string')
+      : [];
+    out.push({
+      id,
+      ruleId,
+      priority,
+      facts,
+      detectionRule,
+      period: {
+        code: str(periodRaw.code) ?? '',
+        label: str(periodRaw.label) ?? '',
+        from: str(periodRaw.from) ?? '',
+        to: str(periodRaw.to) ?? '',
+      },
+      limits,
+      suggestedAction,
+    });
+  }
+  return out;
 }
 
 function parseTopClients(raw: unknown): MiInsightClientRow[] {
@@ -149,6 +314,95 @@ function parseSegments(raw: unknown): Record<string, number> | null {
   return Object.keys(out).length ? out : null;
 }
 
+function parseCustomerIntelligence(raw: unknown): MiInsightCustomerIntelligence | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const o = raw as Record<string, unknown>;
+  const metricsRaw = Array.isArray(o.metrics) ? o.metrics : [];
+  const metrics: MiInsightCustomerMetric[] = [];
+  for (const row of metricsRaw) {
+    if (!row || typeof row !== 'object') continue;
+    const m = row as Record<string, unknown>;
+    const id = str(m.id);
+    const label = str(m.label);
+    if (!id || !label) continue;
+    metrics.push({
+      id,
+      label,
+      value: num(m.value),
+      unit: str(m.unit) ?? 'count',
+      source: str(m.source) ?? '',
+      periodScope: str(m.periodScope) ?? '',
+      inclusionRules: str(m.inclusionRules) ?? '',
+      limits: Array.isArray(m.limits) ? m.limits.filter((x): x is string => typeof x === 'string') : [],
+      zeroMeans: str(m.zeroMeans) ?? '',
+    });
+  }
+  const segObj =
+    o.segments && typeof o.segments === 'object'
+      ? (o.segments as Record<string, unknown>)
+      : null;
+  const segmentCounts = segObj ? parseSegments(segObj.counts) : null;
+  return {
+    metrics,
+    segmentCounts,
+    evolutionAvailable: Boolean(segObj?.evolutionAvailable),
+    evolutionNote: segObj ? str(segObj.evolutionNote) : null,
+    medianRecencyDays: num(o.medianRecencyDays),
+  };
+}
+
+function parseRetentionStrategies(raw: unknown): MiInsightRetentionStrategy[] {
+  if (!Array.isArray(raw)) return [];
+  const out: MiInsightRetentionStrategy[] = [];
+  for (const row of raw) {
+    if (!row || typeof row !== 'object') continue;
+    const o = row as Record<string, unknown>;
+    const id = str(o.id);
+    const ruleId = str(o.ruleId);
+    const priority = o.priority;
+    const confidence = o.confidence;
+    const segmentKey = str(o.segmentKey);
+    const headcount = num(o.headcount);
+    const selectionCriteria = str(o.selectionCriteria);
+    const marketingObjective = str(o.marketingObjective);
+    const suggestedAction = str(o.suggestedAction);
+    if (
+      !id ||
+      !ruleId ||
+      !segmentKey ||
+      headcount === null ||
+      !selectionCriteria ||
+      !marketingObjective ||
+      !suggestedAction ||
+      (priority !== 'high' && priority !== 'medium' && priority !== 'low') ||
+      (confidence !== 'low' && confidence !== 'medium')
+    ) {
+      continue;
+    }
+    const periodRaw = o.period && typeof o.period === 'object' ? (o.period as Record<string, unknown>) : {};
+    out.push({
+      id,
+      ruleId,
+      priority,
+      segmentKey,
+      headcount,
+      selectionCriteria,
+      facts: Array.isArray(o.facts) ? o.facts.filter((x): x is string => typeof x === 'string') : [],
+      period: {
+        code: str(periodRaw.code) ?? '',
+        label: str(periodRaw.label) ?? '',
+        from: str(periodRaw.from) ?? '',
+        to: str(periodRaw.to) ?? '',
+      },
+      marketingObjective,
+      suggestedAction,
+      limits: Array.isArray(o.limits) ? o.limits.filter((x): x is string => typeof x === 'string') : [],
+      confidence,
+    });
+  }
+  return out;
+}
+
 export function formatMoney(amount: number, currency: string, locale: 'fr' | 'en'): string {
   const loc = locale === 'en' ? 'en-US' : 'fr-FR';
   try {
@@ -160,6 +414,12 @@ export function formatMoney(amount: number, currency: string, locale: 'fr' | 'en
   } catch {
     return `${Math.round(amount).toLocaleString(loc)} ${currency}`;
   }
+}
+
+export function formatChangePct(pct: number | null, locale: 'fr' | 'en'): string {
+  if (pct === null) return locale === 'en' ? 'n/a' : 'n/d';
+  const sign = pct > 0 ? '+' : '';
+  return `${sign}${pct} %`;
 }
 
 /**
@@ -183,6 +443,9 @@ export function formatMiInsights(
   const restaurantName = str(insights?.restaurantName);
   const clientCount = num(insights?.clientCount);
 
+  const customerIntelligence = parseCustomerIntelligence(insights?.customerIntelligence);
+  const retentionStrategies = parseRetentionStrategies(insights?.retentionStrategies);
+
   if (dq === 'insufficient') {
     return {
       dataQuality: dq,
@@ -191,24 +454,34 @@ export function formatMiInsights(
       restaurantName,
       clientCount,
       kpis: null,
+      trends: null,
+      opportunities: [],
+      customerIntelligence,
+      retentionStrategies,
       topClients: [],
       topProducts: [],
       topCategories: [],
-      segments: null,
+      segments: customerIntelligence?.segmentCounts ?? null,
       inactiveLoyal: [],
-      empty: true,
+      empty: retentionStrategies.length === 0 && !customerIntelligence,
     };
   }
 
   const kpis = parseKpis(insights?.kpis);
+  const trends = parseTrends(insights?.trends);
+  const opportunities = parseOpportunities(insights?.opportunities);
   const topClients = parseTopClients(insights?.topClients);
   const topProducts = parseProducts(insights?.topProducts);
   const topCategories = parseProducts(insights?.topCategories);
-  const segments = parseSegments(insights?.segments);
+  const segments = parseSegments(insights?.segments) ?? customerIntelligence?.segmentCounts ?? null;
   const inactiveLoyal = parseInactive(insights?.inactiveLoyal);
 
   const empty =
     !kpis &&
+    !trends &&
+    opportunities.length === 0 &&
+    retentionStrategies.length === 0 &&
+    !customerIntelligence &&
     topClients.length === 0 &&
     topProducts.length === 0 &&
     topCategories.length === 0 &&
@@ -222,6 +495,10 @@ export function formatMiInsights(
     restaurantName,
     clientCount,
     kpis,
+    trends,
+    opportunities,
+    customerIntelligence,
+    retentionStrategies,
     topClients,
     topProducts,
     topCategories,

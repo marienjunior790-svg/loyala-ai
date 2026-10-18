@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
+import { MiCockpit } from '@/components/mi/mi-cockpit';
 import { MiInsightsPanel, MiPeriodChip } from '@/components/mi/mi-insights-panel';
 import {
   postMiChat,
@@ -19,6 +20,7 @@ import {
   type MiChatApiSuccess,
   MI_MESSAGE_MAX,
 } from '@/lib/mi/api-client';
+import { fetchMiInsights } from '@/lib/mi/fetch-insights';
 import {
   localHistoryNotice,
   MI_PERIODS,
@@ -49,12 +51,21 @@ function uid() {
 
 export function MarketingIntelligenceClient({
   initialLocale = 'fr',
+  initialInsights = null,
+  initialDataQuality = null,
+  initialPeriod = null,
+  initialError = null,
 }: {
   initialLocale?: MiLocale;
+  initialInsights?: Record<string, unknown> | null;
+  initialDataQuality?: 'ok' | 'partial' | 'insufficient' | null;
+  initialPeriod?: MiChatApiPeriod | null;
+  initialError?: string | null;
 }) {
   const formId = useId();
   const listRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const cockpitAbortRef = useRef<AbortController | null>(null);
   const [locale, setLocale] = useState<MiLocale>(initialLocale);
   const [period, setPeriod] = useState<MiPeriod>('mois');
   const [input, setInput] = useState('');
@@ -63,9 +74,39 @@ export function MarketingIntelligenceClient({
   const [lastUserMessage, setLastUserMessage] = useState<string | null>(null);
   const [lastSuccess, setLastSuccess] = useState<MiChatApiSuccess | null>(null);
 
+  const [cockpitInsights, setCockpitInsights] = useState<Record<string, unknown> | null>(
+    initialInsights
+  );
+  const [cockpitQuality, setCockpitQuality] = useState<string | null>(initialDataQuality);
+  const [cockpitPeriod, setCockpitPeriod] = useState<MiChatApiPeriod | null>(initialPeriod);
+  const [cockpitLoading, setCockpitLoading] = useState(false);
+  const [cockpitError, setCockpitError] = useState<string | null>(initialError);
+
   const fr = locale !== 'en';
   const suggestions = suggestionsFor(locale);
   const isEmpty = thread.length === 0;
+
+  const reloadCockpit = useCallback(
+    async (nextPeriod: MiPeriod) => {
+      cockpitAbortRef.current?.abort();
+      const controller = new AbortController();
+      cockpitAbortRef.current = controller;
+      setCockpitLoading(true);
+      setCockpitError(null);
+      const result = await fetchMiInsights(nextPeriod, locale, { signal: controller.signal });
+      if (controller.signal.aborted) return;
+      if (!result.ok) {
+        setCockpitError(result.message);
+        setCockpitLoading(false);
+        return;
+      }
+      setCockpitInsights(result.insights);
+      setCockpitQuality(result.dataQuality);
+      setCockpitPeriod(result.period);
+      setCockpitLoading(false);
+    },
+    [locale]
+  );
 
   useEffect(() => {
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: 'smooth' });
@@ -74,6 +115,7 @@ export function MarketingIntelligenceClient({
   useEffect(() => {
     return () => {
       abortRef.current?.abort();
+      cockpitAbortRef.current?.abort();
     };
   }, []);
 
@@ -104,7 +146,6 @@ export function MarketingIntelligenceClient({
 
       const history = opts?.retry
         ? historyForApi().filter((_, i, arr) => {
-            // Sur retry : garder l’historique avant le dernier user (déjà présent)
             if (i === arr.length - 1 && arr[i]?.role === 'user') return false;
             return true;
           })
@@ -140,6 +181,11 @@ export function MarketingIntelligenceClient({
       }
 
       setLastSuccess(result);
+      if (result.insights && Object.keys(result.insights).length > 0) {
+        setCockpitInsights(result.insights);
+        setCockpitQuality(result.dataQuality);
+        setCockpitPeriod(result.period);
+      }
       setThread((prev) => [
         ...prev,
         {
@@ -172,6 +218,11 @@ export function MarketingIntelligenceClient({
     void ask(lastUserMessage, { retry: true });
   }
 
+  function onPeriodChange(next: MiPeriod) {
+    setPeriod(next);
+    void reloadCockpit(next);
+  }
+
   return (
     <div className="flex min-h-[calc(100dvh-8rem)] flex-col gap-6 animate-fade-in lg:min-h-[calc(100dvh-6rem)]">
       <header className="space-y-3 rounded-xl border border-primary/25 bg-primary/5 px-4 py-4 sm:px-5">
@@ -179,14 +230,12 @@ export function MarketingIntelligenceClient({
           <div className="max-w-2xl">
             <div className="flex items-center gap-2">
               <Sparkles className="h-5 w-5 text-primary" aria-hidden />
-              <h1 className="text-2xl font-semibold tracking-tight">
-                {fr ? 'Marketing Intelligence' : 'Marketing Intelligence'}
-              </h1>
+              <h1 className="text-2xl font-semibold tracking-tight">Marketing Intelligence</h1>
             </div>
             <p className="mt-2 text-sm text-muted-foreground">
               {fr
-                ? 'Assistant consultatif basé sur les données réelles de votre restaurant. Aucun envoi WhatsApp, e-mail ou campagne depuis cet écran.'
-                : 'Consultative assistant grounded in your restaurant’s real data. No WhatsApp, email, or campaign send from this screen.'}
+                ? 'Cockpit analytique et assistant consultatif grounded sur le dashboard CRM. Aucun envoi WhatsApp, e-mail ou campagne depuis cet écran.'
+                : 'Analytics cockpit and consultative assistant grounded in the CRM dashboard. No WhatsApp, email, or campaign send from this screen.'}
             </p>
             <p className="mt-1 text-xs text-muted-foreground/80">{localHistoryNotice(locale)}</p>
           </div>
@@ -231,8 +280,8 @@ export function MarketingIntelligenceClient({
               key={p.value}
               type="button"
               data-testid={`mi-period-${p.value}`}
-              onClick={() => setPeriod(p.value)}
-              disabled={pending}
+              onClick={() => onPeriodChange(p.value)}
+              disabled={pending || cockpitLoading}
               aria-pressed={period === p.value}
               className={cn(
                 'rounded-full border px-3 py-1 text-xs transition-colors disabled:opacity-50',
@@ -246,6 +295,15 @@ export function MarketingIntelligenceClient({
           ))}
         </div>
       </header>
+
+      <MiCockpit
+        insights={cockpitInsights}
+        dataQuality={cockpitQuality}
+        period={cockpitPeriod}
+        locale={locale}
+        loading={cockpitLoading}
+        error={cockpitError}
+      />
 
       <div className="grid flex-1 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(16rem,22rem)]">
         <Card className="flex min-h-[28rem] flex-col overflow-hidden lg:min-h-0">
@@ -438,27 +496,27 @@ export function MarketingIntelligenceClient({
               <ul className="list-inside list-disc space-y-1.5 text-xs leading-relaxed">
                 <li>
                   {fr
-                    ? 'Les chiffres viennent uniquement de l’API (dashboard CRM).'
-                    : 'Figures come only from the API (CRM dashboard).'}
+                    ? 'Les chiffres viennent uniquement du dashboard CRM (getClientDashboard).'
+                    : 'Figures come only from the CRM dashboard (getClientDashboard).'}
+                </li>
+                <li>
+                  {fr
+                    ? 'Opportunités = règles explicites, pas de causalité inventée.'
+                    : 'Opportunities = explicit rules, no invented causation.'}
                 </li>
                 <li>
                   {fr
                     ? 'Pas de bouton d’envoi WhatsApp, e-mail ou campagne.'
                     : 'No WhatsApp, email, or campaign send button.'}
                 </li>
-                <li>
-                  {fr
-                    ? '« Données insuffisantes » n’est pas une erreur technique.'
-                    : '“Insufficient data” is not a technical error.'}
-                </li>
               </ul>
             </CardContent>
           </Card>
-          {lastSuccess?.period ? (
+          {cockpitPeriod || lastSuccess?.period ? (
             <Card>
               <CardContent className="space-y-2 p-4 text-xs text-muted-foreground">
-                <p className="font-medium text-foreground">{fr ? 'Dernière période API' : 'Last API period'}</p>
-                <MiPeriodChip period={lastSuccess.period} locale={locale} />
+                <p className="font-medium text-foreground">{fr ? 'Période cockpit' : 'Cockpit period'}</p>
+                <MiPeriodChip period={cockpitPeriod ?? lastSuccess?.period ?? null} locale={locale} />
               </CardContent>
             </Card>
           ) : null}
