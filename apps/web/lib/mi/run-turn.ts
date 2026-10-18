@@ -21,6 +21,7 @@ export type MiIntent =
   | 'trends'
   | 'opportunities'
   | 'retention'
+  | 'campaign'
   | 'send_blocked'
   | 'general';
 
@@ -73,8 +74,9 @@ export type MiOrchestrateFn = (input: {
   temperature?: number;
 }) => Promise<AIResponse>;
 
+/** Envoi / diffusion réelle — pas le simple mot « campagne » (P3 brouillons). */
 const SEND_RE =
-  /\b(envoie[rz]?|envoy(er|ez)|lancer|lance[rz]?|publie[rz]?|publier|whatsapp|sms|email|e-?mail|campagne|diffuser|envoyer)\b/i;
+  /\b(envoie[rz]?|envoy(er|ez)|lancer|lance[rz]?|publie[rz]?|publier|whatsapp|sms|email|e-?mail|diffuser|envoyer)\b/i;
 
 const TOP_CLIENTS_RE =
   /\b(meilleurs?\s+clients?|top\s*clients?|clients?\s+(vip|fid[eè]les?)|classement\s+clients?|plus\s+(gros|grands?)\s+(d[eé]pens|clients?))\b/i;
@@ -94,12 +96,16 @@ const OPPORTUNITIES_RE =
 const RETENTION_RE =
   /\b(fid[eé]lis|r[eé]tention|segments?\s+(m[eé]ritent|[aà]\s+action|prioritaires)|encourager.*(nouveaux|revenir)|quels?\s+clients?\s+(dois|faut)|priorit[eé].*fid[eé]l)\b/i;
 
+const CAMPAIGN_RE =
+  /\b(campagne|brouillon\s+(de\s+)?(campagne|message)|proposition\s+de\s+campagne|id[eé]e\s+de\s+campagne|pr[eé]parer\s+(une\s+)?campagne|draft\s+campaign|quel\s+message\s+(envoyer|r[eé]diger))\b/i;
+
 export function detectMiIntent(message: string): MiIntent {
   const text = message.trim();
   if (SEND_RE.test(text)) return 'send_blocked';
   if (TOP_CLIENTS_RE.test(text)) return 'top_clients';
   if (TOP_PRODUCTS_RE.test(text)) return 'top_products';
   if (INACTIVE_RE.test(text)) return 'inactive';
+  if (CAMPAIGN_RE.test(text)) return 'campaign';
   if (RETENTION_RE.test(text)) return 'retention';
   if (OPPORTUNITIES_RE.test(text)) return 'opportunities';
   if (TRENDS_RE.test(text)) return 'trends';
@@ -123,6 +129,8 @@ function toolsForIntent(intent: MiIntent): string[] {
       return ['loadMiOrgInsights', 'buildMiOpportunities'];
     case 'retention':
       return ['loadMiOrgInsights', 'buildMiRetentionStrategies', 'buildMiCustomerIntelligence'];
+    case 'campaign':
+      return ['loadMiOrgInsights', 'buildMiCampaignProposals'];
     case 'send_blocked':
       return [];
     case 'overview':
@@ -243,6 +251,36 @@ function buildDeterministicEnrichmentAnswer(
     ].join('\n\n');
   }
 
+  if (intent === 'campaign') {
+    const proposals = insights.campaignProposals ?? [];
+    if (proposals.length === 0) {
+      return [
+        `Aucune proposition de campagne déterministe (${insights.period.from} → ${insights.period.to}).`,
+        'Segments vides, critères non atteints, ou aucune commande pour valoriser un produit.',
+        'Aucun ROI inventé. Les brouillons MI ne sont pas enregistrés en base.',
+      ].join('\n');
+    }
+    const blocks = proposals.slice(0, 5).map((c, i) => {
+      return [
+        `${i + 1}. [${c.priority}] ${c.objectiveId} — type=${c.campaignType} (n=${c.audienceHeadcount})`,
+        `Objectif : ${c.objective}`,
+        `Ciblage : ${c.targetingCriteria}`,
+        `Justification : ${c.analyticalJustification.join(' | ')}`,
+        `Nom suggéré : ${c.suggestedName}`,
+        `Message (brouillon) : ${c.suggestedMessage}`,
+        `CTA : ${c.suggestedCta}`,
+        `Limites : ${c.limits.join(' ')}`,
+      ].join('\n');
+    });
+    return [
+      `Propositions de campagne (déterministes, brouillons non persistés) — ${insights.period.from} → ${insights.period.to}.`,
+      '',
+      ...blocks,
+      '',
+      'Aucun envoi WhatsApp / e-mail. Pour créer une campagne CRM : module Campagnes + permission clients:write (hors MI P3).',
+    ].join('\n\n');
+  }
+
   return null;
 }
 
@@ -347,7 +385,13 @@ export async function runMiChatTurn(input: RunMiChatTurnInput): Promise<MiChatTu
 
   // Fidélisation / opportunités segments : possibles même sans commandes payées période.
   const deterministic = buildDeterministicEnrichmentAnswer(intent, insights);
-  if (deterministic && (intent === 'retention' || intent === 'opportunities' || intent === 'trends')) {
+  if (
+    deterministic &&
+    (intent === 'retention' ||
+      intent === 'opportunities' ||
+      intent === 'trends' ||
+      intent === 'campaign')
+  ) {
     return {
       ok: true,
       answer: truncateAnswer(deterministic),

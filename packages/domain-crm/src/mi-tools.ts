@@ -31,6 +31,10 @@ import {
   type MiCustomerIntelligence,
   type MiRetentionStrategy,
 } from './mi-customer-intelligence';
+import {
+  buildMiCampaignProposals,
+  type MiCampaignProposal,
+} from './mi-campaign-intelligence';
 
 export type MiDataQuality = 'ok' | 'partial' | 'insufficient';
 
@@ -96,6 +100,8 @@ export interface MiOrgInsights {
   customerIntelligence: MiCustomerIntelligence;
   /** Stratégies de fidélisation déterministes P2. */
   retentionStrategies: MiRetentionStrategy[];
+  /** Propositions de campagne déterministes P3 (brouillons, non persistées). */
+  campaignProposals: MiCampaignProposal[];
 }
 
 const PERIOD_DEFINITIONS: Record<DashboardPeriod, string> = {
@@ -317,10 +323,23 @@ export async function loadMiOrgInsights(
     clientCount: clients.length,
     currency,
   });
+  const restaurantName = org?.name ?? 'Restaurant';
+  const campaignProposals = buildMiCampaignProposals({
+    period: periodMeta,
+    dataQuality,
+    restaurantName,
+    currency,
+    retentionStrategies,
+    topProducts,
+    topClients,
+    inactiveLoyal,
+    segments: dashboard.segments,
+    clientCount: clients.length,
+  });
 
   return {
     organizationId,
-    restaurantName: org?.name ?? 'Restaurant',
+    restaurantName,
     timezone,
     currency,
     period: periodMeta,
@@ -337,6 +356,7 @@ export async function loadMiOrgInsights(
     opportunities,
     customerIntelligence,
     retentionStrategies,
+    campaignProposals,
   };
 }
 
@@ -360,5 +380,6 @@ export function miInsightsForPrompt(insights: MiOrgInsights): Record<string, unk
     opportunities: insights.opportunities,
     customerIntelligence: insights.customerIntelligence,
     retentionStrategies: insights.retentionStrategies,
+    campaignProposals: insights.campaignProposals,
   };
 }

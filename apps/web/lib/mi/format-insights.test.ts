@@ -62,6 +62,39 @@ describe('formatMiInsights', () => {
     expect(out.topClients).toEqual([]);
   });
 
+  it('P3 : conserve campaignProposals même si insufficient', () => {
+    const out = formatMiInsights(
+      {
+        limits: ['Aucune commande'],
+        campaignProposals: [
+          {
+            id: 'campaign_nurture_at_risk',
+            objectiveId: 'nurture_at_risk',
+            campaignType: 'inactive',
+            priority: 'low',
+            objective: 'Nurture',
+            analyticalJustification: ['n=1'],
+            period: { code: 'mois', label: 'Mois', from: 'a', to: 'b' },
+            targetingCriteria: 'at_risk',
+            targetSegmentKey: 'at_risk',
+            audienceHeadcount: 1,
+            suggestedName: 'Retour',
+            suggestedMessage: 'Hello',
+            suggestedCta: 'Revenir',
+            messageVariants: [],
+            limits: ['Pas de ROI'],
+            sourceRefs: ['retention:nurture_at_risk'],
+          },
+        ],
+      },
+      'insufficient'
+    );
+    expect(out.kpis).toBeNull();
+    expect(out.campaignProposals).toHaveLength(1);
+    expect(out.campaignProposals[0]?.audienceHeadcount).toBe(1);
+    expect(out.empty).toBe(false);
+  });
+
   it('P2 : conserve retention + customer intel même si insufficient', () => {
     const out = formatMiInsights(
       {

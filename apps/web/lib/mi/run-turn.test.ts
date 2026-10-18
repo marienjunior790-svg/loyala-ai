@@ -49,6 +49,7 @@ function insights(partial: Partial<MiOrgInsights> & Pick<MiOrgInsights, 'dataQua
     customerIntelligence:
       partial.customerIntelligence ?? emptyCustomerIntelligence(period, partial.dataQuality),
     retentionStrategies: partial.retentionStrategies ?? [],
+    campaignProposals: partial.campaignProposals ?? [],
     ...partial,
   };
 }
@@ -77,6 +78,12 @@ describe('detectMiIntent', () => {
     expect(detectMiIntent('Quels clients dois-je fidéliser en priorité ?')).toBe('retention');
     expect(detectMiIntent('Comment encourager mes nouveaux clients à revenir ?')).toBe('retention');
     expect(detectMiIntent('Quels segments méritent une action cette semaine ?')).toBe('retention');
+  });
+
+  it('détecte campagnes P3 (sans confondre avec envoi)', () => {
+    expect(detectMiIntent('Propose-moi une campagne de réactivation')).toBe('campaign');
+    expect(detectMiIntent('Préparer un brouillon de campagne fidélisation')).toBe('campaign');
+    expect(detectMiIntent('Envoie la campagne WhatsApp')).toBe('send_blocked');
   });
 });
 
@@ -251,6 +258,54 @@ describe('runMiChatTurn', () => {
     expect(String(call?.variables.toolResults)).toContain('Bara');
     expect(String(call?.variables.toolResults)).toContain('27000');
     expect(result.answer).toContain('Bara');
+  });
+
+  it('campaign → propositions déterministes sans IA ni persist', async () => {
+    const loadInsights = vi.fn(async () =>
+      insights({
+        dataQuality: 'partial',
+        clientCount: 4,
+        campaignProposals: [
+          {
+            id: 'campaign_reactivate_inactive',
+            objectiveId: 'reactivate_inactive',
+            campaignType: 'inactive',
+            priority: 'medium',
+            objective: 'Réactiver',
+            analyticalJustification: ['n=2'],
+            period: { code: 'mois', label: 'Mois', from: '2026-10-01', to: '2026-10-14' },
+            targetingCriteria: 'inactive',
+            targetSegmentKey: 'inactive',
+            audienceHeadcount: 2,
+            suggestedName: 'Réactivation — Chez Test',
+            suggestedMessage: 'Bonjour brouillon',
+            suggestedCta: 'Revenez',
+            messageVariants: ['Variante A'],
+            limits: ['Pas de ROI'],
+            sourceRefs: ['retention:reactivate_inactive'],
+            rankScore: 220,
+          },
+        ],
+      })
+    );
+    const orchestrate = vi.fn() as unknown as MiOrchestrateFn;
+    const result = await runMiChatTurn({
+      supabase,
+      organizationId: 'org-a',
+      userId: 'user-1',
+      message: 'Propose-moi une campagne de réactivation',
+      loadInsights,
+      orchestrate,
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.intent).toBe('campaign');
+    expect(result.meta.skippedAi).toBe(true);
+    expect(result.toolsUsed).toContain('buildMiCampaignProposals');
+    expect(result.answer).toContain('Propositions de campagne');
+    expect(result.answer).toContain('reactivate_inactive');
+    expect(result.answer.toLowerCase()).toMatch(/non persist|clients:write/);
+    expect(orchestrate).not.toHaveBeenCalled();
   });
 
   it('retention → réponse déterministe même si période insufficient', async () => {

@@ -33,3 +33,23 @@ export const miInsightsQuerySchema = z.object({
 export type MiInsightsQuery = z.infer<typeof miInsightsQuerySchema>;
 
 export const MI_CHAT_MAX_ANSWER_CHARS = 4000;
+
+/** Brouillon campagne MI P3 — validation locale, jamais persistée par MI. */
+export const miCampaignDraftSchema = z.object({
+  draftId: z.string().min(1).max(80),
+  proposalId: z.string().max(80).nullable(),
+  name: z.string().trim().min(1).max(120),
+  type: z.enum(['birthday', 'inactive', 'loyalty', 'promotion', 'manual']),
+  objective: z.string().trim().min(1).max(500),
+  targetSegmentKey: z.string().min(1).max(64),
+  targetingCriteria: z.string().max(2000),
+  audienceHeadcount: z.number().int().min(0),
+  message: z.string().trim().min(1).max(2000),
+  callToAction: z.string().trim().max(200),
+  messageVariants: z.array(z.string().max(2000)).max(10).default([]),
+  status: z.literal('draft'),
+  contentSource: z.enum(['template', 'user_edited', 'ai_draft']),
+  isDraftOnly: z.literal(true),
+});
+
+export type MiCampaignDraftInput = z.infer<typeof miCampaignDraftSchema>;

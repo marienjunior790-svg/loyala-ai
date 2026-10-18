@@ -4,6 +4,7 @@ import * as React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { MiPeriodChip } from '@/components/mi/mi-insights-panel';
+import { MiCampaignDraftsPanel } from '@/components/mi/mi-campaign-drafts';
 import {
   formatChangePct,
   formatMiInsights,
@@ -438,6 +439,10 @@ export function MiCockpit({
             ? 'Aucune stratégie de fidélisation déclenchée (segments vides ou critères non atteints).'
             : 'No retention strategy triggered (empty segments or thresholds not met).'}
         </p>
+      ) : null}
+
+      {!loading ? (
+        <MiCampaignDraftsPanel proposals={formatted.campaignProposals} locale={locale} />
       ) : null}
     </section>
   );
