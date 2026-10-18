@@ -45,6 +45,13 @@ export interface CrmSummaryVariables {
   data: string;
 }
 
+export interface MarketingAssistantVariables {
+  message: string;
+  toolResults: string;
+  intent: string;
+  dataQuality: string;
+}
+
 export type PromptVariablesMap = {
   'client.segment': SegmentVariables;
   'client.inactive.analyze': InactiveVariables;
@@ -56,6 +63,7 @@ export type PromptVariablesMap = {
   crm_summary: CrmSummaryVariables;
   rfm_analysis: CrmSummaryVariables;
   support_reply: { message: string };
+  'marketing.assistant.answer': MarketingAssistantVariables;
 };
 
 export type TypedPromptVariables<K extends keyof PromptVariablesMap> = PromptVariablesMap[K];
@@ -85,6 +93,7 @@ export function assertPromptKey(key: string): key is keyof PromptVariablesMap {
     'crm_summary',
     'rfm_analysis',
     'support_reply',
+    'marketing.assistant.answer',
   ];
   return known.includes(key as PromptKey);
 }

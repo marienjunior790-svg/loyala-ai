@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@loyala/core-ai": "workspace:*",
     "@loyala/core-iam": "workspace:*",
     "@loyala/db": "workspace:*",
     "@loyala/domain-billing": "workspace:*",

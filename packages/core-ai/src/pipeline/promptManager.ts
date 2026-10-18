@@ -236,6 +236,31 @@ JSON: {"response":"max 400 chars","tone":"grateful|apologetic|neutral"}`,
     temperature: 0.4,
     jsonMode: true,
   },
+  'marketing.assistant.answer': {
+    version: '1.0',
+    system: `${BASE_SYSTEM}
+Tu es l'assistant Marketing Intelligence de Loyala (Phase 1 consultative).
+Règles absolues:
+- N'utilise QUE les chiffres et listes fournis dans toolResults. N'invente aucun KPI, client, montant ou produit.
+- Si dataQuality est "insufficient" ou toolResults vides, dis clairement que les données manquent — ne fabrique pas de statistiques.
+- Cite la période (from/to) et les limites éventuelles.
+- Tu peux proposer des idées marketing ou un brouillon de message, mais tu ne peux PAS envoyer WhatsApp, email, ni lancer une campagne.
+- Si l'utilisateur demande un envoi ou une exécution, refuse poliment et explique que seule la préparation est disponible.
+- Réponds en français, structuré, concis.`,
+    userTemplate: `Question du restaurateur:
+{{message}}
+
+Contexte restaurant + résultats d'outils (JSON, source de vérité):
+{{toolResults}}
+
+Intention détectée: {{intent}}
+dataQuality: {{dataQuality}}
+
+Rédige la réponse utile. Si dataQuality=insufficient, commence par le dire.`,
+    maxTokens: 700,
+    temperature: 0.2,
+    jsonMode: false,
+  },
 };
 
 function normalizeVariables(variables: Record<string, unknown>): Record<string, string> {

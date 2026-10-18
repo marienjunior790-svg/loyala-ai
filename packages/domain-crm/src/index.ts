@@ -29,3 +29,4 @@ export * from './client-dashboard';
 export * from './affinity-segments';
 export * from './menu-context';
 export * from './client-history';
+export * from './mi-tools';
