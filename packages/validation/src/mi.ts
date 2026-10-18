@@ -25,4 +25,11 @@ export const miChatRequestSchema = z.object({
 
 export type MiChatRequest = z.infer<typeof miChatRequestSchema>;
 
+/** Query GET /api/mi/insights — cockpit P1 (lecture seule). */
+export const miInsightsQuerySchema = z.object({
+  period: z.enum(['semaine', 'mois', '3mois', 'annee']).optional().default('mois'),
+});
+
+export type MiInsightsQuery = z.infer<typeof miInsightsQuerySchema>;
+
 export const MI_CHAT_MAX_ANSWER_CHARS = 4000;

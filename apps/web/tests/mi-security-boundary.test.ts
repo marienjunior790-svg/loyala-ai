@@ -26,8 +26,10 @@ describe('MI security boundary (L1/L2)', () => {
   it('sources MI : aucune écriture campaigns / campaign_sends / WhatsApp', () => {
     const roots = [
       resolve(__dirname, '../../../packages/domain-crm/src/mi-tools.ts'),
+      resolve(__dirname, '../../../packages/domain-crm/src/mi-opportunities.ts'),
       resolve(__dirname, '../lib/mi/run-turn.ts'),
       resolve(__dirname, '../app/api/mi/chat/route.ts'),
+      resolve(__dirname, '../app/api/mi/insights/route.ts'),
     ];
     const forbidden = [
       /\.from\(\s*['"]campaigns['"]\s*\)\.(insert|update|upsert|delete)/i,
@@ -51,5 +53,14 @@ describe('MI security boundary (L1/L2)', () => {
     expect(src).toContain('ctx.organizationId');
     expect(src).not.toMatch(/organizationId:\s*parsed\.data\.organizationId/);
     expect(src).not.toMatch(/body\.organizationId/);
+  });
+
+  it('GET /api/mi/insights : session org + analytics:read, pas d’écriture', () => {
+    const src = readFileSync(resolve(__dirname, '../app/api/mi/insights/route.ts'), 'utf8');
+    expect(src).toContain("hasPermission(ctx, 'analytics:read')");
+    expect(src).toContain('ctx.organizationId');
+    expect(src).toContain('loadMiOrgInsights');
+    expect(src).not.toMatch(/insert|update|upsert|delete|sendWhatsApp|createCampaign/i);
+    expect(src).not.toMatch(/service_role|createAdminClient/);
   });
 });

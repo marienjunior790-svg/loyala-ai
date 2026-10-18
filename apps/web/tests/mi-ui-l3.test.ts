@@ -70,7 +70,16 @@ describe('MI L3 UI — contrats & accessibilité structurelle', () => {
       React.createElement(MiInsightsPanel, {
         insights: {
           currency: 'XOF',
-          kpis: { revenue: 50_000, visits: 10, averageBasket: 5_000, activeClients: 4 },
+          kpis: {
+            revenue: 50_000,
+            visits: 10,
+            averageBasket: 5_000,
+            clientsServed: 4,
+            previousRevenue: 40_000,
+            previousVisits: 8,
+            previousAverageBasket: 5_000,
+            previousClientsServed: 3,
+          },
           topClients: [
             {
               clientId: 'b',
@@ -121,6 +130,7 @@ describe('MI L3 UI — contrats & accessibilité structurelle', () => {
     const files = [
       resolve(miRoot, 'marketing-intelligence-client.tsx'),
       resolve(miRoot, 'mi-insights-panel.tsx'),
+      resolve(miRoot, 'mi-cockpit.tsx'),
       pagePath,
     ];
     const forbidden = [
@@ -128,7 +138,7 @@ describe('MI L3 UI — contrats & accessibilité structurelle', () => {
       /\.from\(\s*['"]campaigns['"]\s*\)/i,
       /createAdminClient\s*\(/,
       /localStorage|sessionStorage|indexedDB/i,
-      /\/api\/(?!mi\/chat)/i,
+      /['"`]\/api\/(?!mi\/(?:chat|insights))/i,
     ];
     for (const file of files) {
       const src = readFileSync(file, 'utf8');
@@ -141,8 +151,13 @@ describe('MI L3 UI — contrats & accessibilité structurelle', () => {
     }
     const client = readFileSync(resolve(miRoot, 'marketing-intelligence-client.tsx'), 'utf8');
     expect(client).toContain('postMiChat');
+    expect(client).toContain('MiCockpit');
+    expect(client).toContain('fetchMiInsights');
     expect(readFileSync(resolve(__dirname, '../lib/mi/api-client.ts'), 'utf8')).toContain(
       '/api/mi/chat'
+    );
+    expect(readFileSync(resolve(__dirname, '../lib/mi/fetch-insights.ts'), 'utf8')).toContain(
+      '/api/mi/insights'
     );
     expect(client).toMatch(/aria-live/);
     expect(client).toMatch(/aria-busy/);

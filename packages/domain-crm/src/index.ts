@@ -30,3 +30,5 @@ export * from './affinity-segments';
 export * from './menu-context';
 export * from './client-history';
 export * from './mi-tools';
+export * from './mi-opportunities';
+export * from './mi-customer-intelligence';
