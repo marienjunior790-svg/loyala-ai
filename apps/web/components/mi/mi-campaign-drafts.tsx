@@ -95,18 +95,28 @@ export function MiCampaignDraftsPanel({
   }
 
   return (
-    <div className="space-y-3" data-testid="mi-campaign-proposals">
-      <h3 className="text-sm font-semibold">
-        {fr ? 'Propositions de campagne (brouillons)' : 'Campaign proposals (drafts)'}
-      </h3>
-      <p className="text-[11px] text-muted-foreground">
-        {fr
-          ? 'Déterministes, effectifs CRM réels. Aucun envoi ni enregistrement depuis MI.'
-          : 'Deterministic, real CRM headcounts. No send or save from MI.'}
-      </p>
+    <div className="space-y-4" data-testid="mi-campaign-proposals">
+      <div className="space-y-1">
+        <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-primary/80">
+          {fr ? 'Campagnes' : 'Campaigns'}
+        </p>
+        <h3 className="text-sm font-semibold tracking-tight">
+          {fr ? 'Propositions & brouillons' : 'Proposals & drafts'}
+        </h3>
+        <p className="text-xs text-muted-foreground">
+          {fr
+            ? 'Déterministes, effectifs CRM réels. Aucun envoi ni enregistrement depuis MI.'
+            : 'Deterministic, real CRM headcounts. No send or save from MI.'}
+        </p>
+      </div>
       <div className="grid gap-3 lg:grid-cols-2">
         {proposals.map((p) => (
-          <Card key={p.id} data-testid="mi-campaign-proposal" data-objective={p.objectiveId}>
+          <Card
+            key={p.id}
+            className="border-white/[0.08] bg-white/[0.03] shadow-none"
+            data-testid="mi-campaign-proposal"
+            data-objective={p.objectiveId}
+          >
             <CardHeader className="space-y-2 pb-2">
               <div className="flex flex-wrap items-center gap-2">
                 <Badge
@@ -116,14 +126,14 @@ export function MiCampaignDraftsPanel({
                 >
                   {priorityLabel(p.priority, fr)}
                 </Badge>
-                <Badge variant="outline" className="font-mono text-[10px]">
+                <span className="rounded-md bg-white/[0.04] px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground ring-1 ring-white/5">
                   {p.campaignType}
-                </Badge>
-                <Badge variant="outline">
-                  {p.targetSegmentKey} · n={p.audienceHeadcount}
-                </Badge>
+                </span>
+                <span className="ml-auto text-xs tabular-nums text-muted-foreground">
+                  n={p.audienceHeadcount}
+                </span>
               </div>
-              <CardTitle className="text-sm leading-snug">{p.suggestedName}</CardTitle>
+              <CardTitle className="text-sm font-medium leading-snug">{p.suggestedName}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2 text-xs text-muted-foreground">
               <p>
