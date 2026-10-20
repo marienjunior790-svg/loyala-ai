@@ -13,7 +13,16 @@ import {
   type MiCampaignDraft,
   CAMPAIGN_TYPES,
   type CampaignType,
+  type DashboardPeriod,
 } from '@loyala/domain-crm';
+
+const PERIOD_CODES: readonly DashboardPeriod[] = ['semaine', 'mois', '3mois', 'annee'];
+
+function asDashboardPeriod(code: string): DashboardPeriod {
+  return (PERIOD_CODES as readonly string[]).includes(code)
+    ? (code as DashboardPeriod)
+    : 'mois';
+}
 
 function priorityLabel(p: MiInsightCampaignProposal['priority'], fr: boolean): string {
   if (p === 'high') return fr ? 'Priorité haute' : 'High priority';
@@ -54,7 +63,12 @@ export function MiCampaignDraftsPanel({
       isDraftOnly: true,
       persistenceNote:
         'Brouillon MI uniquement — non enregistré. La création persistée exige clients:write et le module Campagnes (hors P3).',
-      period: { ...proposal.period },
+      period: {
+        code: asDashboardPeriod(proposal.period.code),
+        label: proposal.period.label,
+        from: proposal.period.from,
+        to: proposal.period.to,
+      },
       limits: [...proposal.limits],
     };
     setDraft(built);
