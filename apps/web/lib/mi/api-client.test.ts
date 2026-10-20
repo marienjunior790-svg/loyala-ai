@@ -107,7 +107,8 @@ describe('postMiChat', () => {
     expect(result.insights.topClients).toEqual([
       expect.objectContaining({ spent: 27_000, displayName: 'Bara' }),
     ]);
-    const body = JSON.parse(String(fetchImpl.mock.calls[0]?.[1]?.body));
+    const fetchCalls = fetchImpl.mock.calls as unknown as Array<[unknown, RequestInit?]>;
+    const body = JSON.parse(String(fetchCalls[0]?.[1]?.body));
     expect(body.period).toBe('mois');
     expect(body.message).toBe('Meilleurs clients');
   });

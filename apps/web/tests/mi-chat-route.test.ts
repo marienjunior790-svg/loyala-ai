@@ -3,7 +3,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const getAuthContext = vi.fn();
 const createClient = vi.fn(async () => ({ __tag: 'user-supabase' }));
 const runMiChatTurn = vi.fn();
-const withRateLimit = vi.fn(async (_req: Request, handler: () => Promise<Response>) => handler());
+const withRateLimit = vi.fn(
+  async (_req: Request, handler: () => Promise<Response>, _key?: string) => handler()
+);
 
 vi.mock('@/lib/auth/session', () => ({ getAuthContext: () => getAuthContext() }));
 vi.mock('@/lib/supabase/server', () => ({ createClient: () => createClient() }));

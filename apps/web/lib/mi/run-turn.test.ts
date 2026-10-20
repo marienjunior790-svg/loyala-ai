@@ -29,28 +29,29 @@ function insights(partial: Partial<MiOrgInsights> & Pick<MiOrgInsights, 'dataQua
     to: '2026-10-14',
     definition: 'test',
   };
+  const dataQuality = partial.dataQuality;
   return {
     organizationId: 'org-a',
     restaurantName: 'Chez Test',
     timezone: 'Africa/Dakar',
     currency: 'XOF',
-    period,
-    dataQuality: partial.dataQuality,
-    limits: partial.limits ?? [],
-    kpis: partial.kpis ?? null,
-    topClients: partial.topClients ?? [],
-    topProducts: partial.topProducts ?? [],
-    topCategories: partial.topCategories ?? [],
-    segments: partial.segments ?? null,
-    inactiveLoyal: partial.inactiveLoyal ?? [],
-    clientCount: partial.clientCount ?? 0,
-    trends: partial.trends ?? null,
-    opportunities: partial.opportunities ?? [],
-    customerIntelligence:
-      partial.customerIntelligence ?? emptyCustomerIntelligence(period, partial.dataQuality),
-    retentionStrategies: partial.retentionStrategies ?? [],
-    campaignProposals: partial.campaignProposals ?? [],
+    limits: [],
+    kpis: null,
+    topClients: [],
+    topProducts: [],
+    topCategories: [],
+    segments: null,
+    inactiveLoyal: [],
+    clientCount: 0,
+    trends: null,
+    opportunities: [],
+    retentionStrategies: [],
+    campaignProposals: [],
     ...partial,
+    period,
+    dataQuality,
+    customerIntelligence:
+      partial.customerIntelligence ?? emptyCustomerIntelligence(period, dataQuality),
   };
 }
 
@@ -252,7 +253,9 @@ describe('runMiChatTurn', () => {
     expect(result.intent).toBe('top_clients');
     expect(result.toolsUsed).toContain('listTopClientsFromDashboard');
     expect(orchestrate).toHaveBeenCalledOnce();
-    const call = orchestrate.mock.calls[0]?.[0];
+    const orchCalls = (orchestrate as unknown as { mock: { calls: Array<[Parameters<MiOrchestrateFn>[0]]> } })
+      .mock.calls;
+    const call = orchCalls[0]?.[0];
     expect(call?.tenantId).toBe('org-a');
     expect(call?.promptKey).toBe('marketing.assistant.answer');
     expect(String(call?.variables.toolResults)).toContain('Bara');
