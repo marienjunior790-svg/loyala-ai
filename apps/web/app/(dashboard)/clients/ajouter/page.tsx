@@ -1,7 +1,6 @@
 import { requireAuth } from '@/lib/auth/guard';
 import { createClient } from '@/lib/supabase/server';
 import { getWhatsAppConnectionPublic } from '@loyala/domain-crm';
-import { WelcomeBanner } from '@/components/clients/welcome-banner';
 import { NewClientForm } from '../new/new-client-form';
 
 export const dynamic = 'force-dynamic';
@@ -19,16 +18,7 @@ export default async function AjouterClientPage({
 
   return (
     <div className="mx-auto max-w-lg space-y-6 animate-fade-in">
-      {showWelcome && <WelcomeBanner />}
-      <div>
-        <h2 className="text-2xl font-semibold tracking-tight">Nouveau client</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {showWelcome
-            ? 'Commencez par un client fidèle — vous pourrez le relancer tout de suite.'
-            : 'Ajoutez un client à votre CRM'}
-        </p>
-      </div>
-      <NewClientForm whatsappReady={connection.isReady} />
+      <NewClientForm showWelcome={showWelcome} whatsappReady={connection.isReady} />
     </div>
   );
 }

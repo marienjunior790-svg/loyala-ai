@@ -52,6 +52,7 @@ import {
   pdfToText,
   pdfToImages,
   decodeQrFromImage,
+  docxToText,
 } from '@/lib/catalogue/extract-client';
 import type { GeneratedCatalogInput } from '@loyala/validation';
 
@@ -234,7 +235,7 @@ const DIALOG_TITLE: Record<DialogMode, string> = {
   generate: "Créer avec l'IA",
   'import-text': 'Coller un menu',
   'import-url': 'Importer depuis une URL',
-  'import-file': 'Importer un fichier (PDF, Excel, CSV)',
+  'import-file': 'Importer un fichier (PDF, Word, Excel, CSV)',
   'import-image': 'Importer une photo du menu',
   'import-qr': 'Scanner un QR Code',
   template: 'Choisir un modèle',
@@ -343,7 +344,18 @@ function SmartCatalogDialog({
         return;
       }
 
-      const text = await spreadsheetToText(file);
+      const lowerName = file.name.toLowerCase();
+      if (lowerName.endsWith('.doc') && !lowerName.endsWith('.docx')) {
+        setExtracting(false);
+        setError('Les anciens fichiers Word .doc ne sont pas lus. Enregistrez la carte en .docx ou en PDF.');
+        return;
+      }
+      if (!/\.(pdf|docx|xlsx|xls|csv)$/i.test(lowerName)) {
+        setExtracting(false);
+        setError('Format non pris en charge. Utilisez un PDF, un Word .docx, un Excel ou un CSV.');
+        return;
+      }
+      const text = lowerName.endsWith('.docx') ? await docxToText(file) : await spreadsheetToText(file);
       setExtracting(false);
       if (text.trim().length < 10) {
         setError('Fichier vide ou illisible.');
@@ -355,9 +367,9 @@ function SmartCatalogDialog({
     } catch (e) {
       setExtracting(false);
       setError(
-        e instanceof Error
+        e instanceof Error && !/workbook|zip|invalid/i.test(e.message)
           ? `Impossible de lire ce fichier : ${e.message}`
-          : 'Impossible de lire ce fichier. Formats acceptés : .pdf, .xlsx, .xls, .csv'
+          : 'Impossible de lire ce fichier. Formats acceptés : PDF, Word .docx, Excel ou CSV.'
       );
     }
   }
@@ -725,7 +737,7 @@ function SmartCatalogDialog({
               <input
                 ref={fileRef}
                 type="file"
-                accept=".pdf,application/pdf,.xlsx,.xls,.csv,text/csv"
+                accept=".pdf,application/pdf,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.xlsx,.xls,.csv,text/csv"
                 className="hidden"
                 onChange={(e) => {
                   const f = e.target.files?.[0];
@@ -745,10 +757,10 @@ function SmartCatalogDialog({
                   ? 'Analyse du fichier…'
                   : fileName
                     ? `Fichier : ${fileName}`
-                    : 'Cliquez pour choisir un fichier .pdf, .xlsx, .xls ou .csv'}
+                    : 'Cliquez pour choisir un fichier .pdf, .docx, .xlsx, .xls ou .csv'}
               </button>
               <p className="mt-2 text-xs text-muted-foreground">
-                PDF texte ou scanné (OCR). Tableur : colonnes nom, catégorie, prix, description.
+                PDF texte ou scanné (OCR), Word .docx, ou tableur : colonnes nom, catégorie, prix, description.
               </p>
             </div>
           )}

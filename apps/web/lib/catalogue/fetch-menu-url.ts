@@ -31,6 +31,37 @@ function stripHtml(html: string): string {
     .trim();
 }
 
+function localizedText(value: unknown): string {
+  if (typeof value === 'string') return value.trim();
+  if (typeof value === 'number') return String(value);
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return '';
+  const record = value as Record<string, unknown>;
+  for (const key of ['fr', 'en']) {
+    if (typeof record[key] === 'string' && record[key].trim()) return record[key].trim();
+  }
+  for (const entry of Object.values(record)) {
+    if (typeof entry === 'string' && entry.trim()) return entry.trim();
+  }
+  return '';
+}
+
+function formatMenuPrice(price: unknown, currency: string): string {
+  if (Array.isArray(price)) {
+    return price
+      .map((entry) => {
+        if (!entry || typeof entry !== 'object') return '';
+        const row = entry as Record<string, unknown>;
+        if (row.price == null || row.price === '') return '';
+        const label = typeof row.description === 'string' ? row.description.trim() : '';
+        return label ? `${label} ${row.price}` : String(row.price);
+      })
+      .filter(Boolean)
+      .join(' / ');
+  }
+  if (price == null || price === '') return '';
+  return `${String(price)}${currency ? ` ${currency}` : ''}`;
+}
+
 /** Flatten DigiMenu / generic menu JSON into readable text for the AI importer. */
 export function menuJsonToText(data: unknown, depth = 0): string {
   if (data == null) return '';
@@ -47,32 +78,36 @@ export function menuJsonToText(data: unknown, depth = 0): string {
   }
 
   const name =
+    localizedText(o.menu_title) ||
+    localizedText(o.menu_titles) ||
     (typeof o.name === 'string' && o.name) ||
     (typeof o.title === 'string' && o.title) ||
     (typeof o.item_name === 'string' && o.item_name) ||
+    localizedText(o.item_names) ||
     (typeof o.category_name === 'string' && o.category_name) ||
     '';
   const desc =
     (typeof o.description === 'string' && o.description) ||
     (typeof o.desc === 'string' && o.desc) ||
     (typeof o.item_description === 'string' && o.item_description) ||
+    localizedText(o.item_descriptions) ||
+    localizedText(o.menu_description) ||
+    localizedText(o.menu_descriptions) ||
     '';
-  const price =
-    o.price ?? o.selling_price ?? o.amount ?? o.base_price ?? o.item_price ?? null;
   const currency =
     (typeof o.currency === 'string' && o.currency) ||
     (typeof o.currency_code === 'string' && o.currency_code) ||
     '';
+  const price = formatMenuPrice(
+    o.price ?? o.selling_price ?? o.amount ?? o.base_price ?? o.item_price ?? null,
+    currency
+  );
 
   const lines: string[] = [];
   if (name) {
-    const pricePart =
-      price != null && price !== ''
-        ? ` — ${String(price)}${currency ? ` ${currency}` : ''}`
-        : '';
-    lines.push(`${name}${pricePart}`);
+    lines.push(price ? `${name} — ${price}` : name);
   }
-  if (desc) lines.push(desc);
+  if (desc && desc !== name) lines.push(desc);
 
   const childrenKeys = [
     'categories',
@@ -85,6 +120,7 @@ export function menuJsonToText(data: unknown, depth = 0): string {
     'subcategories',
     'menus',
     'groups',
+    'results',
   ];
   for (const key of childrenKeys) {
     if (o[key] != null) {
@@ -118,7 +154,60 @@ function extractDigiMenuId(url: URL): string | null {
   return null;
 }
 
+async function fetchDigiMenuJson(url: string, menuId: string): Promise<unknown | null> {
+  const res = await fetch(url, {
+    redirect: 'follow',
+    signal: AbortSignal.timeout(12_000),
+    headers: {
+      ...BROWSER_HEADERS,
+      Accept: 'application/json',
+      Origin: 'https://qr.mydigimenu.com',
+      Referer: `https://qr.mydigimenu.com/${menuId}`,
+    },
+  });
+  if (!res.ok) return null;
+  return res.json();
+}
+
+async function loadDigiMenuSection(menuId: string, section: unknown): Promise<string> {
+  const heading = menuJsonToText(section);
+  const id =
+    section && typeof section === 'object' && 'id' in section
+      ? (section as { id: unknown }).id
+      : null;
+  if (typeof id !== 'number' && typeof id !== 'string') return heading;
+
+  try {
+    const data = await fetchDigiMenuJson(
+      `https://api.mydigimenu.com/api/qr-menu-children/${menuId}/?menu=${encodeURIComponent(String(id))}&platform=qr&limit=1500&page=1`,
+      menuId
+    );
+    const items = menuJsonToText(data);
+    return [heading, items].filter(Boolean).join('\n');
+  } catch {
+    return heading;
+  }
+}
+
 async function fetchDigiMenu(menuId: string): Promise<FetchMenuUrlResult> {
+  try {
+    const list = await fetchDigiMenuJson(
+      `https://api.mydigimenu.com/api/qr-menu/${menuId}/?platform=qr`,
+      menuId
+    );
+    if (Array.isArray(list) && list.length > 0) {
+      const blocks = await Promise.all(
+        list.slice(0, 12).map((section) => loadDigiMenuSection(menuId, section))
+      );
+      const text = blocks.filter(Boolean).join('\n\n');
+      if (text.length >= 40) {
+        return { ok: true, text: text.slice(0, 16_000), source: 'digimenu' };
+      }
+    }
+  } catch {
+    /* Les anciens points d'accès restent le repli. */
+  }
+
   const endpoints = [
     `https://api.mydigimenu.com/api/qr-menu/${menuId}/?platform=qr`,
     `https://api.mydigimenu.com/api/qr-menu/${menuId}/`,

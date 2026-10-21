@@ -4,40 +4,57 @@ import { useActionState } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { WelcomeBanner } from '@/components/clients/welcome-banner';
 import { WhatsAppRelaunchButton } from '@/components/clients/whatsapp-relaunch-button';
 import { createClientAction, type ClientActionState } from '../_actions/clients';
 
 const initial: ClientActionState = {};
 
-export function NewClientForm({ whatsappReady = false }: { whatsappReady?: boolean }) {
+export function NewClientForm({
+  whatsappReady = false,
+  showWelcome = false,
+}: {
+  whatsappReady?: boolean;
+  showWelcome?: boolean;
+}) {
   const [state, formAction, pending] = useActionState(createClientAction, initial);
 
-  if (state.success) {
-    return (
-      <Card className="border-primary/30 bg-primary/5">
-        <CardContent className="space-y-4 p-6 text-center">
-          <p className="font-semibold text-primary">Client créé avec succès 🎉</p>
-          <p className="text-sm text-muted-foreground">
-            Relancez-le maintenant sur WhatsApp pour voir la valeur immédiatement.
-          </p>
-          {state.optInWhatsapp && state.clientId && state.clientPhone && state.clientName && (
-            <WhatsAppRelaunchButton
-              clientId={state.clientId}
-              phone={state.clientPhone}
-              clientName={state.clientName}
-              whatsappReady={whatsappReady}
-              size="default"
-            />
-          )}
-          <Button className="mt-2" variant="outline" asChild>
-            <Link href="/clients">Voir tous mes clients</Link>
-          </Button>
-        </CardContent>
-      </Card>
-    );
-  }
-
   return (
+    <>
+      {showWelcome && !state.success && <WelcomeBanner />}
+      <div>
+        <h2 className="text-2xl font-semibold tracking-tight">Nouveau client</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {showWelcome && !state.success
+            ? 'Commencez par un client fidèle — vous pourrez le relancer tout de suite.'
+            : 'Ajoutez un client à votre CRM'}
+        </p>
+      </div>
+      {state.success ? (
+        <Card className="border-primary/30 bg-primary/5">
+          <CardContent className="space-y-4 p-6 text-center">
+            <p className="font-semibold text-primary">Client créé avec succès 🎉</p>
+            <p className="text-sm text-muted-foreground">
+              {whatsappReady
+                ? 'Relancez-le maintenant sur WhatsApp pour voir la valeur immédiatement.'
+                : 'Le client est enregistré. Connectez WhatsApp Business pour le relancer en un clic.'}
+            </p>
+            {state.optInWhatsapp && state.clientId && state.clientPhone && state.clientName && (
+              <WhatsAppRelaunchButton
+                clientId={state.clientId}
+                phone={state.clientPhone}
+                clientName={state.clientName}
+                whatsappReady={whatsappReady}
+                size="default"
+                align="center"
+              />
+            )}
+            <Button className="mt-2" variant="outline" asChild>
+              <Link href="/clients">Voir tous mes clients</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      ) : (
     <Card>
       <CardContent className="p-6">
         <form action={formAction} className="space-y-4">
@@ -105,5 +122,7 @@ export function NewClientForm({ whatsappReady = false }: { whatsappReady?: boole
         </form>
       </CardContent>
     </Card>
+      )}
+    </>
   );
 }

@@ -101,6 +101,110 @@ export async function decodeQrFromImage(file: File): Promise<string | null> {
   return result?.data ?? null;
 }
 
+/** Turn WordprocessingML into plain text. */
+export function docxXmlToText(xml: string): string {
+  return xml
+    .replace(/<w:tab\/>/g, '\t')
+    .replace(/<w:br\/>/g, '\n')
+    .replace(/<\/w:p>/g, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+function readU16(bytes: Uint8Array, offset: number): number {
+  return bytes[offset]! | (bytes[offset + 1]! << 8);
+}
+
+function readU32(bytes: Uint8Array, offset: number): number {
+  return (
+    bytes[offset]! |
+    (bytes[offset + 1]! << 8) |
+    (bytes[offset + 2]! << 16) |
+    (bytes[offset + 3]! << 24)
+  ) >>> 0;
+}
+
+async function inflateRaw(data: Uint8Array): Promise<Uint8Array> {
+  const stream = new DecompressionStream('deflate-raw');
+  const writer = stream.writable.getWriter();
+  const reader = stream.readable.getReader();
+  const copy = new Uint8Array(data.byteLength);
+  copy.set(data);
+  await writer.write(copy);
+  await writer.close();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value);
+    total += value.byteLength;
+  }
+  const out = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    out.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return out;
+}
+
+async function readZipEntry(buffer: ArrayBuffer, entryName: string): Promise<Uint8Array | null> {
+  const bytes = new Uint8Array(buffer);
+  let eocd = -1;
+  const scanFrom = Math.max(0, bytes.length - 22 - 65535);
+  for (let i = bytes.length - 22; i >= scanFrom; i--) {
+    if (readU32(bytes, i) === 0x06054b50) {
+      eocd = i;
+      break;
+    }
+  }
+  if (eocd < 0) return null;
+
+  const entryCount = readU16(bytes, eocd + 10);
+  let cursor = readU32(bytes, eocd + 16);
+  for (let n = 0; n < entryCount; n++) {
+    if (readU32(bytes, cursor) !== 0x02014b50) return null;
+    const method = readU16(bytes, cursor + 10);
+    const compressedSize = readU32(bytes, cursor + 20);
+    const nameLength = readU16(bytes, cursor + 28);
+    const extraLength = readU16(bytes, cursor + 30);
+    const commentLength = readU16(bytes, cursor + 32);
+    const localOffset = readU32(bytes, cursor + 42);
+    const name = new TextDecoder().decode(bytes.subarray(cursor + 46, cursor + 46 + nameLength));
+    if (name === entryName) {
+      const localNameLength = readU16(bytes, localOffset + 26);
+      const localExtraLength = readU16(bytes, localOffset + 28);
+      const dataStart = localOffset + 30 + localNameLength + localExtraLength;
+      const compressed = bytes.subarray(dataStart, dataStart + compressedSize);
+      if (method === 0) return compressed;
+      if (method === 8) return inflateRaw(compressed);
+      return null;
+    }
+    cursor += 46 + nameLength + extraLength + commentLength;
+  }
+  return null;
+}
+
+/** Extract the visible text of a .docx menu. */
+export async function docxToText(file: File): Promise<string> {
+  const xmlBytes = await readZipEntry(await file.arrayBuffer(), 'word/document.xml');
+  if (!xmlBytes) {
+    throw new Error('Ce fichier Word ne contient pas de texte lisible.');
+  }
+  const text = docxXmlToText(new TextDecoder().decode(xmlBytes));
+  if (text.length < 10) {
+    throw new Error('Ce fichier Word est vide ou ne contient pas de texte.');
+  }
+  return text;
+}
+
 function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();

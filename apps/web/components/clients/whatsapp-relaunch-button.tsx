@@ -13,12 +13,14 @@ interface WhatsAppRelaunchButtonProps {
   restaurantName?: string;
   whatsappReady: boolean;
   size?: 'sm' | 'default';
+  align?: 'end' | 'center';
 }
 
 export function WhatsAppRelaunchButton({
   clientId,
   whatsappReady,
   size = 'sm',
+  align = 'end',
 }: WhatsAppRelaunchButtonProps) {
   const [pending, start] = useTransition();
   const [msg, setMsg] = useState<string | null>(null);
@@ -26,14 +28,19 @@ export function WhatsAppRelaunchButton({
 
   if (!whatsappReady) {
     return (
-      <div className="flex flex-col items-end gap-1" onClick={(e) => e.stopPropagation()}>
+      <div
+        className={`flex flex-col gap-1 ${align === 'center' ? 'items-center' : 'items-end'}`}
+        onClick={(e) => e.stopPropagation()}
+      >
         <Button size={size} variant="outline" asChild className="border-amber-500/40 text-amber-200">
           <Link href="/settings">
             <MessageCircle className="h-4 w-4" />
             Connecter WhatsApp
           </Link>
         </Button>
-        <p className="max-w-[11rem] text-right text-[10px] text-muted-foreground">
+        <p
+          className={`max-w-[11rem] text-[10px] text-muted-foreground ${align === 'center' ? 'text-center' : 'text-right'}`}
+        >
           WhatsApp Business n’est pas encore connecté.
         </p>
       </div>
@@ -41,7 +48,10 @@ export function WhatsAppRelaunchButton({
   }
 
   return (
-    <div className="flex flex-col items-end gap-1" onClick={(e) => e.stopPropagation()}>
+    <div
+      className={`flex flex-col gap-1 ${align === 'center' ? 'items-center' : 'items-end'}`}
+      onClick={(e) => e.stopPropagation()}
+    >
       <Button
         size={size}
         variant="outline"
