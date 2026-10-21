@@ -31,7 +31,7 @@ export async function listLoyaltyTransactions(
 ): Promise<LoyaltyTransaction[]> {
   const { data, error } = await supabase
     .from('loyalty_transactions')
-    .select('*, clients(full_name, loyalty_points)')
+    .select('*, clients!loyalty_transactions_client_same_org_fkey(full_name, loyalty_points)')
     .eq('organization_id', organizationId)
     .order('created_at', { ascending: false })
     .limit(limit);
