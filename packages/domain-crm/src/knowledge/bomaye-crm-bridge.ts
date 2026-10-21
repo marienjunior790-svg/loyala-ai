@@ -67,6 +67,15 @@ function nearlyEqual(a: number, b: number, eps = 0.05): boolean {
   return Math.abs(a - b) <= eps;
 }
 
+/** Écrit un champ observé sans élargir BomayeAdvisorSignals en index signature. */
+function assignObservedSignal<K extends keyof BomayeAdvisorSignals>(
+  target: BomayeAdvisorSignals,
+  key: K,
+  value: BomayeAdvisorSignals[K],
+): void {
+  target[key] = value;
+}
+
 /**
  * Dérive les signaux Bomaye depuis le snapshot MI/CRM.
  * P2.3 : part livraison si channelMix.deliverySharePct calculable.
@@ -341,10 +350,10 @@ export function mergeBomayeSignalSources(input: {
         resolution: 'keep_observed_crm',
         message: `Divergence sur ${key} : déclaré=${declaredVal}, observé CRM=${value} — conservation observed_crm.`,
       });
-      (merged as Record<string, unknown>)[key] = value;
+      assignObservedSignal(merged, key, value);
       fieldOrigins[key] = 'observed_crm';
     } else {
-      (merged as Record<string, unknown>)[key] = value;
+      assignObservedSignal(merged, key, value);
       fieldOrigins[key] = 'observed_crm';
     }
   }

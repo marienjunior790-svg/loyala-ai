@@ -101,7 +101,53 @@ describe('GET /api/mi/insights', () => {
     expect(withRateLimit.mock.calls[0]?.[2]).toBe('mi-insights');
     const body = await res.json();
     expect(body.dataQuality).toBe('ok');
-    expect(body.toolsUsed).toContain('loadMiOrgInsights');
+    expect(body.toolsUsed).toEqual(['loadMiOrgInsights']);
+    expect(body.signalsIncluded).toEqual({
+      channelMix: false,
+      reviewsInsight: false,
+      recencyLoyalty: false,
+      campaignActivity: false,
+      trends: false,
+      opportunities: true,
+      proactiveBriefing: false,
+    });
+  });
+
+  it('signalsIncluded reflète les champs présents sans les compter comme outils', async () => {
+    getAuthContext.mockResolvedValue({
+      userId: 'u1',
+      organizationId: 'org-session',
+      role: 'org_owner',
+    });
+    loadMiOrgInsights.mockResolvedValue({
+      organizationId: 'org-session',
+      dataQuality: 'ok',
+      period: { code: 'mois', label: 'Mois', from: 'a', to: 'b', definition: 'd' },
+      trends: { revenue: { changePct: -1 } },
+      opportunities: [],
+      channelMix: { deliverySharePct: 40 },
+      reviewsInsight: { sampleComplete: true },
+      recencyLoyalty: { repeatRate60dPct: 12 },
+      campaignActivity: { sendsInPeriod: 3 },
+      proactiveBriefing: { status: 'ready' },
+    });
+
+    const res = await GET(new Request('http://localhost/api/mi/insights?period=mois'));
+    const body = await res.json();
+    expect(res.status).toBe(200);
+    expect(body.toolsUsed).toEqual(['loadMiOrgInsights']);
+    expect(body.toolsUsed).not.toContain('buildMiTrends');
+    expect(body.toolsUsed).not.toContain('computeMiReviewsInsight');
+    expect(body.toolsUsed).not.toContain('deriveBomayeSignalsFromCrm');
+    expect(body.signalsIncluded).toEqual({
+      channelMix: true,
+      reviewsInsight: true,
+      recencyLoyalty: true,
+      campaignActivity: true,
+      trends: true,
+      opportunities: true,
+      proactiveBriefing: true,
+    });
   });
 
   it('400 période invalide', async () => {

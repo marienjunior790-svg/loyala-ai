@@ -167,7 +167,7 @@ export function parseBomayeSignalsFromMessage(
   }
   // « dépasse 32 % » parsé à 32 → forcer au-dessus du seuil Bomaye.
   if (
-    base.foodCostPct !== null &&
+    typeof base.foodCostPct === 'number' &&
     base.foodCostPct <= 32 &&
     /(?:food\s*cost|co[uû]t\s*mati).{0,40}(d[eé]passe|exc[eè]de)\s*32/i.test(message)
   ) {

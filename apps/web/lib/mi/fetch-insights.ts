@@ -4,12 +4,23 @@ import type { MiChatApiPeriod } from './api-client';
 
 export const MI_INSIGHTS_TIMEOUT_MS = 45_000;
 
+export interface MiInsightsSignalsIncluded {
+  channelMix: boolean;
+  reviewsInsight: boolean;
+  recencyLoyalty: boolean;
+  campaignActivity: boolean;
+  trends: boolean;
+  opportunities: boolean;
+  proactiveBriefing: boolean;
+}
+
 export interface MiInsightsApiSuccess {
   ok: true;
   dataQuality: 'ok' | 'partial' | 'insufficient';
   period: MiChatApiPeriod;
   insights: Record<string, unknown>;
   toolsUsed: string[];
+  signalsIncluded: MiInsightsSignalsIncluded | null;
 }
 
 export interface MiInsightsApiFailure {
@@ -40,6 +51,26 @@ function asPeriod(raw: unknown): MiChatApiPeriod {
     to: typeof o.to === 'string' ? o.to : '',
     definition: typeof o.definition === 'string' ? o.definition : '',
   };
+}
+
+function asSignalsIncluded(raw: unknown): MiInsightsSignalsIncluded | null {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const o = raw as Record<string, unknown>;
+  const keys = [
+    'channelMix',
+    'reviewsInsight',
+    'recencyLoyalty',
+    'campaignActivity',
+    'trends',
+    'opportunities',
+    'proactiveBriefing',
+  ] as const;
+  const out = {} as MiInsightsSignalsIncluded;
+  for (const key of keys) {
+    if (typeof o[key] !== 'boolean') return null;
+    out[key] = o[key];
+  }
+  return out;
 }
 
 function asDataQuality(raw: unknown): MiInsightsApiSuccess['dataQuality'] {
@@ -138,5 +169,6 @@ export async function fetchMiInsights(
     toolsUsed: Array.isArray(json.toolsUsed)
       ? json.toolsUsed.filter((t): t is string => typeof t === 'string')
       : [],
+    signalsIncluded: asSignalsIncluded(json.signalsIncluded),
   };
 }

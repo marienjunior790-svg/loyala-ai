@@ -3,6 +3,7 @@ import { hasPermission } from '@loyala/core-iam';
 import { loadMiOrgInsights, miInsightsForPrompt } from '@loyala/domain-crm';
 import { miInsightsQuerySchema } from '@loyala/validation';
 import { getAuthContext } from '@/lib/auth/session';
+import { miInsightsSignalsIncluded } from '@/lib/mi/insights-signals';
 import { withRateLimit } from '@/lib/security/api-guard';
 import { createClient } from '@/lib/supabase/server';
 
@@ -65,12 +66,8 @@ export async function GET(request: Request) {
           dataQuality: insights.dataQuality,
           period: insights.period,
           insights: miInsightsForPrompt(insights),
-          toolsUsed: [
-            'loadMiOrgInsights',
-            'buildMiTrends',
-            'buildMiOpportunities',
-            'buildMiProactiveBriefing',
-          ],
+          toolsUsed: ['loadMiOrgInsights'],
+          signalsIncluded: miInsightsSignalsIncluded(insights),
         });
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Erreur de lecture des données';
