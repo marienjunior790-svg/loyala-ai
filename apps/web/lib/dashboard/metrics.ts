@@ -29,13 +29,13 @@ export async function getDashboardMetrics(organizationId: string): Promise<Dashb
 
   const extraKpis: KpiMetric[] = [];
 
-  if (reviews && reviews.count > 0) {
+  if (reviews && reviews.count > 0 && reviews.averageRating != null) {
     extraKpis.push({
       id: 'reviews-avg',
       label: 'Note moyenne',
       value: reviews.averageRating.toFixed(1),
       change: 0,
-      changeLabel: `${reviews.count} avis`,
+      changeLabel: `${reviews.ratedCount ?? reviews.count} avis notés`,
       trend: 'up',
     });
   }

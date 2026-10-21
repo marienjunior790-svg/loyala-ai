@@ -5,9 +5,18 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { orchestrateAI, type AIResponse } from '@loyala/core-ai';
 import {
+  deriveBomayeSignalsFromCrm,
+  evaluateBomayeAdvisor,
+  formatBomayeAdvisorAnswer,
+  getBomayePackSummary,
+  isBomayeKnowledgeIntent,
+  mergeBomayeSignalSources,
+  parseBomayeSignalsFromMessage,
+  selectBomayeKnowledgeSlice,
   loadMiOrgInsights,
   miInsightsForPrompt,
   resolveMiPeriod,
+  type BomayeAdvisorSignals,
   type MiDataQuality,
   type MiOrgInsights,
 } from '@loyala/domain-crm';
@@ -22,6 +31,7 @@ export type MiIntent =
   | 'opportunities'
   | 'retention'
   | 'campaign'
+  | 'knowledge'
   | 'send_blocked'
   | 'general';
 
@@ -74,9 +84,15 @@ export type MiOrchestrateFn = (input: {
   temperature?: number;
 }) => Promise<AIResponse>;
 
-/** Envoi / diffusion réelle — pas le simple mot « campagne » (P3 brouillons). */
+/**
+ * Envoi / diffusion réelle (impératif).
+ * Exclut les questions exploratoires (« dois-je lancer… », conseil Bomaye).
+ * Pas le simple mot « campagne » / « WhatsApp » seul.
+ */
 const SEND_RE =
-  /\b(envoie[rz]?|envoy(er|ez)|lancer|lance[rz]?|publie[rz]?|publier|whatsapp|sms|email|e-?mail|diffuser|envoyer)\b/i;
+  /\b(envoie[rz]?|envoy(er|ez)|publie[rz]?|publier|diffuser|envoyer)\b/i;
+/** Lancer/lance — filtré ensuite si question exploratoire. */
+const SEND_LAUNCH_RE = /\b(lancer|lance[rz]?)\b/i;
 
 const TOP_CLIENTS_RE =
   /\b(meilleurs?\s+clients?|top\s*clients?|clients?\s+(vip|fid[eè]les?)|classement\s+clients?|plus\s+(gros|grands?)\s+(d[eé]pens|clients?))\b/i;
@@ -99,9 +115,26 @@ const RETENTION_RE =
 const CAMPAIGN_RE =
   /\b(campagne|brouillon\s+(de\s+)?(campagne|message)|proposition\s+de\s+campagne|id[eé]e\s+de\s+campagne|pr[eé]parer\s+(une\s+)?campagne|draft\s+campaign|quel\s+message\s+(envoyer|r[eé]diger))\b/i;
 
+function isSendBlockedIntent(text: string): boolean {
+  if (SEND_RE.test(text)) return true;
+  // « Lance la campagne » / « Lancer maintenant » — pas « Dois-je lancer une campagne ? »
+  if (/\b(dois[- ]je|faut[- ]il|devrais[- ]je|peut[- ]on|devons[- ]nous|puis[- ]je)\b/i.test(text)) {
+    return false;
+  }
+  return SEND_LAUNCH_RE.test(text);
+}
+
 export function detectMiIntent(message: string): MiIntent {
   const text = message.trim();
-  if (SEND_RE.test(text)) return 'send_blocked';
+  // Conseil Bomaye avant blocage d’envoi si la question est stratégique
+  // (ex. « dois-je lancer une campagne alors que mes avis baissent ? »).
+  if (isBomayeKnowledgeIntent(text)) {
+    if (isSendBlockedIntent(text) && !/\b(dois[- ]je|faut[- ]il|devrais[- ]je)\b/i.test(text)) {
+      return 'send_blocked';
+    }
+    return 'knowledge';
+  }
+  if (isSendBlockedIntent(text)) return 'send_blocked';
   if (TOP_CLIENTS_RE.test(text)) return 'top_clients';
   if (TOP_PRODUCTS_RE.test(text)) return 'top_products';
   if (INACTIVE_RE.test(text)) return 'inactive';
@@ -131,6 +164,14 @@ function toolsForIntent(intent: MiIntent): string[] {
       return ['loadMiOrgInsights', 'buildMiRetentionStrategies', 'buildMiCustomerIntelligence'];
     case 'campaign':
       return ['loadMiOrgInsights', 'buildMiCampaignProposals'];
+    case 'knowledge':
+      return [
+        'loadMiOrgInsights',
+        'deriveBomayeSignalsFromCrm',
+        'mergeBomayeSignalSources',
+        'evaluateBomayeAdvisor',
+        'bomayeKnowledgePack',
+      ];
     case 'send_blocked':
       return [];
     case 'overview':
@@ -313,6 +354,11 @@ export interface RunMiChatTurnInput {
   orchestrate?: MiOrchestrateFn;
   /** Injection tests — défaut loadMiOrgInsights. */
   loadInsights?: typeof loadMiOrgInsights;
+  /**
+   * Signaux Bomaye injectés (tests / outils internes).
+   * Jamais lus depuis un body client non fiable sans validation — session org obligatoire.
+   */
+  bomayeSignals?: Partial<BomayeAdvisorSignals>;
 }
 
 /**
@@ -382,6 +428,72 @@ export async function runMiChatTurn(input: RunMiChatTurnInput): Promise<MiChatTu
   }
 
   const promptPayload = miInsightsForPrompt(insights);
+  promptPayload.bomayeKnowledge = getBomayePackSummary();
+
+  // Conseil stratégique Bomaye (déterministe) — avant LLM.
+  // P2.1 : pont CRM → Bomaye puis fusion avec déclarations message (CRM prime en conflit).
+  if (intent === 'knowledge') {
+    const crmBridge = deriveBomayeSignalsFromCrm(insights);
+    const declared = parseBomayeSignalsFromMessage(message, {
+      restaurantName: insights.restaurantName,
+      ...input.bomayeSignals,
+      dataOrigin:
+        input.bomayeSignals?.dataOrigin ??
+        (input.bomayeSignals ? 'synthetic_test' : 'user_declared'),
+    });
+    const merged = mergeBomayeSignalSources({ crm: crmBridge, declared });
+    const advice = evaluateBomayeAdvisor(merged.signals, {
+      fieldOrigins: merged.fieldOrigins,
+      conflicts: merged.conflicts,
+      crmFacts: merged.crmFacts,
+      crmLimits: merged.crmLimits,
+      miOpportunityRuleIds: merged.miOpportunityRuleIds,
+    });
+    const knowledgeSlice = selectBomayeKnowledgeSlice({
+      strategyIds: advice.primaryStrategies,
+      includeKpis: true,
+      marketContext: merged.signals.marketContext ?? 'unknown',
+    });
+    promptPayload.bomayeAdvisor = {
+      dataOrigin: advice.dataOrigin,
+      fires: advice.fires.map((f) => ({
+        ruleId: f.ruleId,
+        priority: f.priority,
+        recommendation: f.recommendation,
+        strategies: f.strategies,
+        provenance: f.provenance,
+      })),
+      missingInformation: advice.missingInformation,
+      observedFacts: advice.observedFacts,
+      primaryStrategies: advice.primaryStrategies,
+      fieldOrigins: advice.fieldOrigins ?? merged.fieldOrigins,
+      conflicts: advice.conflicts ?? merged.conflicts,
+      crmBridge: {
+        insufficientForTrends: crmBridge.insufficientForTrends,
+        dataQuality: crmBridge.dataQuality,
+        miOpportunityRuleIds: crmBridge.miOpportunityRuleIds,
+        limits: crmBridge.limits,
+      },
+    };
+    promptPayload.knowledgeRefs = knowledgeSlice;
+
+    return {
+      ok: true,
+      answer: truncateAnswer(formatBomayeAdvisorAnswer(advice)),
+      intent,
+      dataQuality: insights.dataQuality,
+      period: insights.period,
+      toolsUsed,
+      insights: promptPayload,
+      meta: {
+        requestId: null,
+        model: null,
+        cached: false,
+        latencyMs: 0,
+        skippedAi: true,
+      },
+    };
+  }
 
   // Fidélisation / opportunités segments : possibles même sans commandes payées période.
   const deterministic = buildDeterministicEnrichmentAnswer(intent, insights);

@@ -1,6 +1,11 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Client } from './clients';
-import { countsAsRevenue, orderNetAmount, REVENUE_ORDER_STATUSES } from './orders';
+import {
+  countsAsRevenue,
+  orderNetAmount,
+  REVENUE_ORDER_STATUSES,
+  type OrderType,
+} from './orders';
 import { computeClientSegment, type ClientSegment } from './segments';
 
 /**
@@ -31,6 +36,24 @@ export interface DashboardVisit {
   amount: number | string | null;
   status?: string | null;
   refunded_amount?: number | string | null;
+  /** Canal de commande (migration 040) — absent sur anciennes lignes. */
+  order_type?: OrderType | string | null;
+}
+
+/**
+ * Mix canaux sur la période (P2.3).
+ * `deliverySharePct` = null si CA période = 0 ou aucun `order_type` renseigné (jamais forcé à 0).
+ */
+export interface DashboardChannelMix {
+  periodRevenue: number;
+  deliveryRevenue: number;
+  /** (CA livraison / CA période) * 100 — null si non calculable. */
+  deliverySharePct: number | null;
+  typedRevenue: number;
+  untypedRevenue: number;
+  /** Part du CA période ayant un order_type (0–100), null si CA=0. */
+  coveragePct: number | null;
+  limitations: string[];
 }
 
 export interface DashboardItem {
@@ -240,6 +263,8 @@ export interface ClientDashboard {
   topCategories: ProductStat[];
   segments: Record<ClientSegment, number>;
   perClient: Record<string, ClientFileStats>;
+  /** Répartition sur place / emporter / livraison (période courante). */
+  channelMix: DashboardChannelMix;
 }
 
 function amountOf(value: number | string | null | undefined) {
@@ -247,7 +272,94 @@ function amountOf(value: number | string | null | undefined) {
   return Number.isFinite(amount) ? amount : 0;
 }
 
-type Entry = { clientId: string; day: string; amount: number; items: DashboardItem[] };
+type Entry = {
+  clientId: string;
+  day: string;
+  amount: number;
+  items: DashboardItem[];
+  orderType: string | null;
+};
+
+/** Volume minimal de CA période pour publier une part livraison (évite 1 ticket). */
+export const MI_DELIVERY_SHARE_MIN_REVENUE = 1;
+
+/**
+ * Calcule la part livraison sur une fenêtre de commandes payées.
+ * Ne remplace jamais une absence de typage par 0 % de dépendance.
+ */
+export function computeDeliveryChannelMix(
+  entries: Array<{ day: string; amount: number; orderType: string | null }>,
+  range: DayRange
+): DashboardChannelMix {
+  const limitations: string[] = [];
+  let periodRevenue = 0;
+  let deliveryRevenue = 0;
+  let typedRevenue = 0;
+  let untypedRevenue = 0;
+
+  for (const entry of entries) {
+    if (!inRange(entry.day, range)) continue;
+    periodRevenue += entry.amount;
+    const ot = entry.orderType?.trim() || null;
+    if (!ot) {
+      untypedRevenue += entry.amount;
+      continue;
+    }
+    typedRevenue += entry.amount;
+    if (ot === 'livraison') deliveryRevenue += entry.amount;
+  }
+
+  if (periodRevenue < MI_DELIVERY_SHARE_MIN_REVENUE) {
+    limitations.push(
+      'CA période insuffisant pour publier une part livraison (non remplacé par 0 %).'
+    );
+    return {
+      periodRevenue,
+      deliveryRevenue,
+      deliverySharePct: null,
+      typedRevenue,
+      untypedRevenue,
+      coveragePct: null,
+      limitations,
+    };
+  }
+
+  const coveragePct = Math.round(((typedRevenue / periodRevenue) * 100) * 100) / 100;
+
+  if (typedRevenue <= 0) {
+    limitations.push(
+      'Aucun order_type renseigné sur les commandes de la période — part livraison non calculable.'
+    );
+    return {
+      periodRevenue,
+      deliveryRevenue: 0,
+      deliverySharePct: null,
+      typedRevenue: 0,
+      untypedRevenue,
+      coveragePct: 0,
+      limitations,
+    };
+  }
+
+  if (untypedRevenue > 0) {
+    limitations.push(
+      `CA sans order_type = ${Math.round(untypedRevenue)} — inclus au dénominateur, pas en livraison (part potentiellement sous-estimée).`
+    );
+  }
+
+  const deliverySharePct =
+    Math.round(((deliveryRevenue / periodRevenue) * 100) * 100) / 100;
+
+  return {
+    periodRevenue,
+    deliveryRevenue,
+    deliverySharePct,
+    typedRevenue,
+    untypedRevenue,
+    coveragePct,
+    limitations,
+  };
+}
 
 function inRange(day: string, range: DayRange) {
   return day >= range.start && day <= range.end;
@@ -366,11 +478,19 @@ export function computeClientDashboard(input: {
     if (!clients.has(visit.client_id) || !countsAsRevenue(visit)) continue;
     const day = localDay(visit.visited_at, input.timezone);
     if (!day) continue;
-    entries.push({ clientId: visit.client_id, day, amount: orderNetAmount(visit), items: itemsByVisit.get(visit.id) ?? [] });
+    const ot = visit.order_type;
+    entries.push({
+      clientId: visit.client_id,
+      day,
+      amount: orderNetAmount(visit),
+      items: itemsByVisit.get(visit.id) ?? [],
+      orderType: typeof ot === 'string' && ot.trim() ? ot.trim() : null,
+    });
   }
 
   const current = summarize(entries, range);
   const previous = summarize(entries, range.previous);
+  const channelMix = computeDeliveryChannelMix(entries, range);
   const createdIn = (window: DayRange) =>
     input.clients.filter((client) => {
       const day = localDay(client.created_at, input.timezone);
@@ -450,6 +570,7 @@ export function computeClientDashboard(input: {
     topCategories: productStats(entries, range, (item) => item.category_name),
     segments,
     perClient,
+    channelMix,
   };
 }
 
@@ -481,7 +602,14 @@ export function computeClientProfile(input: {
     const day = localDay(visit.visited_at, input.timezone);
     if (!day) continue;
     const amount = orderNetAmount(visit);
-    entries.push({ clientId: visit.client_id, day, amount, items: visit.items });
+    const ot = visit.order_type;
+    entries.push({
+      clientId: visit.client_id,
+      day,
+      amount,
+      items: visit.items,
+      orderType: typeof ot === 'string' && ot.trim() ? ot.trim() : null,
+    });
     const point = byKey.get(day.slice(0, 7));
     if (!point) continue;
     point.spent += amount;
@@ -552,7 +680,7 @@ export async function getClientDashboard(
   const visits = await readAll<DashboardVisit>((from, to) =>
     supabase
       .from('client_visits')
-      .select('id, client_id, visited_at, amount, status, refunded_amount')
+      .select('id, client_id, visited_at, amount, status, refunded_amount, order_type')
       .eq('organization_id', organizationId)
       .in('status', [...REVENUE_ORDER_STATUSES])
       .gte('visited_at', since)

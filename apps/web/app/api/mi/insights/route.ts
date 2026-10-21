@@ -65,7 +65,12 @@ export async function GET(request: Request) {
           dataQuality: insights.dataQuality,
           period: insights.period,
           insights: miInsightsForPrompt(insights),
-          toolsUsed: ['loadMiOrgInsights', 'buildMiTrends', 'buildMiOpportunities'],
+          toolsUsed: [
+            'loadMiOrgInsights',
+            'buildMiTrends',
+            'buildMiOpportunities',
+            'buildMiProactiveBriefing',
+          ],
         });
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Erreur de lecture des données';

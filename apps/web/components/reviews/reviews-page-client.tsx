@@ -19,7 +19,12 @@ const initial: ReviewActionState = {};
 
 interface ReviewsPageClientProps {
   reviews: Review[];
-  summary: { count: number; averageRating: number; pendingResponses: number };
+  summary: {
+    count: number;
+    averageRating: number | null;
+    pendingResponses: number;
+    ratedCount?: number;
+  };
   googleReviewUrl: string;
   autoRequestEnabled: boolean;
 }
@@ -80,7 +85,9 @@ export function ReviewsPageClient({
         <Card>
           <CardContent className="pt-6">
             <p className="text-sm text-muted-foreground">Note moyenne</p>
-            <p className="text-3xl font-semibold">{summary.averageRating.toFixed(1)}</p>
+            <p className="text-3xl font-semibold">
+              {summary.averageRating != null ? summary.averageRating.toFixed(1) : '—'}
+            </p>
           </CardContent>
         </Card>
         <Card>

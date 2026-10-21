@@ -35,6 +35,24 @@ import {
   buildMiCampaignProposals,
   type MiCampaignProposal,
 } from './mi-campaign-intelligence';
+import {
+  buildMiProactiveBriefing,
+  type MiProactiveBriefing,
+} from './mi-proactive-briefing';
+import { computeMiReviewsInsight, type MiReviewsInsight } from './mi-reviews';
+import { countReviews, listReviews } from './reviews';
+import {
+  computeMiRecencyLoyaltyInsight,
+  listVisitStampsForLoyalty,
+  MI_REPEAT_RATE_WINDOW_DAYS,
+  type MiRecencyLoyaltyInsight,
+} from './mi-recency-loyalty';
+import {
+  computeMiCampaignActivityInsight,
+  listCampaignsForMi,
+  listCampaignSendsForMi,
+  type MiCampaignActivityInsight,
+} from './mi-campaign-activity';
 
 export type MiDataQuality = 'ok' | 'partial' | 'insufficient';
 
@@ -102,6 +120,92 @@ export interface MiOrgInsights {
   retentionStrategies: MiRetentionStrategy[];
   /** Propositions de campagne déterministes P3 (brouillons, non persistées). */
   campaignProposals: MiCampaignProposal[];
+  /**
+   * Mix canaux (part livraison) — P2.3.
+   * null si dashboard non chargé ; deliverySharePct null si non calculable.
+   */
+  channelMix: ClientDashboard['channelMix'] | null;
+  /**
+   * Avis clients (P2.4) — agrégat périodique ; averageRating null si aucune note valide.
+   * null uniquement si le chargement avis a échoué côté loader (sinon objet avec limites).
+   */
+  reviewsInsight: MiReviewsInsight | null;
+  /**
+   * Récence / fidélisation (P2.5) — inactifs autrefois réguliers, repeat rate, refroidissement.
+   * null si calcul impossible côté loader.
+   */
+  recencyLoyalty: MiRecencyLoyaltyInsight | null;
+  /**
+   * Activité campagnes / envois (P2.6) — volumes et taux de marquage CRM.
+   * Pas de ROI / opens / delivery WhatsApp.
+   */
+  campaignActivity: MiCampaignActivityInsight | null;
+  /**
+   * Fenêtres de mesure distinctes (dashboard ≠ récence glissante ≠ avis/campagnes alignés).
+   * Évite de laisser croire que tous les indicateurs couvrent la même période.
+   */
+  measurementWindows: MiMeasurementWindow[];
+  /** Briefing proactif unifié P2.2 (agrège MI + Bomaye CRM). Toujours posé par loadMiOrgInsights. */
+  proactiveBriefing?: MiProactiveBriefing;
+}
+
+/** Métadonnée de fenêtre temporelle pour API / briefing / cockpit. */
+export interface MiMeasurementWindow {
+  id: 'dashboard' | 'recency_sliding' | 'reviews' | 'campaigns';
+  label: string;
+  from: string;
+  to: string;
+  definition: string;
+  /** true si bornes = période dashboard (ou précédente pour chargement). */
+  alignedWithDashboard: boolean;
+}
+
+export function buildMiMeasurementWindows(input: {
+  period: MiPeriodMeta;
+  previousFrom: string;
+  previousTo: string;
+  now: Date;
+  timezone: string;
+}): MiMeasurementWindow[] {
+  const recencyTo = input.period.to;
+  const recencyFromDate = new Date(
+    input.now.getTime() - MI_REPEAT_RATE_WINDOW_DAYS * 2 * 24 * 60 * 60 * 1000
+  );
+  const recencyFrom = recencyFromDate.toISOString().slice(0, 10);
+  return [
+    {
+      id: 'dashboard',
+      label: `Dashboard / tendances (${input.period.label})`,
+      from: input.period.from,
+      to: input.period.to,
+      definition: input.period.definition,
+      alignedWithDashboard: true,
+    },
+    {
+      id: 'recency_sliding',
+      label: 'Récence / fidélisation (120 j glissants)',
+      from: recencyFrom,
+      to: recencyTo,
+      definition: `Fenêtre glissante ${MI_REPEAT_RATE_WINDOW_DAYS * 2} j jusqu’à aujourd’hui (fuseau ${input.timezone}) — distincte de la période dashboard. Repeat rate compare 0–${MI_REPEAT_RATE_WINDOW_DAYS} j vs ${MI_REPEAT_RATE_WINDOW_DAYS}–${MI_REPEAT_RATE_WINDOW_DAYS * 2} j.`,
+      alignedWithDashboard: false,
+    },
+    {
+      id: 'reviews',
+      label: `Avis (alignés période ${input.period.label})`,
+      from: input.period.from,
+      to: input.period.to,
+      definition: `Notes/tendance sur la période dashboard ; chargement depuis le début de la fenêtre précédente (${input.previousFrom}) pour comparer. Fuseau ${input.timezone}.`,
+      alignedWithDashboard: true,
+    },
+    {
+      id: 'campaigns',
+      label: `Campagnes / envois (alignés période ${input.period.label})`,
+      from: input.period.from,
+      to: input.period.to,
+      definition: `Activité datée sur la période dashboard ; échantillon chargé depuis ${input.previousFrom}. Fuseau ${input.timezone}.`,
+      alignedWithDashboard: true,
+    },
+  ];
 }
 
 const PERIOD_DEFINITIONS: Record<DashboardPeriod, string> = {
@@ -337,14 +441,139 @@ export async function loadMiOrgInsights(
     clientCount: clients.length,
   });
 
-  return {
+  const channelLimits =
+    dashboard.channelMix.limitations.length > 0
+      ? [...limits, ...dashboard.channelMix.limitations]
+      : limits;
+
+  // P2.4 — avis (RLS org) : période courante + précédente pour tendance éventuelle.
+  const reviewsFetchLimit = 200;
+  const reviewsSince = `${dashboard.range.previous.start}T00:00:00Z`;
+  let reviewsInsight: MiReviewsInsight | null = null;
+  try {
+    const [reviewRows, totalMatching] = await Promise.all([
+      listReviews(supabase, organizationId, {
+        limit: reviewsFetchLimit,
+        reviewedSince: reviewsSince,
+      }),
+      countReviews(supabase, organizationId, { reviewedSince: reviewsSince }),
+    ]);
+    reviewsInsight = computeMiReviewsInsight({
+      reviews: reviewRows,
+      period: {
+        from: periodMeta.from,
+        to: periodMeta.to,
+        label: periodMeta.label,
+      },
+      previousPeriod: {
+        from: dashboard.range.previous.start,
+        to: dashboard.range.previous.end,
+      },
+      timezone,
+      sampleFetchLimit: reviewsFetchLimit,
+      totalMatchingInWindow: totalMatching,
+    });
+  } catch {
+    reviewsInsight = null;
+  }
+
+  const reviewLimits =
+    reviewsInsight == null
+      ? [
+          ...channelLimits,
+          'P2.4 : avis clients indisponibles (lecture reviews en échec) — note non inventée.',
+        ]
+      : reviewsInsight.limitations.length > 0
+        ? [...channelLimits, ...reviewsInsight.limitations]
+        : channelLimits;
+
+  // P2.5 — récence / fidélisation (clients déjà chargés + timbres visite 120 j).
+  let recencyLoyalty: MiRecencyLoyaltyInsight | null = null;
+  try {
+    const sinceMs = now.getTime() - MI_REPEAT_RATE_WINDOW_DAYS * 2 * 24 * 60 * 60 * 1000;
+    const visitStamps = await listVisitStampsForLoyalty(
+      supabase,
+      organizationId,
+      new Date(sinceMs).toISOString(),
+      { limit: 2000 }
+    );
+    recencyLoyalty = computeMiRecencyLoyaltyInsight({
+      clients,
+      visits: visitStamps,
+      now,
+    });
+  } catch {
+    try {
+      recencyLoyalty = computeMiRecencyLoyaltyInsight({ clients, now });
+    } catch {
+      recencyLoyalty = null;
+    }
+  }
+
+  const recencyLimits =
+    recencyLoyalty == null
+      ? [
+          ...reviewLimits,
+          'P2.5 : récence/fidélisation indisponible — repeat rate non inventé.',
+        ]
+      : recencyLoyalty.limitations.length > 0
+        ? [...reviewLimits, ...recencyLoyalty.limitations]
+        : reviewLimits;
+
+  // P2.6 — activité campagnes / envois (RLS org), depuis début fenêtre précédente.
+  let campaignActivity: MiCampaignActivityInsight | null = null;
+  try {
+    const campSince = `${dashboard.range.previous.start}T00:00:00Z`;
+    const [campaignRows, sendRows] = await Promise.all([
+      listCampaignsForMi(supabase, organizationId, {
+        limit: 100,
+        createdSince: campSince,
+      }),
+      listCampaignSendsForMi(supabase, organizationId, {
+        limit: 500,
+        createdSince: campSince,
+      }),
+    ]);
+    campaignActivity = computeMiCampaignActivityInsight({
+      campaigns: campaignRows,
+      sends: sendRows,
+      period: {
+        from: periodMeta.from,
+        to: periodMeta.to,
+        label: periodMeta.label,
+      },
+      timezone,
+    });
+  } catch {
+    campaignActivity = null;
+  }
+
+  const campaignLimits =
+    campaignActivity == null
+      ? [
+          ...recencyLimits,
+          'P2.6 : activité campagnes indisponible — ROI/taux d’ouverture non inventés.',
+        ]
+      : campaignActivity.limitations.length > 0
+        ? [...recencyLimits, ...campaignActivity.limitations]
+        : recencyLimits;
+
+  const measurementWindows = buildMiMeasurementWindows({
+    period: periodMeta,
+    previousFrom: dashboard.range.previous.start,
+    previousTo: dashboard.range.previous.end,
+    now,
+    timezone,
+  });
+
+  const snapshotWithoutBriefing = {
     organizationId,
     restaurantName,
     timezone,
     currency,
     period: periodMeta,
     dataQuality,
-    limits,
+    limits: campaignLimits,
     kpis: dashboard.kpis,
     topClients,
     topProducts,
@@ -357,6 +586,18 @@ export async function loadMiOrgInsights(
     customerIntelligence,
     retentionStrategies,
     campaignProposals,
+    channelMix: dashboard.channelMix,
+    reviewsInsight,
+    recencyLoyalty,
+    campaignActivity,
+    measurementWindows,
+  };
+
+  const proactiveBriefing = buildMiProactiveBriefing(snapshotWithoutBriefing);
+
+  return {
+    ...snapshotWithoutBriefing,
+    proactiveBriefing,
   };
 }
 
@@ -381,5 +622,11 @@ export function miInsightsForPrompt(insights: MiOrgInsights): Record<string, unk
     customerIntelligence: insights.customerIntelligence,
     retentionStrategies: insights.retentionStrategies,
     campaignProposals: insights.campaignProposals,
+    channelMix: insights.channelMix,
+    reviewsInsight: insights.reviewsInsight,
+    recencyLoyalty: insights.recencyLoyalty,
+    campaignActivity: insights.campaignActivity,
+    measurementWindows: insights.measurementWindows,
+    proactiveBriefing: insights.proactiveBriefing,
   };
 }

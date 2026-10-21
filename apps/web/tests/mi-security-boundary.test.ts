@@ -27,6 +27,8 @@ describe('MI security boundary (L1/L2)', () => {
     const roots = [
       resolve(__dirname, '../../../packages/domain-crm/src/mi-tools.ts'),
       resolve(__dirname, '../../../packages/domain-crm/src/mi-opportunities.ts'),
+      resolve(__dirname, '../../../packages/domain-crm/src/knowledge/bomaye-advisor.ts'),
+      resolve(__dirname, '../../../packages/domain-crm/src/mi-proactive-briefing.ts'),
       resolve(__dirname, '../lib/mi/run-turn.ts'),
       resolve(__dirname, '../app/api/mi/chat/route.ts'),
       resolve(__dirname, '../app/api/mi/insights/route.ts'),

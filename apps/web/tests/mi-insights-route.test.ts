@@ -84,6 +84,11 @@ describe('GET /api/mi/insights', () => {
       },
       retentionStrategies: [],
       campaignProposals: [],
+      channelMix: null,
+      reviewsInsight: null,
+      recencyLoyalty: null,
+      campaignActivity: null,
+      measurementWindows: [],
     });
 
     const res = await GET(new Request('http://localhost/api/mi/insights?period=semaine'));

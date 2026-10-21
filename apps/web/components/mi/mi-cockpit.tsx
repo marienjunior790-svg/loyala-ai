@@ -313,6 +313,18 @@ export function MiCockpit({
   const intel = formatted.customerIntelligence;
   const primaryMetric = intel?.metrics.find((m) => m.id === 'median_recency_days');
   const otherMetrics = intel?.metrics.filter((m) => m.id !== 'median_recency_days').slice(0, 7) ?? [];
+  const [briefingExpanded, setBriefingExpanded] = React.useState(false);
+  const briefingItems = formatted.proactiveBriefing?.items ?? [];
+  const briefingVisible = briefingExpanded ? briefingItems : briefingItems.slice(0, 6);
+  const briefingHidden = Math.max(0, briefingItems.length - 6);
+
+  const reviewsCompleteLabel = (() => {
+    const r = formatted.reviewsInsight;
+    if (!r) return null;
+    if (r.sampleComplete === true) return fr ? 'Échantillon complet' : 'Complete sample';
+    if (r.sampleComplete === false) return fr ? 'Échantillon tronqué' : 'Truncated sample';
+    return fr ? 'Complétude incertaine' : 'Completeness unknown';
+  })();
 
   return (
     <section
@@ -341,6 +353,153 @@ export function MiCockpit({
         <MiPeriodChip period={period} locale={locale} />
       </div>
 
+      {!loading && formatted.measurementWindows.length > 0 ? (
+        <div
+          className="rounded-xl bg-white/[0.03] px-4 py-3 ring-1 ring-white/[0.06]"
+          data-testid="mi-measurement-windows"
+        >
+          <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
+            {fr ? 'Fenêtres de mesure (distinctes)' : 'Measurement windows (distinct)'}
+          </p>
+          <ul className="mt-2 grid gap-2 sm:grid-cols-2">
+            {formatted.measurementWindows.map((w) => (
+              <li key={w.id} className="text-[11px] text-muted-foreground" data-window={w.id}>
+                <span className="font-medium text-foreground/90">{w.label}</span>
+                <span className="mt-0.5 block font-mono text-[10px] opacity-80">
+                  {w.from} → {w.to}
+                  {w.alignedWithDashboard
+                    ? fr
+                      ? ' · alignée dashboard'
+                      : ' · dashboard-aligned'
+                    : fr
+                      ? ' · glissante (≠ dashboard)'
+                      : ' · sliding (≠ dashboard)'}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
+      {!loading &&
+      (formatted.channelMix ||
+        formatted.reviewsInsight ||
+        formatted.recencyLoyalty ||
+        formatted.campaignActivity) ? (
+        <div
+          className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"
+          data-testid="mi-extended-signals"
+        >
+          <div
+            className="rounded-xl bg-white/[0.035] p-4 ring-1 ring-white/[0.07]"
+            data-testid="mi-signal-delivery"
+          >
+            <p className="text-[11px] font-medium uppercase tracking-[0.06em] text-muted-foreground">
+              {fr ? 'Livraison (P2.3)' : 'Delivery (P2.3)'}
+            </p>
+            <p className="mt-2 text-2xl font-semibold tabular-nums">
+              {formatted.channelMix?.deliverySharePct != null
+                ? `${formatted.channelMix.deliverySharePct} %`
+                : '—'}
+            </p>
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              {formatted.channelMix?.deliverySharePct != null
+                ? fr
+                  ? `Couverture order_type ${formatted.channelMix.coveragePct ?? '?'} %`
+                  : `order_type coverage ${formatted.channelMix.coveragePct ?? '?'} %`
+                : formatted.channelMix?.limitations[0] ??
+                  (fr ? 'Part non publiable' : 'Share unavailable')}
+            </p>
+          </div>
+          <div
+            className="rounded-xl bg-white/[0.035] p-4 ring-1 ring-white/[0.07]"
+            data-testid="mi-signal-reviews"
+          >
+            <p className="text-[11px] font-medium uppercase tracking-[0.06em] text-muted-foreground">
+              {fr ? 'Avis (P2.4)' : 'Reviews (P2.4)'}
+            </p>
+            <p className="mt-2 text-2xl font-semibold tabular-nums">
+              {formatted.reviewsInsight?.averageRating != null
+                ? `${formatted.reviewsInsight.averageRating}/5`
+                : '—'}
+            </p>
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              {formatted.reviewsInsight
+                ? `${formatted.reviewsInsight.ratedCount} ${fr ? 'notés' : 'rated'}${
+                    reviewsCompleteLabel ? ` · ${reviewsCompleteLabel}` : ''
+                  }`
+                : fr
+                  ? 'Avis indisponibles'
+                  : 'Reviews unavailable'}
+            </p>
+            {formatted.reviewsInsight?.sampleComplete !== true &&
+            formatted.reviewsInsight?.averageRating != null ? (
+              <p className="mt-1 text-[10px] text-amber-200/90">
+                {fr
+                  ? 'Moyenne non exhaustive (échantillon)'
+                  : 'Non-exhaustive average (sample)'}
+              </p>
+            ) : null}
+          </div>
+          <div
+            className="rounded-xl bg-white/[0.035] p-4 ring-1 ring-white/[0.07]"
+            data-testid="mi-signal-recency"
+          >
+            <p className="text-[11px] font-medium uppercase tracking-[0.06em] text-muted-foreground">
+              {fr ? 'Récence (P2.5)' : 'Recency (P2.5)'}
+            </p>
+            <p className="mt-2 text-2xl font-semibold tabular-nums">
+              {formatted.recencyLoyalty?.repeatRate60dPct != null
+                ? `${formatted.recencyLoyalty.repeatRate60dPct} %`
+                : '—'}
+            </p>
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              {formatted.recencyLoyalty
+                ? fr
+                  ? `Inactifs réguliers ${formatted.recencyLoyalty.formerlyRegularInactiveCount} · at_risk ${formatted.recencyLoyalty.atRiskCount}`
+                  : `Formerly regular inactive ${formatted.recencyLoyalty.formerlyRegularInactiveCount} · at_risk ${formatted.recencyLoyalty.atRiskCount}`
+                : fr
+                  ? 'Récence indisponible'
+                  : 'Recency unavailable'}
+            </p>
+            <p className="mt-1 text-[10px] text-muted-foreground/80">
+              {fr ? 'Fenêtre 120 j glissante (≠ dashboard)' : '120d sliding window (≠ dashboard)'}
+            </p>
+          </div>
+          <div
+            className="rounded-xl bg-white/[0.035] p-4 ring-1 ring-white/[0.07]"
+            data-testid="mi-signal-campaigns"
+          >
+            <p className="text-[11px] font-medium uppercase tracking-[0.06em] text-muted-foreground">
+              {fr ? 'Campagnes (P2.6)' : 'Campaigns (P2.6)'}
+            </p>
+            <p className="mt-2 text-2xl font-semibold tabular-nums">
+              {formatted.campaignActivity
+                ? formatted.campaignActivity.sendsInPeriod
+                : '—'}
+            </p>
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              {formatted.campaignActivity
+                ? fr
+                  ? `${formatted.campaignActivity.campaignsInPeriod} camp. · pending ${formatted.campaignActivity.pendingCount} · sent ${formatted.campaignActivity.sentCount}`
+                  : `${formatted.campaignActivity.campaignsInPeriod} camp. · pending ${formatted.campaignActivity.pendingCount} · sent ${formatted.campaignActivity.sentCount}`
+                : fr
+                  ? 'Activité indisponible'
+                  : 'Activity unavailable'}
+            </p>
+            <p className="mt-1 text-[10px] text-muted-foreground/80">
+              {formatted.campaignActivity?.markedSentRatePct != null
+                ? fr
+                  ? `Marquage sent ${formatted.campaignActivity.markedSentRatePct} % (≠ delivery WhatsApp)`
+                  : `Marked-sent ${formatted.campaignActivity.markedSentRatePct} % (≠ WhatsApp delivery)`
+                : fr
+                  ? 'Pas de ROI / opens CRM'
+                  : 'No CRM ROI / opens'}
+            </p>
+          </div>
+        </div>
+      ) : null}
+
       {error ? (
         <div
           className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-red-200"
@@ -358,6 +517,116 @@ export function MiCockpit({
         >
           <span className="h-2 w-2 animate-pulse rounded-full bg-primary" />
           {fr ? 'Chargement des indicateurs…' : 'Loading indicators…'}
+        </div>
+      ) : null}
+
+      {!loading && formatted.proactiveBriefing ? (
+        <div
+          className="space-y-3 rounded-2xl bg-gradient-to-b from-primary/[0.07] to-transparent p-5 ring-1 ring-primary/20"
+          data-testid="mi-cockpit-proactive-briefing"
+          data-status={formatted.proactiveBriefing.status}
+        >
+          <SectionHeader
+            icon={Target}
+            title={fr ? 'Briefing proactif' : 'Proactive briefing'}
+            subtitle={
+              fr
+                ? 'Signaux CRM agrégés — faits, limites et actions suggérées (aucun envoi).'
+                : 'Aggregated CRM signals — facts, limits and suggested actions (no sends).'
+            }
+          />
+          <p className="text-sm text-foreground/90" data-testid="mi-briefing-summary">
+            {formatted.proactiveBriefing.summary}
+          </p>
+          <p className="text-[11px] text-muted-foreground">{formatted.proactiveBriefing.executionNote}</p>
+          {briefingItems.length > 0 ? (
+            <div className="space-y-3">
+              <div className="grid gap-3 lg:grid-cols-2">
+                {briefingVisible.map((item) => (
+                  <Card
+                    key={item.id}
+                    className="border-white/[0.08] bg-white/[0.03] shadow-none"
+                    data-testid="mi-briefing-item"
+                    data-family={item.familyKey}
+                    data-origin={item.dataOrigin}
+                  >
+                    <CardHeader className="space-y-2 pb-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge
+                          variant={
+                            item.priority === 'high'
+                              ? 'destructive'
+                              : item.priority === 'medium'
+                                ? 'warning'
+                                : 'secondary'
+                          }
+                        >
+                          {priorityLabel(item.priority, fr)}
+                        </Badge>
+                        <Badge variant="outline">{item.kind}</Badge>
+                        <span className="font-mono text-[10px] text-muted-foreground">
+                          {item.familyKey}
+                        </span>
+                      </div>
+                      <CardTitle className="text-sm font-medium leading-snug">{item.title}</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-2 text-xs text-muted-foreground">
+                      {item.evidence.slice(0, 4).map((e) => (
+                        <p key={e} className="flex gap-2">
+                          <span className="text-primary/70">·</span>
+                          <span>{e}</span>
+                        </p>
+                      ))}
+                      {item.interpretation ? (
+                        <p className="text-[11px] leading-relaxed">{item.interpretation}</p>
+                      ) : null}
+                      {item.recommendedActions[0] ? (
+                        <p className="text-[11px] text-foreground/80">
+                          {fr ? 'Action :' : 'Action:'} {item.recommendedActions[0]}
+                        </p>
+                      ) : null}
+                      {item.successMetric ? (
+                        <p className="text-[11px]">
+                          {fr ? 'Succès :' : 'Success:'} {item.successMetric}
+                        </p>
+                      ) : null}
+                      <p className="font-mono text-[10px] opacity-70">
+                        {item.source} · {item.dataOrigin} · {confidenceLabel(item.confidence, fr)}
+                      </p>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+              {briefingHidden > 0 ? (
+                <button
+                  type="button"
+                  className="text-[11px] text-primary underline-offset-2 hover:underline"
+                  data-testid="mi-briefing-expand"
+                  onClick={() => setBriefingExpanded((v) => !v)}
+                >
+                  {briefingExpanded
+                    ? fr
+                      ? 'Réduire le briefing'
+                      : 'Collapse briefing'
+                    : fr
+                      ? `Voir ${briefingHidden} signal(s) supplémentaire(s)`
+                      : `Show ${briefingHidden} more signal(s)`}
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+          {formatted.proactiveBriefing.missingForBetterBriefing.length > 0 ? (
+            <details className="text-[11px] text-muted-foreground">
+              <summary className="cursor-pointer">
+                {fr ? 'Données qui amélioreraient le briefing' : 'Data that would improve the briefing'}
+              </summary>
+              <ul className="mt-2 space-y-1 pl-4">
+                {formatted.proactiveBriefing.missingForBetterBriefing.slice(0, 6).map((m) => (
+                  <li key={m}>· {m}</li>
+                ))}
+              </ul>
+            </details>
+          ) : null}
         </div>
       ) : null}
 

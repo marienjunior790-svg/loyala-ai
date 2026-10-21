@@ -33,3 +33,8 @@ export * from './mi-tools';
 export * from './mi-opportunities';
 export * from './mi-customer-intelligence';
 export * from './mi-campaign-intelligence';
+export * from './mi-proactive-briefing';
+export * from './mi-reviews';
+export * from './mi-recency-loyalty';
+export * from './mi-campaign-activity';
+export * from './knowledge';

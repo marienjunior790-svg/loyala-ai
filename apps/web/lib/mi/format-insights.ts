@@ -127,6 +127,86 @@ export interface MiInsightCampaignProposal {
   sourceRefs: string[];
 }
 
+export interface MiInsightBriefingItem {
+  id: string;
+  kind: string;
+  title: string;
+  evidence: string[];
+  interpretation: string;
+  confidence: 'low' | 'medium';
+  recommendedActions: string[];
+  successMetric: string;
+  source: string;
+  dataOrigin: string;
+  limitations: string[];
+  priority: 'high' | 'medium' | 'low';
+  familyKey: string;
+}
+
+export interface MiInsightProactiveBriefing {
+  status: 'ready' | 'insufficient' | 'empty';
+  summary: string;
+  items: MiInsightBriefingItem[];
+  missingForBetterBriefing: string[];
+  limitations: string[];
+  executionNote: string;
+  period: { code: string; label: string; from: string; to: string } | null;
+}
+
+export interface MiInsightMeasurementWindow {
+  id: string;
+  label: string;
+  from: string;
+  to: string;
+  definition: string;
+  alignedWithDashboard: boolean;
+}
+
+export interface MiInsightChannelMix {
+  deliverySharePct: number | null;
+  deliveryRevenue: number | null;
+  periodRevenue: number | null;
+  coveragePct: number | null;
+  limitations: string[];
+}
+
+export interface MiInsightReviewsSummary {
+  averageRating: number | null;
+  ratedCount: number;
+  periodReviewCount: number;
+  trend: string | null;
+  sampleComplete: boolean | null;
+  sampleSizeLoaded: number;
+  sampleFetchLimit: number;
+  totalMatchingInWindow: number | null;
+  periodLabel: string;
+  limitations: string[];
+}
+
+export interface MiInsightRecencySummary {
+  formerlyRegularInactiveCount: number;
+  atRiskCount: number;
+  recentActiveCount: number;
+  repeatRate60dPct: number | null;
+  repeatRateMethod: string | null;
+  frequencyCoolingCount: number | null;
+  medianRecencyDays: number | null;
+  inactiveThresholdDays: number;
+  limitations: string[];
+}
+
+export interface MiInsightCampaignActivitySummary {
+  campaignsInPeriod: number;
+  sendsInPeriod: number;
+  pendingCount: number;
+  sentCount: number;
+  failedCount: number;
+  markedSentRatePct: number | null;
+  pendingSharePct: number | null;
+  periodLabel: string;
+  limitations: string[];
+}
+
 export interface MiFormattedInsights {
   dataQuality: 'ok' | 'partial' | 'insufficient' | 'unknown';
   limits: string[];
@@ -144,6 +224,12 @@ export interface MiFormattedInsights {
   topCategories: MiInsightProductRow[];
   segments: Record<string, number> | null;
   inactiveLoyal: MiInsightInactiveRow[];
+  proactiveBriefing: MiInsightProactiveBriefing | null;
+  measurementWindows: MiInsightMeasurementWindow[];
+  channelMix: MiInsightChannelMix | null;
+  reviewsInsight: MiInsightReviewsSummary | null;
+  recencyLoyalty: MiInsightRecencySummary | null;
+  campaignActivity: MiInsightCampaignActivitySummary | null;
   /** true si aucun bloc chiffré affichable (sans inventer). */
   empty: boolean;
 }
@@ -508,6 +594,174 @@ export function formatChangePct(pct: number | null, locale: 'fr' | 'en'): string
   return `${sign}${pct} %`;
 }
 
+function parseProactiveBriefing(raw: unknown): MiInsightProactiveBriefing | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const o = raw as Record<string, unknown>;
+  const status =
+    o.status === 'ready' || o.status === 'insufficient' || o.status === 'empty'
+      ? o.status
+      : null;
+  if (!status) return null;
+  const summary = str(o.summary) ?? '';
+  const executionNote = str(o.executionNote) ?? '';
+  const itemsRaw = Array.isArray(o.items) ? o.items : [];
+  const items: MiInsightBriefingItem[] = [];
+  for (const row of itemsRaw) {
+    if (!row || typeof row !== 'object') continue;
+    const r = row as Record<string, unknown>;
+    const id = str(r.id);
+    const title = str(r.title);
+    if (!id || !title) continue;
+    const confidence = r.confidence === 'medium' ? 'medium' : 'low';
+    const priority =
+      r.priority === 'high' || r.priority === 'medium' || r.priority === 'low'
+        ? r.priority
+        : 'low';
+    items.push({
+      id,
+      kind: str(r.kind) ?? 'recommendation',
+      title,
+      evidence: Array.isArray(r.evidence)
+        ? r.evidence.filter((x): x is string => typeof x === 'string')
+        : [],
+      interpretation: str(r.interpretation) ?? '',
+      confidence,
+      recommendedActions: Array.isArray(r.recommendedActions)
+        ? r.recommendedActions.filter((x): x is string => typeof x === 'string')
+        : [],
+      successMetric: str(r.successMetric) ?? '',
+      source: str(r.source) ?? '',
+      dataOrigin: str(r.dataOrigin) ?? 'observed_crm',
+      limitations: Array.isArray(r.limitations)
+        ? r.limitations.filter((x): x is string => typeof x === 'string')
+        : [],
+      priority,
+      familyKey: str(r.familyKey) ?? 'bomaye_other',
+    });
+  }
+  const periodObj =
+    o.period && typeof o.period === 'object'
+      ? (o.period as Record<string, unknown>)
+      : null;
+  return {
+    status,
+    summary,
+    items,
+    missingForBetterBriefing: Array.isArray(o.missingForBetterBriefing)
+      ? o.missingForBetterBriefing.filter((x): x is string => typeof x === 'string')
+      : [],
+    limitations: Array.isArray(o.limitations)
+      ? o.limitations.filter((x): x is string => typeof x === 'string')
+      : [],
+    executionNote,
+    period: periodObj
+      ? {
+          code: str(periodObj.code) ?? '',
+          label: str(periodObj.label) ?? '',
+          from: str(periodObj.from) ?? '',
+          to: str(periodObj.to) ?? '',
+        }
+      : null,
+  };
+}
+
+function parseMeasurementWindows(raw: unknown): MiInsightMeasurementWindow[] {
+  if (!Array.isArray(raw)) return [];
+  const out: MiInsightMeasurementWindow[] = [];
+  for (const row of raw) {
+    if (!row || typeof row !== 'object') continue;
+    const o = row as Record<string, unknown>;
+    const id = str(o.id);
+    const label = str(o.label);
+    const from = str(o.from);
+    const to = str(o.to);
+    const definition = str(o.definition);
+    if (!id || !label || !from || !to || !definition) continue;
+    out.push({
+      id,
+      label,
+      from,
+      to,
+      definition,
+      alignedWithDashboard: o.alignedWithDashboard === true,
+    });
+  }
+  return out;
+}
+
+function parseChannelMix(raw: unknown): MiInsightChannelMix | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const o = raw as Record<string, unknown>;
+  return {
+    deliverySharePct: num(o.deliverySharePct),
+    deliveryRevenue: num(o.deliveryRevenue),
+    periodRevenue: num(o.periodRevenue),
+    coveragePct: num(o.coveragePct),
+    limitations: Array.isArray(o.limitations)
+      ? o.limitations.filter((x): x is string => typeof x === 'string')
+      : [],
+  };
+}
+
+function parseReviewsInsight(raw: unknown): MiInsightReviewsSummary | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const o = raw as Record<string, unknown>;
+  const period = o.period && typeof o.period === 'object' ? (o.period as Record<string, unknown>) : null;
+  const sampleComplete =
+    o.sampleComplete === true ? true : o.sampleComplete === false ? false : null;
+  return {
+    averageRating: num(o.averageRating),
+    ratedCount: num(o.ratedCount) ?? 0,
+    periodReviewCount: num(o.periodReviewCount) ?? 0,
+    trend: str(o.trend),
+    sampleComplete,
+    sampleSizeLoaded: num(o.sampleSizeLoaded) ?? 0,
+    sampleFetchLimit: num(o.sampleFetchLimit) ?? 0,
+    totalMatchingInWindow: num(o.totalMatchingInWindow),
+    periodLabel: period ? str(period.label) ?? '' : '',
+    limitations: Array.isArray(o.limitations)
+      ? o.limitations.filter((x): x is string => typeof x === 'string')
+      : [],
+  };
+}
+
+function parseRecencyLoyalty(raw: unknown): MiInsightRecencySummary | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const o = raw as Record<string, unknown>;
+  return {
+    formerlyRegularInactiveCount: num(o.formerlyRegularInactiveCount) ?? 0,
+    atRiskCount: num(o.atRiskCount) ?? 0,
+    recentActiveCount: num(o.recentActiveCount) ?? 0,
+    repeatRate60dPct: num(o.repeatRate60dPct),
+    repeatRateMethod: str(o.repeatRateMethod),
+    frequencyCoolingCount: num(o.frequencyCoolingCount),
+    medianRecencyDays: num(o.medianRecencyDays),
+    inactiveThresholdDays: num(o.inactiveThresholdDays) ?? 14,
+    limitations: Array.isArray(o.limitations)
+      ? o.limitations.filter((x): x is string => typeof x === 'string')
+      : [],
+  };
+}
+
+function parseCampaignActivity(raw: unknown): MiInsightCampaignActivitySummary | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const o = raw as Record<string, unknown>;
+  const period = o.period && typeof o.period === 'object' ? (o.period as Record<string, unknown>) : null;
+  return {
+    campaignsInPeriod: num(o.campaignsInPeriod) ?? 0,
+    sendsInPeriod: num(o.sendsInPeriod) ?? 0,
+    pendingCount: num(o.pendingCount) ?? 0,
+    sentCount: num(o.sentCount) ?? 0,
+    failedCount: num(o.failedCount) ?? 0,
+    markedSentRatePct: num(o.markedSentRatePct),
+    pendingSharePct: num(o.pendingSharePct),
+    periodLabel: period ? str(period.label) ?? '' : '',
+    limitations: Array.isArray(o.limitations)
+      ? o.limitations.filter((x): x is string => typeof x === 'string')
+      : [],
+  };
+}
+
 /**
  * Transforme `insights` API en structure d’affichage.
  * Si dataQuality=insufficient → aucun KPI / liste n’est exposé comme « stats fiables ».
@@ -532,6 +786,12 @@ export function formatMiInsights(
   const customerIntelligence = parseCustomerIntelligence(insights?.customerIntelligence);
   const retentionStrategies = parseRetentionStrategies(insights?.retentionStrategies);
   const campaignProposals = parseCampaignProposals(insights?.campaignProposals);
+  const proactiveBriefing = parseProactiveBriefing(insights?.proactiveBriefing);
+  const measurementWindows = parseMeasurementWindows(insights?.measurementWindows);
+  const channelMix = parseChannelMix(insights?.channelMix);
+  const reviewsInsight = parseReviewsInsight(insights?.reviewsInsight);
+  const recencyLoyalty = parseRecencyLoyalty(insights?.recencyLoyalty);
+  const campaignActivity = parseCampaignActivity(insights?.campaignActivity);
 
   if (dq === 'insufficient') {
     return {
@@ -551,10 +811,21 @@ export function formatMiInsights(
       topCategories: [],
       segments: customerIntelligence?.segmentCounts ?? null,
       inactiveLoyal: [],
+      proactiveBriefing,
+      measurementWindows,
+      channelMix,
+      reviewsInsight,
+      recencyLoyalty,
+      campaignActivity,
       empty:
         retentionStrategies.length === 0 &&
         campaignProposals.length === 0 &&
-        !customerIntelligence,
+        !customerIntelligence &&
+        !proactiveBriefing &&
+        !channelMix &&
+        !reviewsInsight &&
+        !recencyLoyalty &&
+        !campaignActivity,
     };
   }
 
@@ -578,7 +849,12 @@ export function formatMiInsights(
     topProducts.length === 0 &&
     topCategories.length === 0 &&
     !segments &&
-    inactiveLoyal.length === 0;
+    inactiveLoyal.length === 0 &&
+    !proactiveBriefing &&
+    !channelMix &&
+    !reviewsInsight &&
+    !recencyLoyalty &&
+    !campaignActivity;
 
   return {
     dataQuality: dq,
@@ -597,6 +873,12 @@ export function formatMiInsights(
     topCategories,
     segments,
     inactiveLoyal,
+    proactiveBriefing,
+    measurementWindows,
+    channelMix,
+    reviewsInsight,
+    recencyLoyalty,
+    campaignActivity,
     empty,
   };
 }
