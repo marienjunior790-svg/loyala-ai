@@ -8,7 +8,16 @@ import type {
 } from '@loyala/validation';
 import { computeClientSegment, type ClientSegment } from './segments';
 import type { Client } from './clients';
-import { countsAsRevenue, orderNetAmount, type OrderSource, type OrderStatus, type OrderType, type PaymentMethod } from './orders';
+import {
+  countsAsRevenue,
+  orderNetAmount,
+  type ExternalOrderIdentity,
+  type OrderSource,
+  type OrderStatus,
+  type OrderType,
+  type PaymentMethod,
+} from './orders';
+import { orderRpcLacksIdempotency } from './staff-sale';
 
 /** Depuis la migration 040, toutes les commandes ont kind = 'visit' ; legacy_kind garde l'origine. */
 export type ClientVisitKind = 'visit' | 'expense';
@@ -36,6 +45,10 @@ export interface ClientVisit {
   created_by: string | null;
   created_at: string;
   updated_at: string;
+  /** Présents après la migration 044. Null pour une saisie manuelle ou une ligne antérieure. */
+  external_system?: string | null;
+  external_order_id?: string | null;
+  external_currency?: string | null;
 }
 
 export interface VisitItem {
@@ -56,10 +69,29 @@ export interface ClientVisitWithItems extends ClientVisit {
   items: VisitItem[];
 }
 
+export type OrderIdempotencyOutcome = 'created' | 'duplicate' | 'conflict' | 'rejected';
+
 export interface OrderOperationResult {
   order: ClientVisit;
   /** Points ajoutés (positif) ou retirés (négatif) par l'opération. */
   pointsDelta: number;
+  /** Absent tant que la base n'a pas la migration 044. */
+  outcome?: OrderIdempotencyOutcome;
+  conflictCodes?: string[];
+  /**
+   * `applied` seulement si la réponse porte le contrat 044.
+   * `unavailable` : la base a encore l'ancienne signature, la clé n'a pas été enregistrée.
+   */
+  idempotency?: 'applied' | 'unavailable';
+}
+
+/** Résultat d'un enregistrement qui porte une identité externe. */
+export interface ExternalOrderRecordResult {
+  order: ClientVisit | null;
+  pointsDelta: number;
+  outcome: OrderIdempotencyOutcome;
+  conflictCodes: string[];
+  idempotency?: 'applied' | 'unavailable';
 }
 
 /** Pure helper — total from line items. */
@@ -105,12 +137,61 @@ function toRpcItems(items: VisitItemInput[] | undefined) {
     item_type: i.itemType ?? null,
     quantity: Number(i.quantity),
     unit_price: Number(i.unitPrice),
+    option_selections: i.optionSelections ?? {},
+    option_quantities: i.optionQuantities ?? {},
   }));
 }
 
+function orderRpcArgs(
+  organizationId: string,
+  input: RecordVisitInput,
+  external?: ExternalOrderIdentity
+) {
+  const items = toRpcItems(input.items);
+  return {
+    p_organization_id: organizationId,
+    p_client_id: input.clientId,
+    p_ordered_at: parseVisitedAt(input.visitedAt),
+    p_order_type: input.orderType,
+    p_payment_method: input.paymentMethod,
+    p_items: items,
+    p_amount: items ? null : input.amount ?? null,
+    p_discount: input.discount ?? 0,
+    p_notes: input.notes?.trim() || null,
+    ...(external
+      ? {
+          p_external_system: external.system,
+          p_external_order_id: external.orderId,
+          p_currency: external.currency ?? null,
+          p_reported_status: external.reportedStatus ?? null,
+        }
+      : {}),
+  };
+}
+
+function toExternalOrderResult(data: unknown): ExternalOrderRecordResult {
+  const result = data as {
+    order?: ClientVisit | null;
+    points_delta?: number;
+    outcome?: OrderIdempotencyOutcome;
+    conflict_codes?: string[];
+  };
+  return {
+    order: result.order ?? null,
+    pointsDelta: Number(result.points_delta ?? 0),
+    outcome: result.outcome ?? 'created',
+    conflictCodes: result.conflict_codes ?? [],
+  };
+}
+
 function toOperationResult(data: unknown): OrderOperationResult {
-  const result = data as { order: ClientVisit; points_delta: number };
-  return { order: result.order, pointsDelta: Number(result.points_delta ?? 0) };
+  const result = toExternalOrderResult(data);
+  return {
+    order: result.order as ClientVisit,
+    pointsDelta: result.pointsDelta,
+    outcome: result.outcome,
+    conflictCodes: result.conflictCodes,
+  };
 }
 
 /** Le segment reste calculé côté application : on le réaligne après chaque opération. */
@@ -178,22 +259,47 @@ export async function recordClientVisit(
   supabase: SupabaseClient,
   organizationId: string,
   input: RecordVisitInput
-): Promise<OrderOperationResult> {
-  const items = toRpcItems(input.items);
-  const { data, error } = await supabase.rpc('record_client_order', {
-    p_organization_id: organizationId,
-    p_client_id: input.clientId,
-    p_ordered_at: parseVisitedAt(input.visitedAt),
-    p_order_type: input.orderType,
-    p_payment_method: input.paymentMethod,
-    p_items: items,
-    p_amount: items ? null : input.amount ?? null,
-    p_discount: input.discount ?? 0,
-    p_notes: input.notes?.trim() || null,
-  });
+): Promise<OrderOperationResult>;
+/** Même moteur, avec une clé externe. Une répétition ne crée pas une seconde commande. */
+export async function recordClientVisit(
+  supabase: SupabaseClient,
+  organizationId: string,
+  input: RecordVisitInput,
+  external: ExternalOrderIdentity
+): Promise<ExternalOrderRecordResult>;
+export async function recordClientVisit(
+  supabase: SupabaseClient,
+  organizationId: string,
+  input: RecordVisitInput,
+  external?: ExternalOrderIdentity
+): Promise<OrderOperationResult | ExternalOrderRecordResult> {
+  let idempotency: 'applied' | 'unavailable' | undefined;
+  let { data, error } = await supabase.rpc(
+    'record_client_order',
+    orderRpcArgs(organizationId, input, external)
+  );
+  // Sans la migration 044, la signature à 14 arguments est absente.
+  // Le second appel crée la commande, sans pouvoir reconnaître une répétition.
+  if (error && external && orderRpcLacksIdempotency(error.message)) {
+    idempotency = 'unavailable';
+    ({ data, error } = await supabase.rpc('record_client_order', orderRpcArgs(organizationId, input)));
+  }
   if (error) throw new Error(error.message);
-  await syncClientSegment(supabase, organizationId, input.clientId);
-  return toOperationResult(data);
+
+  const raw = data as { outcome?: string } | null;
+  if (external && idempotency !== 'unavailable') {
+    idempotency = typeof raw?.outcome === 'string' ? 'applied' : 'unavailable';
+  }
+
+  if (!external) {
+    await syncClientSegment(supabase, organizationId, input.clientId);
+    return { ...toOperationResult(data), idempotency };
+  }
+  const recorded = toExternalOrderResult(data);
+  if (recorded.order) {
+    await syncClientSegment(supabase, organizationId, recorded.order.client_id);
+  }
+  return { ...recorded, idempotency };
 }
 
 /** Modifie date, type, paiement, remise, note — et le montant seulement pour une commande sans lignes. */

@@ -18,6 +18,7 @@ export * from './conversation-sessions';
 export * from './message-template-catalog';
 export * from './orders';
 export * from './visits';
+export * from './staff-sale';
 export * from './catalog';
 export * from './catalog-options';
 export * from './catalog-suggestions';

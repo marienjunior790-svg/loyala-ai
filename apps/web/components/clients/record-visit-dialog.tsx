@@ -12,7 +12,7 @@ import {
   summarizeSelections,
   defaultSelections,
   validateSelections,
-  filterAvailableGroups,
+  assessSaleOptions,
   effectiveMax,
   ORDER_TYPES,
   ORDER_TYPE_LABELS,
@@ -54,25 +54,37 @@ interface SaleLine {
   itemType: 'product' | 'service' | 'rental' | null;
   quantity: number;
   unitPrice: number;
+  selections?: OptionSelections;
+  quantities?: OptionQuantities;
 }
 
 interface RecordVisitDialogProps {
   clientId: string;
   clientName: string;
   catalogItems: CatalogPickerItem[];
+  /** Fuseau du restaurant, identique au calcul SQL des options. */
+  timeZone?: string;
 }
 
 function formatMoney(amount: number, currency = 'XOF'): string {
   return `${Math.round(amount).toLocaleString('fr-FR')} ${currencyLabel(currency)}`;
 }
 
-export function RecordVisitDialog({ clientId, clientName, catalogItems }: RecordVisitDialogProps) {
+export function RecordVisitDialog({
+  clientId,
+  clientName,
+  catalogItems,
+  timeZone = 'Africa/Dakar',
+}: RecordVisitDialogProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [state, formAction, pending] = useActionState(recordVisitAction, initial);
   const [lines, setLines] = useState<SaleLine[]>([]);
   const [discount, setDiscount] = useState('');
   const [search, setSearch] = useState('');
+  const [category, setCategory] = useState('all');
+  const [submissionKey, setSubmissionKey] = useState('');
+  const [saleNotice, setSaleNotice] = useState('');
   const [configuring, setConfiguring] = useState<{
     item: CatalogPickerItem;
     groups: OptionGroup[];
@@ -82,17 +94,19 @@ export function RecordVisitDialog({ clientId, clientName, catalogItems }: Record
 
   useEffect(() => {
     if (state.success) {
-      if (state.reviewWhatsappUrl) {
+      if (state.reviewWhatsappUrl && !state.alreadyRecorded) {
         window.open(state.reviewWhatsappUrl, '_blank', 'noopener,noreferrer');
       }
       setOpen(false);
       setLines([]);
       setDiscount('');
       setSearch('');
+      setCategory('all');
+      setSaleNotice('');
       setConfiguring(null);
       router.refresh();
     }
-  }, [state.success, state.reviewWhatsappUrl, router]);
+  }, [state.success, state.reviewWhatsappUrl, state.alreadyRecorded, router]);
 
   const currency = catalogItems[0]?.currency ?? 'XOF';
   const total = useMemo(
@@ -101,15 +115,43 @@ export function RecordVisitDialog({ clientId, clientName, catalogItems }: Record
   );
   const discountValue = Math.max(Number(discount) || 0, 0);
 
-  const searchResults = useMemo(() => {
-    const term = search.trim().toLowerCase();
-    if (!term) return [];
-    return catalogItems
-      .filter((i) => `${i.name} ${i.categoryName ?? ''}`.toLowerCase().includes(term))
-      .slice(0, 8);
-  }, [catalogItems, search]);
+  const categories = useMemo(() => {
+    const names = new Set<string>();
+    for (const item of catalogItems) names.add(item.categoryName ?? 'Sans catégorie');
+    return [...names].sort((a, b) => a.localeCompare(b, 'fr'));
+  }, [catalogItems]);
 
-  function pushLine(item: CatalogPickerItem, name: string, unitPrice: number, mergeable: boolean) {
+  const browseItems = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    const matched = catalogItems.filter((item) => {
+      const label = item.categoryName ?? 'Sans catégorie';
+      if (term) return `${item.name} ${label}`.toLowerCase().includes(term);
+      return category === 'all' || label === category;
+    });
+    const limit = term || category !== 'all' ? 80 : 12;
+    return matched.slice(0, limit);
+  }, [catalogItems, search, category]);
+
+  function openSale() {
+    if (pending) return;
+    setSubmissionKey(crypto.randomUUID());
+    setLines([]);
+    setDiscount('');
+    setSearch('');
+    setCategory('all');
+    setSaleNotice('');
+    setConfiguring(null);
+    setOpen(true);
+  }
+
+  function pushLine(
+    item: CatalogPickerItem,
+    name: string,
+    unitPrice: number,
+    mergeable: boolean,
+    selections?: OptionSelections,
+    quantities?: OptionQuantities
+  ) {
     setLines((prev) => {
       if (mergeable) {
         const existing = prev.find((l) => l.catalogItemId === item.id && l.name === name);
@@ -127,14 +169,21 @@ export function RecordVisitDialog({ clientId, clientName, catalogItems }: Record
           itemType: item.type,
           quantity: 1,
           unitPrice,
+          selections,
+          quantities,
         },
       ];
     });
   }
 
   function addItem(item: CatalogPickerItem) {
-    // Hide options that are unavailable right now (rupture / off-hours / off-days).
-    const groups = filterAvailableGroups(item.options ?? []);
+    const assessed = assessSaleOptions(item.options ?? [], new Date(), timeZone);
+    if (!assessed.sellable) {
+      setSaleNotice(`Article indisponible : ${item.name}. ${assessed.message}`);
+      return;
+    }
+    setSaleNotice('');
+    const groups = assessed.groups;
     if (groups.length > 0) {
       setConfiguring({ item, groups, selections: defaultSelections(groups), quantities: {} });
       setSearch('');
@@ -152,7 +201,7 @@ export function RecordVisitDialog({ clientId, clientName, catalogItems }: Record
     const summary = summarizeSelections(groups, selections, quantities);
     const name = summary ? `${item.name} (${summary})` : item.name;
     const unitPrice = computeItemUnitPrice(Number(item.price), groups, selections, quantities);
-    pushLine(item, name, unitPrice, false);
+    pushLine(item, name, unitPrice, false, selections, quantities);
     setConfiguring(null);
   }
 
@@ -199,19 +248,23 @@ export function RecordVisitDialog({ clientId, clientName, catalogItems }: Record
       itemType: l.itemType ?? undefined,
       quantity: l.quantity,
       unitPrice: l.unitPrice,
+      optionSelections: l.selections,
+      optionQuantities: l.quantities,
     }))
   );
 
   return (
     <>
-      <Button type="button" onClick={() => setOpen(true)}>
+      <Button type="button" onClick={openSale}>
         <CalendarPlus className="h-4 w-4" />
         Enregistrer une commande
       </Button>
 
       <GlassDialog
         open={open}
-        onClose={() => setOpen(false)}
+        onClose={() => {
+          if (!pending) setOpen(false);
+        }}
         eyebrow="Nouvelle commande"
         title={clientName}
         size="lg"
@@ -220,6 +273,7 @@ export function RecordVisitDialog({ clientId, clientName, catalogItems }: Record
           <GlassDialogBody className="space-y-4">
             <input type="hidden" name="clientId" value={clientId} />
             <input type="hidden" name="itemsJson" value={itemsJson} />
+            <input type="hidden" name="idempotencyKey" value={submissionKey} />
 
             <div className="grid gap-3 sm:grid-cols-3">
               <div>
@@ -271,35 +325,69 @@ export function RecordVisitDialog({ clientId, clientName, catalogItems }: Record
                 <Input
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') e.preventDefault();
+                  }}
                   placeholder="Rechercher dans le catalogue..."
-                  className="pl-9"
+                  className="h-11 pl-9"
                 />
-                {searchResults.length > 0 && (
-                  <div className="absolute z-10 mt-1 w-full overflow-hidden rounded-lg border border-border bg-popover shadow-xl">
-                    {searchResults.map((item) => (
-                      <button
-                        key={item.id}
-                        type="button"
-                        onClick={() => addItem(item)}
-                        className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm hover:bg-secondary"
-                      >
-                        <span className="min-w-0 truncate">
-                          {item.name}
-                          {item.categoryName && (
-                            <span className="text-muted-foreground"> · {item.categoryName}</span>
-                          )}
-                        </span>
-                        <span className="shrink-0 text-muted-foreground">
-                          {formatMoney(item.price, item.currency)}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                )}
               </div>
+              {categories.length > 0 && (
+                <div className="mt-2 flex gap-2 overflow-x-auto pb-1">
+                  <button
+                    type="button"
+                    onClick={() => setCategory('all')}
+                    className={`shrink-0 rounded-full border px-3 py-2 text-sm ${
+                      category === 'all' ? 'border-primary bg-primary/10' : 'border-border'
+                    }`}
+                  >
+                    À portée de main
+                  </button>
+                  {categories.map((name) => (
+                    <button
+                      key={name}
+                      type="button"
+                      onClick={() => {
+                        setCategory(name);
+                        setSearch('');
+                      }}
+                      className={`shrink-0 rounded-full border px-3 py-2 text-sm ${
+                        category === name && !search.trim()
+                          ? 'border-primary bg-primary/10'
+                          : 'border-border'
+                      }`}
+                    >
+                      {name}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {browseItems.length > 0 && (
+                <div className="mt-2 grid max-h-64 grid-cols-1 gap-2 overflow-y-auto sm:grid-cols-2">
+                  {browseItems.map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => addItem(item)}
+                      className="flex min-h-11 items-center justify-between gap-2 rounded-lg border border-border px-3 py-2 text-left text-sm hover:bg-secondary"
+                    >
+                      <span className="min-w-0 truncate">
+                        {item.name}
+                        {item.categoryName && (
+                          <span className="text-muted-foreground"> · {item.categoryName}</span>
+                        )}
+                      </span>
+                      <span className="shrink-0 text-muted-foreground">
+                        {formatMoney(item.price, item.currency)}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {saleNotice && <p className="mt-2 text-sm text-destructive">{saleNotice}</p>}
               {catalogItems.length === 0 && (
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Aucun article actif. Ajoutez des produits/services dans le Catalogue.
+                  Aucun article actif. Ajoutez des produits/services dans le Catalogue, ou saisissez un montant global.
                 </p>
               )}
             </div>
@@ -307,22 +395,12 @@ export function RecordVisitDialog({ clientId, clientName, catalogItems }: Record
             {lines.length > 0 && (
               <div className="space-y-2 rounded-lg border border-border p-3">
                 {lines.map((line) => (
-                  <div key={line.key} className="flex items-center gap-2">
-                    <div className="min-w-0 flex-1">
+                  <div key={line.key} className="flex flex-wrap items-center gap-2">
+                    <div className="min-w-0 flex-1 basis-40">
                       <p className="truncate text-sm font-medium">{line.name}</p>
-                      <div className="mt-1 flex items-center gap-1">
-                        <input
-                          type="number"
-                          min={0}
-                          step="0.01"
-                          value={line.unitPrice}
-                          onChange={(e) =>
-                            updateLine(line.key, { unitPrice: Number(e.target.value) || 0 })
-                          }
-                          className="w-24 rounded-md border border-input bg-background px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-ring"
-                        />
-                        <span className="text-xs text-muted-foreground">× {line.quantity}</span>
-                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        {formatMoney(line.unitPrice, currency)} × {line.quantity}
+                      </p>
                     </div>
                     <div className="flex items-center gap-1">
                       <button
@@ -330,10 +408,10 @@ export function RecordVisitDialog({ clientId, clientName, catalogItems }: Record
                         onClick={() =>
                           updateLine(line.key, { quantity: Math.max(1, line.quantity - 1) })
                         }
-                        className="rounded-md border border-border p-1 hover:bg-secondary"
+                        className="inline-flex h-11 w-11 items-center justify-center rounded-md border border-border hover:bg-secondary"
                         aria-label="Diminuer"
                       >
-                        <Minus className="h-3 w-3" />
+                        <Minus className="h-5 w-5" />
                       </button>
                       <input
                         type="number"
@@ -342,27 +420,27 @@ export function RecordVisitDialog({ clientId, clientName, catalogItems }: Record
                         onChange={(e) =>
                           updateLine(line.key, { quantity: Math.max(1, Number(e.target.value) || 1) })
                         }
-                        className="w-12 rounded-md border border-input bg-background px-1 py-1 text-center text-xs outline-none focus:ring-1 focus:ring-ring"
+                        className="h-11 w-14 rounded-md border border-input bg-background text-center text-base outline-none focus:ring-1 focus:ring-ring"
                       />
                       <button
                         type="button"
                         onClick={() => updateLine(line.key, { quantity: line.quantity + 1 })}
-                        className="rounded-md border border-border p-1 hover:bg-secondary"
+                        className="inline-flex h-11 w-11 items-center justify-center rounded-md border border-border hover:bg-secondary"
                         aria-label="Augmenter"
                       >
-                        <Plus className="h-3 w-3" />
+                        <Plus className="h-5 w-5" />
                       </button>
                     </div>
-                    <span className="w-24 shrink-0 text-right text-sm font-medium">
+                    <span className="w-28 shrink-0 text-right text-sm font-medium">
                       {formatMoney(line.quantity * line.unitPrice, currency)}
                     </span>
                     <button
                       type="button"
                       onClick={() => removeLine(line.key)}
-                      className="rounded-md p-1 text-destructive hover:bg-destructive/10"
+                      className="inline-flex h-11 w-11 items-center justify-center rounded-md text-destructive hover:bg-destructive/10"
                       aria-label="Retirer"
                     >
-                      <Trash2 className="h-3.5 w-3.5" />
+                      <Trash2 className="h-5 w-5" />
                     </button>
                   </div>
                 ))}
@@ -389,7 +467,7 @@ export function RecordVisitDialog({ clientId, clientName, catalogItems }: Record
               {lines.length === 0 && (
                 <div>
                   <label htmlFor="amount" className="text-sm text-muted-foreground">
-                    Montant de la commande ({currencyLabel(currency)})
+                    Montant global, sans article ({currencyLabel(currency)})
                   </label>
                   <Input
                     id="amount"
@@ -446,7 +524,7 @@ export function RecordVisitDialog({ clientId, clientName, catalogItems }: Record
             >
               Annuler
             </Button>
-            <Button type="submit" className="flex-1" disabled={pending}>
+            <Button type="submit" className="flex-1" disabled={pending} aria-busy={pending}>
               {pending ? 'Enregistrement...' : 'Valider'}
             </Button>
           </GlassDialogFooter>
@@ -540,10 +618,10 @@ function VariantConfigurator({
                               type="button"
                               onClick={() => onQty(choice.id, qty - 1)}
                               disabled={qty <= 1}
-                              className="rounded-md border border-border p-1 hover:bg-secondary disabled:opacity-40"
+                              className="inline-flex h-11 w-11 items-center justify-center rounded-md border border-border hover:bg-secondary disabled:opacity-40"
                               aria-label="Diminuer"
                             >
-                              <Minus className="h-3 w-3" />
+                              <Minus className="h-5 w-5" />
                             </button>
                             <span className="w-6 text-center text-xs">{qty}</span>
                             <button
@@ -552,10 +630,10 @@ function VariantConfigurator({
                                 onQty(choice.id, Math.min(choice.maxQuantity ?? 99, qty + 1))
                               }
                               disabled={qty >= (choice.maxQuantity ?? 99)}
-                              className="rounded-md border border-border p-1 hover:bg-secondary disabled:opacity-40"
+                              className="inline-flex h-11 w-11 items-center justify-center rounded-md border border-border hover:bg-secondary disabled:opacity-40"
                               aria-label="Augmenter"
                             >
-                              <Plus className="h-3 w-3" />
+                              <Plus className="h-5 w-5" />
                             </button>
                           </div>
                         )}

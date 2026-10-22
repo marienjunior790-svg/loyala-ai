@@ -117,6 +117,9 @@ export const visitItemSchema = z.object({
   itemType: catalogItemTypeSchema.optional(),
   quantity: z.coerce.number().positive('Quantité invalide'),
   unitPrice: z.coerce.number().min(0, 'Prix invalide'),
+  /** Choix d'options transmis par la saisie. Le serveur recalcule le prix. */
+  optionSelections: z.record(z.array(z.string().max(80)).max(30)).optional(),
+  optionQuantities: z.record(z.number().positive().max(99)).optional(),
 });
 
 export type AvailabilityStatus = z.infer<typeof availabilityStatusSchema>;

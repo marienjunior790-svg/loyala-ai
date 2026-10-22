@@ -47,14 +47,72 @@ function choiceQty(choiceId: string, quantities?: OptionQuantities): number {
  * become unavailable are dropped. Used by the sale-time configurator so clients
  * never see out-of-stock or off-hours variants.
  */
-export function filterAvailableGroups(groups: OptionGroup[], now: Date = new Date()): OptionGroup[] {
+export function filterAvailableGroups(
+  groups: OptionGroup[],
+  now: Date = new Date(),
+  timeZone?: string
+): OptionGroup[] {
   const result: OptionGroup[] = [];
   for (const group of groups) {
-    const choices = group.choices.filter((c) => isAvailableNow(c.availability, now));
+    const choices = group.choices.filter((c) => isAvailableNow(c.availability, now, timeZone));
     if (choices.length === 0) continue;
     result.push({ ...group, choices });
   }
   return result;
+}
+
+export type SaleOptionsAssessment =
+  | { sellable: true; groups: OptionGroup[] }
+  | { sellable: false; message: string };
+
+/**
+ * Groupes proposés à la vente. Un groupe obligatoire sans assez de choix
+ * disponibles rend l'article invendable. Un groupe facultatif vide est omis.
+ * Les anciens articles sans disponibilité restent vendables.
+ */
+export function assessSaleOptions(
+  groups: OptionGroup[],
+  now: Date = new Date(),
+  timeZone?: string
+): SaleOptionsAssessment {
+  const visible: OptionGroup[] = [];
+  for (const group of groups) {
+    const choices = group.choices.filter((choice) => isAvailableNow(choice.availability, now, timeZone));
+    const min = effectiveMin(group);
+    if (choices.length === 0 || choices.length < min) {
+      if (min >= 1) {
+        return { sellable: false, message: `Choix requis indisponible : ${group.name}` };
+      }
+      continue;
+    }
+    visible.push({ ...group, choices });
+  }
+  return { sellable: true, groups: visible };
+}
+
+/** Refuse un choix indisponible ou une quantité de supplément supérieure au maximum enregistré. */
+export function optionSelectionError(
+  groups: OptionGroup[],
+  selections: OptionSelections,
+  quantities?: OptionQuantities,
+  now: Date = new Date(),
+  timeZone?: string
+): string | null {
+  const assessed = assessSaleOptions(groups, now, timeZone);
+  if (!assessed.sellable) return assessed.message;
+  for (const group of groups) {
+    for (const id of selections[group.id] ?? []) {
+      const choice = group.choices.find((candidate) => candidate.id === id);
+      if (!choice || !isAvailableNow(choice.availability, now, timeZone)) {
+        return `Option indisponible : ${choice?.label ?? id}`;
+      }
+      const qty = quantities?.[id];
+      if (choice.maxQuantity && qty && qty > choice.maxQuantity) {
+        return `Quantité d'option invalide pour « ${choice.label} »`;
+      }
+    }
+  }
+  return validateSelections(assessed.groups, selections);
 }
 
 /** Pre-select required/default choices so a line always starts in a valid state. */

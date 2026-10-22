@@ -16,12 +16,16 @@ import {
   buildGoogleReviewRequestMessage,
   buildWhatsAppUrl,
   createNotification,
+  resolveStaffSale,
+  staffSaleIdentity,
+  type CatalogSaleSource,
 } from '@loyala/domain-crm';
 import {
   recordVisitSchema,
   updateVisitSchema,
   cancelOrderSchema,
   refundOrderSchema,
+  type VisitItemInput,
 } from '@loyala/validation';
 import { recordDomainEvent } from '@/lib/audit/record-domain-event';
 
@@ -30,6 +34,8 @@ export type VisitActionState = {
   success?: string;
   /** wa.me link to ask for a Google review after the visit (when configured). */
   reviewWhatsappUrl?: string;
+  /** Répétition identique : aucune nouvelle commande et aucun nouveau point. */
+  alreadyRecorded?: boolean;
 };
 
 const REVALIDATE_PATHS = (clientId: string) => [
@@ -71,6 +77,45 @@ function pointsNote(pointsDelta: number): string {
   if (pointsDelta === 0) return '';
   const abs = Math.abs(pointsDelta);
   return pointsDelta > 0 ? ` · +${abs} pts` : ` · ${abs} pts retirés`;
+}
+
+const SALE_CONFLICT =
+  'Cette saisie a déjà été enregistrée avec des données différentes. La commande d’origine n’a pas été modifiée. Fermez puis rouvrez pour une nouvelle commande.';
+
+function categoryNameOf(value: unknown): string | null {
+  if (!value) return null;
+  if (Array.isArray(value)) return categoryNameOf(value[0]);
+  if (typeof value === 'object' && value !== null && 'name' in value) {
+    const name = (value as { name?: unknown }).name;
+    return typeof name === 'string' ? name : null;
+  }
+  return null;
+}
+
+async function loadSaleCatalog(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  organizationId: string,
+  items: VisitItemInput[]
+): Promise<CatalogSaleSource[]> {
+  const ids = [...new Set(items.map((item) => item.catalogItemId).filter((id): id is string => Boolean(id)))];
+  if (ids.length === 0) return [];
+  const { data, error } = await supabase
+    .from('catalog_items')
+    .select('id, organization_id, name, price, currency, type, is_active, metadata, catalog_categories(name)')
+    .eq('organization_id', organizationId)
+    .in('id', ids);
+  if (error) throw new Error(error.message);
+  return (data ?? []).map((row) => ({
+    id: String(row.id),
+    organizationId: String(row.organization_id),
+    name: String(row.name),
+    price: Number(row.price),
+    currency: String(row.currency),
+    type: row.type as CatalogSaleSource['type'],
+    isActive: Boolean(row.is_active),
+    categoryName: categoryNameOf(row.catalog_categories),
+    metadata: (row.metadata ?? null) as Record<string, unknown> | null,
+  }));
 }
 
 async function buildPostVisitReviewUrl(
@@ -145,10 +190,52 @@ export async function recordVisitAction(
     return { error: parsed.error.errors[0]?.message ?? 'Données invalides' };
   }
 
+  const submissionKey = String(formData.get('idempotencyKey') ?? '').trim();
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(submissionKey)) {
+    return { error: 'Saisie incomplète. Fermez la commande et rouvrez-la.' };
+  }
+
   const supabase = await createClient();
 
   try {
-    const { order, pointsDelta } = await recordClientVisit(supabase, ctx.organizationId, parsed.data);
+    const catalog = await loadSaleCatalog(supabase, ctx.organizationId, parsed.data.items ?? []);
+    const { data: orgRow } = await supabase
+      .from('organizations')
+      .select('timezone')
+      .eq('id', ctx.organizationId)
+      .maybeSingle();
+    const priced = resolveStaffSale({
+      organizationId: ctx.organizationId,
+      items: parsed.data.items,
+      amount: parsed.data.amount,
+      discount: parsed.data.discount,
+      catalog,
+      timeZone: orgRow?.timezone || 'Africa/Dakar',
+    });
+    if (!priced.ok) return { error: priced.error };
+
+    const saleInput = {
+      ...parsed.data,
+      discount: priced.discount,
+      items: priced.sale.mode === 'lines' ? priced.sale.items : undefined,
+      amount: priced.sale.mode === 'amount' ? priced.sale.amount : undefined,
+    };
+    const recorded = await recordClientVisit(
+      supabase,
+      ctx.organizationId,
+      saleInput,
+      staffSaleIdentity(submissionKey, priced.sale.currency)
+    );
+
+    if (recorded.outcome === 'duplicate') {
+      revalidateVisitPaths(parsed.data.clientId);
+      return { success: 'Cette commande était déjà enregistrée.', alreadyRecorded: true };
+    }
+    if (recorded.outcome === 'conflict' || recorded.outcome === 'rejected' || !recorded.order) {
+      return { error: SALE_CONFLICT };
+    }
+
+    const { order, pointsDelta } = recorded;
 
     await recordDomainEvent(supabase, {
       organizationId: ctx.organizationId,

@@ -130,6 +130,7 @@ export default async function ClientDetailPage({
                 clientId={client.id}
                 clientName={client.full_name}
                 catalogItems={pickerItems}
+                timeZone={timezone}
               />
               {client.opt_in_whatsapp && (
                 <WhatsAppRelaunchButton

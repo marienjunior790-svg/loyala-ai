@@ -12,6 +12,17 @@ export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
 
 export type OrderSource = 'manual' | 'historique' | 'whatsapp' | 'import' | 'pos';
 
+/**
+ * Identité stable d'une commande déjà confirmée par un système externe.
+ * Le wamid d'un message WhatsApp n'est pas un identifiant de commande.
+ */
+export interface ExternalOrderIdentity {
+  system: string;
+  orderId: string;
+  currency?: string | null;
+  reportedStatus?: OrderStatus | null;
+}
+
 export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
   paid: 'Payée',
   pending: 'En attente',
