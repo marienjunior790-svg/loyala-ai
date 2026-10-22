@@ -53,6 +53,9 @@ import {
   pdfToImages,
   decodeQrFromImage,
   docxToText,
+  menuFileRejection,
+  MENU_ANALYSIS_TIMEOUT_MESSAGE,
+  withTimeout,
 } from '@/lib/catalogue/extract-client';
 import type { GeneratedCatalogInput } from '@loyala/validation';
 
@@ -290,22 +293,30 @@ function SmartCatalogDialog({
     else if (res.preview) setPreview(res.preview);
   }
 
+  function runAnalysis(task: () => Promise<CatalogAiState>) {
+    setError(null);
+    startBusy(async () => {
+      try {
+        handleResult(await withTimeout(task(), 35_000, MENU_ANALYSIS_TIMEOUT_MESSAGE));
+      } catch (e) {
+        setError(e instanceof Error ? e.message : MENU_ANALYSIS_TIMEOUT_MESSAGE);
+      }
+    });
+  }
+
   function runGenerate() {
     if (!brief.trim()) return setError('Décrivez ce que vous souhaitez générer.');
-    setError(null);
-    startBusy(async () => handleResult(await generateCatalogAction({ brief: brief.trim(), establishmentType })));
+    runAnalysis(() => generateCatalogAction({ brief: brief.trim(), establishmentType }));
   }
 
   function runImportText(text: string) {
     if (text.trim().length < 10) return setError('Collez le contenu de votre menu.');
-    setError(null);
-    startBusy(async () => handleResult(await importCatalogFromTextAction({ rawText: text, establishmentType })));
+    runAnalysis(() => importCatalogFromTextAction({ rawText: text, establishmentType }));
   }
 
   function runImportUrl() {
     if (!url.trim()) return setError('Saisissez le lien de votre menu.');
-    setError(null);
-    startBusy(async () => handleResult(await importCatalogFromUrlAction({ url: url.trim() })));
+    runAnalysis(() => importCatalogFromUrlAction({ url: url.trim() }));
   }
 
   async function handleFile(file: File) {
@@ -318,15 +329,13 @@ function SmartCatalogDialog({
         let text = '';
         try {
           text = await pdfToText(file);
-        } catch {
-          // Worker/pdf.js failure — fall through to image OCR.
+        } catch (e) {
+          if (e instanceof Error && /trop de temps/.test(e.message)) throw e;
           text = '';
         }
         if (text.trim().length >= 10) {
           setExtracting(false);
-          startBusy(async () =>
-            handleResult(await importCatalogFromTextAction({ rawText: text, establishmentType }))
-          );
+          runAnalysis(() => importCatalogFromTextAction({ rawText: text, establishmentType }));
           return;
         }
         // Scanned / image-only PDF → rasterize pages and use Vision OCR.
@@ -338,32 +347,28 @@ function SmartCatalogDialog({
           );
           return;
         }
-        startBusy(async () =>
-          handleResult(await importCatalogFromImageAction({ images, establishmentType }))
-        );
+        runAnalysis(() => importCatalogFromImageAction({ images, establishmentType }));
         return;
       }
 
       const lowerName = file.name.toLowerCase();
-      if (lowerName.endsWith('.doc') && !lowerName.endsWith('.docx')) {
+      const rejected = menuFileRejection(file.name);
+      if (rejected) {
         setExtracting(false);
-        setError('Les anciens fichiers Word .doc ne sont pas lus. Enregistrez la carte en .docx ou en PDF.');
+        setError(rejected);
         return;
       }
-      if (!/\.(pdf|docx|xlsx|xls|csv)$/i.test(lowerName)) {
-        setExtracting(false);
-        setError('Format non pris en charge. Utilisez un PDF, un Word .docx, un Excel ou un CSV.');
-        return;
-      }
-      const text = lowerName.endsWith('.docx') ? await docxToText(file) : await spreadsheetToText(file);
+      const text = await withTimeout(
+        lowerName.endsWith('.docx') ? docxToText(file) : spreadsheetToText(file),
+        20_000,
+        'La lecture du fichier a pris trop de temps. Aucun produit n’a été ajouté.'
+      );
       setExtracting(false);
       if (text.trim().length < 10) {
-        setError('Fichier vide ou illisible.');
+        setError('Fichier vide ou illisible. Aucun produit n’a été ajouté.');
         return;
       }
-      startBusy(async () =>
-        handleResult(await importCatalogFromTextAction({ rawText: text, establishmentType }))
-      );
+      runAnalysis(() => importCatalogFromTextAction({ rawText: text, establishmentType }));
     } catch (e) {
       setExtracting(false);
       setError(
@@ -380,9 +385,7 @@ function SmartCatalogDialog({
     setFileName(list.map((f) => f.name).join(', '));
     try {
       const images = await Promise.all(list.map((f) => fileToDataUrl(f)));
-      startBusy(async () =>
-        handleResult(await importCatalogFromImageAction({ images, establishmentType }))
-      );
+      runAnalysis(() => importCatalogFromImageAction({ images, establishmentType }));
     } catch {
       setError('Impossible de lire cette image. Formats acceptés : JPG, PNG, WebP, HEIC.');
     }
@@ -398,12 +401,10 @@ function SmartCatalogDialog({
         return;
       }
       const isUrl = /^https?:\/\//i.test(decoded.trim());
-      startBusy(async () =>
-        handleResult(
-          isUrl
-            ? await importCatalogFromUrlAction({ url: decoded.trim() })
-            : await importCatalogFromTextAction({ rawText: decoded, establishmentType })
-        )
+      runAnalysis(() =>
+        isUrl
+          ? importCatalogFromUrlAction({ url: decoded.trim() })
+          : importCatalogFromTextAction({ rawText: decoded, establishmentType })
       );
     } catch {
       setError('Lecture du QR Code impossible.');
@@ -752,12 +753,14 @@ function SmartCatalogDialog({
                 disabled={loading}
                 className="flex w-full flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-background py-10 text-sm text-muted-foreground transition hover:border-primary/40 hover:text-foreground disabled:opacity-60"
               >
-                {loading ? <Loader2 className="h-6 w-6 animate-spin" /> : <Download className="h-6 w-6" />}
-                {loading
-                  ? 'Analyse du fichier…'
-                  : fileName
-                    ? `Fichier : ${fileName}`
-                    : 'Cliquez pour choisir un fichier .pdf, .docx, .xlsx, .xls ou .csv'}
+                {extracting || busy ? <Loader2 className="h-6 w-6 animate-spin" /> : <Download className="h-6 w-6" />}
+                {extracting
+                  ? 'Lecture du fichier…'
+                  : busy
+                    ? 'Analyse du menu…'
+                    : fileName
+                      ? `Fichier : ${fileName}`
+                      : 'Cliquez pour choisir un fichier .pdf, .docx, .xlsx, .xls ou .csv'}
               </button>
               <p className="mt-2 text-xs text-muted-foreground">
                 PDF texte ou scanné (OCR), Word .docx, ou tableur : colonnes nom, catégorie, prix, description.
@@ -865,10 +868,10 @@ function SmartCatalogDialog({
             </div>
           )}
 
-          {loading && (
+          {loading && mode !== 'import-file' && (
             <div className="flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-6 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin text-primary" />
-              {mode === 'generate' ? "L'IA génère votre catalogue…" : 'Analyse du contenu en cours…'}
+              {mode === 'generate' ? "L'IA génère votre catalogue…" : 'Analyse du menu…'}
             </div>
           )}
 
@@ -1106,7 +1109,7 @@ function SmartCatalogDialog({
             <p className="text-xs text-muted-foreground">Sélectionnez un modèle pour continuer.</p>
           ) : mode === 'import-file' || mode === 'import-image' || mode === 'import-qr' ? (
             <p className="text-xs text-muted-foreground">
-              {loading ? 'Analyse en cours…' : "Choisissez un fichier pour lancer l'analyse."}
+              {loading ? 'Patientez, aucun produit n’est ajouté pendant l’analyse.' : "Choisissez un fichier pour lancer l'analyse."}
             </p>
           ) : (
             <Button

@@ -1,6 +1,6 @@
 import { deflateRawSync } from 'node:zlib';
 import { describe, expect, it } from 'vitest';
-import { docxToText, docxXmlToText } from './extract-client';
+import { docxToText, docxXmlToText, menuFileRejection, withTimeout } from './extract-client';
 
 function u16(value: number): Buffer {
   const bytes = Buffer.alloc(2);
@@ -75,13 +75,35 @@ describe('docxXmlToText', () => {
   });
 });
 
+describe('withTimeout', () => {
+  it('interrompt une lecture qui ne se termine pas', async () => {
+    const pending = new Promise<string>(() => {});
+    await expect(withTimeout(pending, 20, 'trop de temps')).rejects.toThrow(/trop de temps/);
+  });
+});
+
+describe('menuFileRejection', () => {
+  it('accepte les formats lus et refuse les autres sans inventer de produit', () => {
+    expect(menuFileRejection('carte.pdf')).toBeNull();
+    expect(menuFileRejection('carte.docx')).toBeNull();
+    expect(menuFileRejection('carte.xlsx')).toBeNull();
+    expect(menuFileRejection('carte.xls')).toBeNull();
+    expect(menuFileRejection('carte.csv')).toBeNull();
+    expect(menuFileRejection('carte.doc')).toMatch(/\.doc/);
+    expect(menuFileRejection('carte.txt')).toMatch(/non pris en charge/);
+    expect(menuFileRejection('carte.zip')).toMatch(/non pris en charge/);
+  });
+});
+
 describe('docxToText', () => {
   it('lit le document.xml d’un fichier .docx', async () => {
     const bytes = zipWithDeflatedEntry(
       'word/document.xml',
       '<w:document><w:p><w:r><w:t>Nems x4 — 2500</w:t></w:r></w:p></w:document>'
     );
-    const file = new File([bytes], 'Carte_des_menus.docx');
+    const payload = new ArrayBuffer(bytes.byteLength);
+    new Uint8Array(payload).set(bytes);
+    const file = new File([payload], 'Carte_des_menus.docx');
     await expect(docxToText(file)).resolves.toBe('Nems x4 — 2500');
   });
 });

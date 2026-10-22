@@ -14,6 +14,7 @@ import { ModuleError } from '@/components/dashboard/module-error';
 import { CatalogClient } from '@/components/catalogue/catalog-client';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
 
 const FALLBACK_SETTINGS = (organizationId: string): CatalogSettings => ({
   organization_id: organizationId,

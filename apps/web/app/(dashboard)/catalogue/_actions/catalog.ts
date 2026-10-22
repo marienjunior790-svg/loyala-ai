@@ -287,7 +287,15 @@ async function runCatalogImport(
     },
   });
 
-  if (!result.ok) return { error: result.error ?? 'Import IA indisponible' };
+  if (!result.ok) {
+    const raw = result.error ?? '';
+    if (/abort|timeout|timed out/i.test(raw)) {
+      return {
+        error: 'L’analyse a pris trop de temps. Aucun produit n’a été ajouté. Réessayez, ou importez une photo du menu.',
+      };
+    }
+    return { error: raw || 'Import IA indisponible' };
+  }
 
   const parsed = generatedCatalogSchema.safeParse(result.data);
   if (!parsed.success) {

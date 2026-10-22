@@ -14,6 +14,38 @@ export function fileToDataUrl(file: File): Promise<string> {
   });
 }
 
+export const MENU_ANALYSIS_TIMEOUT_MESSAGE =
+  'L’analyse n’a pas abouti à temps. Aucun produit n’a été ajouté. Réessayez, ou importez une photo du menu.';
+
+/** Empêche une lecture ou une analyse de laisser l’écran bloqué. */
+export function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(message)), ms);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error: unknown) => {
+        clearTimeout(timer);
+        reject(error);
+      }
+    );
+  });
+}
+
+/** Refuse un fichier dont l’extension n’est pas lue par l’import de carte. */
+export function menuFileRejection(fileName: string): string | null {
+  const lowerName = fileName.toLowerCase();
+  if (lowerName.endsWith('.doc') && !lowerName.endsWith('.docx')) {
+    return 'Les anciens fichiers Word .doc ne sont pas lus. Enregistrez la carte en .docx ou en PDF.';
+  }
+  if (!/\.(pdf|docx|xlsx|xls|csv)$/i.test(lowerName)) {
+    return 'Format non pris en charge. Utilisez un PDF, un Word .docx, un Excel ou un CSV.';
+  }
+  return null;
+}
+
 /** Extract plain text from a spreadsheet (.xlsx/.xls/.csv) via SheetJS. */
 export async function spreadsheetToText(file: File): Promise<string> {
   const XLSX = await import('xlsx');
@@ -24,15 +56,21 @@ export async function spreadsheetToText(file: File): Promise<string> {
 
 async function loadPdfJs() {
   const pdfjs = await import('pdfjs-dist');
-  // Prefer same-origin worker (copied to /public) — CDN often blocked on mobile.
   if (typeof window !== 'undefined') {
-    pdfjs.GlobalWorkerOptions.workerSrc = `/pdf.worker.min.mjs`;
+    pdfjs.GlobalWorkerOptions.workerSrc = new URL(
+      'pdfjs-dist/build/pdf.worker.min.mjs',
+      import.meta.url
+    ).toString();
   }
   return pdfjs;
 }
 
 /** Extract selectable text from a PDF (digital menus) via pdf.js. */
 export async function pdfToText(file: File): Promise<string> {
+  return withTimeout(readPdfText(file), 20_000, 'La lecture du PDF a pris trop de temps. Aucun produit n’a été ajouté.');
+}
+
+async function readPdfText(file: File): Promise<string> {
   const pdfjs = await loadPdfJs();
   const data = new Uint8Array(await file.arrayBuffer());
   const doc = await pdfjs.getDocument({ data }).promise;
@@ -56,6 +94,14 @@ export async function pdfToText(file: File): Promise<string> {
  * selectable text (scanned menus).
  */
 export async function pdfToImages(file: File, maxPages = 4): Promise<string[]> {
+  return withTimeout(
+    renderPdfImages(file, maxPages),
+    20_000,
+    'La lecture du PDF a pris trop de temps. Aucun produit n’a été ajouté.'
+  );
+}
+
+async function renderPdfImages(file: File, maxPages: number): Promise<string[]> {
   const pdfjs = await loadPdfJs();
   const data = new Uint8Array(await file.arrayBuffer());
   const doc = await pdfjs.getDocument({ data }).promise;
