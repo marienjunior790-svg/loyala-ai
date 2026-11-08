@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { requireAuth } from '@/lib/auth/guard';
 import { hasPermission } from '@loyala/core-iam';
+import { getAdminClient } from '@/lib/auth/session';
 import { createClient } from '@/lib/supabase/server';
 import {
   disconnectWhatsAppConnection,
@@ -39,8 +40,8 @@ export async function connectWhatsAppBusinessAction(
     const denied = assertCanManageWhatsApp(ctx);
     if (denied) return denied;
 
-    const supabase = await createClient();
-    const connection = await upsertWhatsAppConnectionForOrganization(supabase, {
+    const admin = getAdminClient();
+    const connection = await upsertWhatsAppConnectionForOrganization(admin, {
       organizationId: ctx.organizationId,
       userId: ctx.userId,
       displayPhone: String(formData.get('displayPhone') ?? ''),
@@ -64,10 +65,11 @@ export async function disconnectWhatsAppBusinessAction(): Promise<WhatsAppSettin
     const denied = assertCanManageWhatsApp(ctx);
     if (denied) return denied;
 
-    const supabase = await createClient();
-    await disconnectWhatsAppConnection(supabase, ctx.organizationId);
+    const admin = getAdminClient();
+    await disconnectWhatsAppConnection(admin, ctx.organizationId);
     revalidatePath('/settings');
     revalidatePath('/clients');
+    const supabase = await createClient();
     return {
       success: 'WhatsApp déconnecté',
       connection: await getWhatsAppConnectionPublic(supabase, ctx.organizationId),
@@ -83,8 +85,9 @@ export async function testWhatsAppBusinessAction(): Promise<WhatsAppSettingsStat
     const denied = assertCanManageWhatsApp(ctx);
     if (denied) return denied;
 
+    const admin = getAdminClient();
+    const result = await testWhatsAppConnectionForOrganization(admin, ctx.organizationId);
     const supabase = await createClient();
-    const result = await testWhatsAppConnectionForOrganization(supabase, ctx.organizationId);
     const connection = await getWhatsAppConnectionPublic(supabase, ctx.organizationId);
     revalidatePath('/settings');
     return result.ok

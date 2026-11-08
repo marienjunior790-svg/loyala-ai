@@ -9,6 +9,7 @@ import {
   ignoreWhatsAppLeadAction,
 } from '@/app/(dashboard)/clients/_actions/acquisition';
 import type { WhatsAppLead } from '@loyala/domain-crm';
+import { whatsAppDialogClaim } from '@/lib/whatsapp/guided-signup';
 
 interface ConnectWhatsAppDialogProps {
   open: boolean;
@@ -26,7 +27,7 @@ export function ConnectWhatsAppDialog({
   phoneNumberId,
   apiConfigured,
 }: ConnectWhatsAppDialogProps) {
-  const connected = Boolean(whatsappPhone.trim()) || apiConfigured;
+  const claim = whatsAppDialogClaim({ apiReady: apiConfigured, savedPhone: whatsappPhone });
 
   return (
     <GlassDialog
@@ -54,69 +55,31 @@ export function ConnectWhatsAppDialog({
         </ul>
 
         <div className="mt-5 rounded-xl border border-white/[0.08] bg-black/20 p-4 text-sm">
-          {connected ? (
-            <>
-              <p className="font-medium text-foreground">WhatsApp connecté ✓</p>
-              <p className="mt-2 text-muted-foreground">
-                Numéro : <span className="text-foreground">{whatsappPhone || 'Cloud API'}</span>
-              </p>
-              <p className="mt-1 flex items-center gap-2 text-muted-foreground">
-                Statut :{' '}
-                <span className="inline-flex items-center gap-1 text-emerald-400">
-                  <span className="h-2 w-2 rounded-full bg-emerald-400" /> Connecté
-                </span>
-              </p>
-              {apiConfigured && (
-                <p className="mt-2 text-xs text-muted-foreground">
-                  Cloud API active (webhook Meta). Phone number id :{' '}
-                  {phoneNumberId || 'défini côté worker'}
-                </p>
-              )}
-              <p className="mt-3 text-xs text-muted-foreground">
-                La connexion Cloud API se configure dans{' '}
-                <a href="/settings" className="text-primary underline">
-                  Paramètres → WhatsApp Business
-                </a>{' '}
-                pour <strong>cette organisation uniquement</strong>. Aucun fallback vers un autre
-                restaurant.
-              </p>
-            </>
-          ) : (
-            <>
-              <p className="font-medium">Pas encore configuré</p>
-              <p className="mt-2 text-muted-foreground">
-                1. Ajoutez votre numéro WhatsApp Business dans{' '}
-                <a href="/settings" className="text-primary underline">
-                  Paramètres
-                </a>
-                .
-              </p>
-              <p className="mt-1 text-muted-foreground">
-                2. Pour l’API Cloud Meta : configurez les variables worker (`WHATSAPP_*`) et le
-                webhook `https://…/whatsapp/webhook`.
-              </p>
-            </>
+          <p className={`font-medium ${claim.connected ? 'text-emerald-400' : 'text-foreground'}`}>
+            {claim.title}
+          </p>
+          <p className="mt-2 text-muted-foreground">{claim.detail}</p>
+          {whatsappPhone.trim() && (
+            <p className="mt-2 text-muted-foreground">
+              Numéro enregistré : <span className="text-foreground">{whatsappPhone}</span>
+            </p>
           )}
+          {claim.connected && phoneNumberId && (
+            <p className="mt-2 text-xs text-muted-foreground">Compte confirmé pour ce restaurant.</p>
+          )}
+          <p className="mt-3 text-xs text-muted-foreground">
+            La connexion se fait dans{' '}
+            <a href="/settings" className="text-primary underline">
+              Paramètres
+            </a>
+            , pour ce restaurant uniquement.
+          </p>
         </div>
       </GlassDialogBody>
 
       <GlassDialogFooter>
-          {whatsappPhone.trim() && (
-            <Button type="button" variant="outline" asChild>
-              <a
-                href={`https://wa.me/${whatsappPhone.replace(/\D/g, '')}?text=${encodeURIComponent('Test connexion Loyala AI')}`}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Tester la connexion
-              </a>
-            </Button>
-          )}
           <Button type="button" variant="outline" asChild>
             <a href="/settings">Gérer WhatsApp</a>
-          </Button>
-          <Button type="button" variant="ghost" asChild>
-            <a href="/settings">Déconnecter</a>
           </Button>
           <Button type="button" onClick={onClose}>
             Fermer

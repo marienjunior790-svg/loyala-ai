@@ -13,6 +13,7 @@ import {
   type WhatsAppSettingsState,
 } from '@/app/(dashboard)/settings/_actions/whatsapp';
 import type { WhatsAppConnectionPublic } from '@loyala/domain-crm';
+import { whatsAppStatusCopy, type GuidedWhatsAppSignup } from '@/lib/whatsapp/guided-signup';
 
 const initial: WhatsAppSettingsState = {};
 
@@ -21,12 +22,14 @@ interface WhatsAppBusinessSettingsProps {
   canManage: boolean;
   /** Hide admin technical IDs for staff; show for owner/admin. */
   showAdminIds?: boolean;
+  guidedSignup: GuidedWhatsAppSignup;
 }
 
 export function WhatsAppBusinessSettings({
   connection: initialConnection,
   canManage,
   showAdminIds = false,
+  guidedSignup,
 }: WhatsAppBusinessSettingsProps) {
   const [connection, setConnection] = useState(initialConnection);
   const [state, action, pending] = useActionState(
@@ -40,8 +43,10 @@ export function WhatsAppBusinessSettings({
   const [busy, start] = useTransition();
   const [flash, setFlash] = useState<WhatsAppSettingsState>({});
   const [showForm, setShowForm] = useState(false);
+  const [showGuide, setShowGuide] = useState(false);
 
-  const ready = connection.isReady || connection.status === 'connected';
+  const ready = connection.isReady;
+  const statusCopy = whatsAppStatusCopy(connection);
 
   return (
     <Card>
@@ -54,22 +59,38 @@ export function WhatsAppBusinessSettings({
       <CardContent className="space-y-4">
         {!ready ? (
           <>
-            <p className="text-sm text-muted-foreground">
-              Votre WhatsApp Business n’est pas encore connecté.
-            </p>
+            <p className="text-sm font-medium">{statusCopy.title}</p>
+            <p className="text-sm text-muted-foreground">{statusCopy.message}</p>
             <p className="text-xs text-muted-foreground">
-              Chaque restaurant connecte <strong>son propre</strong> compte Meta Cloud API. Aucun
-              numéro global n’est partagé entre organisations.
+              Chaque restaurant connecte son propre compte. Aucun numéro n’est partagé entre restaurants.
             </p>
+            {connection.lastError && (
+              <p className="text-xs text-destructive">{connection.lastError}</p>
+            )}
             {canManage && (
-              <Button type="button" onClick={() => setShowForm(true)}>
-                Connecter WhatsApp
+              <Button type="button" onClick={() => setShowGuide(true)}>
+                Connecter mon WhatsApp
               </Button>
+            )}
+            {showGuide && canManage && (
+              <div className="space-y-3 rounded-xl border border-primary/20 bg-primary/5 p-4">
+                <p className="text-sm font-medium">Connexion guidée</p>
+                <p className="text-sm text-muted-foreground">{guidedSignup.message}</p>
+                {!guidedSignup.canLaunch && (
+                  <p className="text-xs text-muted-foreground">
+                    En attendant, un responsable peut enregistrer les identifiants Meta déjà
+                    obtenus pour ce restaurant via la configuration avancée.
+                  </p>
+                )}
+                <Button type="button" variant="outline" onClick={() => setShowForm(true)}>
+                  Configuration avancée
+                </Button>
+              </div>
             )}
           </>
         ) : (
           <>
-            <p className="text-sm font-medium text-emerald-400">WhatsApp Business connecté ✓</p>
+            <p className="text-sm font-medium text-emerald-400">{statusCopy.title}</p>
             <dl className="grid gap-2 text-sm sm:grid-cols-2">
               <div>
                 <dt className="text-xs text-muted-foreground">Nom du compte</dt>
@@ -137,7 +158,7 @@ export function WhatsAppBusinessSettings({
                   Tester
                 </Button>
                 <Button type="button" variant="outline" size="sm" onClick={() => setShowForm(true)}>
-                  Reconnecter
+                  Configuration avancée
                 </Button>
                 <Button
                   type="button"
@@ -162,18 +183,11 @@ export function WhatsAppBusinessSettings({
 
         {showForm && canManage && (
           <form action={action} className="space-y-3 rounded-xl border border-border bg-background/40 p-4">
-            <p className="text-sm font-medium">Connexion Meta Cloud API (compte de ce restaurant)</p>
+            <p className="text-sm font-medium">Configuration avancée</p>
             <p className="text-xs text-muted-foreground">
-              Utilisez les identifiants du{' '}
-              <a
-                href="https://developers.facebook.com/docs/whatsapp/cloud-api/get-started"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-primary underline"
-              >
-                WhatsApp Cloud API
-              </a>{' '}
-              de votre restaurant. Le token est chiffré côté serveur — jamais exposé ensuite.
+              Réservé à un responsable qui dispose déjà des identifiants Meta de ce restaurant.
+              Le jeton est chiffré côté serveur et n’est plus réaffiché ensuite. Loyala vérifie le
+              compte avant de le marquer opérationnel.
             </p>
             <div>
               <label className="text-xs text-muted-foreground">Nom du compte (optionnel)</label>
@@ -223,7 +237,7 @@ export function WhatsAppBusinessSettings({
             <div className="flex flex-wrap gap-2">
               <Button type="submit" disabled={pending}>
                 {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                Enregistrer la connexion
+                {pending ? 'Vérification auprès de Meta…' : 'Enregistrer la connexion'}
               </Button>
               <Button type="button" variant="ghost" onClick={() => setShowForm(false)}>
                 Annuler

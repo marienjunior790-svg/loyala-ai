@@ -6,6 +6,7 @@ import { getMyProfile, getOrganization, getWhatsAppConnectionPublic } from '@loy
 import { ProfileForm } from '@/components/settings/profile-form';
 import { SettingsForm } from '@/components/settings/settings-form';
 import { WhatsAppBusinessSettings } from '@/components/settings/whatsapp-business-settings';
+import { readGuidedWhatsAppSignup } from '@/lib/whatsapp/guided-signup';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ModuleError } from '@/components/dashboard/module-error';
 import { roleLabel } from '@/lib/labels';
@@ -46,6 +47,7 @@ export default async function SettingsPage() {
           connection={connection}
           canManage={canManageWhatsApp}
           showAdminIds={showAdminIds}
+          guidedSignup={readGuidedWhatsAppSignup()}
         />
 
         <Card>
