@@ -6,7 +6,8 @@
   "types": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts",
-    "./whatsapp-secure": "./src/whatsapp-connections-secure.ts"
+    "./whatsapp-secure": "./src/whatsapp-connections-secure.ts",
+    "./whatsapp-embedded-signup": "./src/whatsapp-embedded-signup.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

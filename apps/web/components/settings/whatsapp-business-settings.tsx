@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState, useState, useTransition } from 'react';
+import { useActionState, useRef, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { Loader2, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -12,10 +12,22 @@ import {
   testWhatsAppBusinessAction,
   type WhatsAppSettingsState,
 } from '@/app/(dashboard)/settings/_actions/whatsapp';
+import {
+  beginWhatsAppEmbeddedSignupAction,
+  completeWhatsAppEmbeddedSignupAction,
+} from '@/app/(dashboard)/settings/_actions/whatsapp-embedded-signup';
 import type { WhatsAppConnectionPublic } from '@loyala/domain-crm';
 import { whatsAppStatusCopy, type GuidedWhatsAppSignup } from '@/lib/whatsapp/guided-signup';
+import { launchWhatsAppEmbeddedSignup } from '@/lib/whatsapp/embedded-signup-launch';
 
 const initial: WhatsAppSettingsState = {};
+
+type EsFlowPhase =
+  | 'idle'
+  | 'opening_meta'
+  | 'connecting'
+  | 'verifying'
+  | 'error';
 
 interface WhatsAppBusinessSettingsProps {
   connection: WhatsAppConnectionPublic;
@@ -44,9 +56,100 @@ export function WhatsAppBusinessSettings({
   const [flash, setFlash] = useState<WhatsAppSettingsState>({});
   const [showForm, setShowForm] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
+  const [esPhase, setEsPhase] = useState<EsFlowPhase>('idle');
+  const [esError, setEsError] = useState<string | null>(null);
+  const launchLock = useRef(false);
 
   const ready = connection.isReady;
   const statusCopy = whatsAppStatusCopy(connection);
+  const esBusy = esPhase !== 'idle' && esPhase !== 'error';
+
+  const esPhaseCopy = (): { title: string; detail: string } | null => {
+    switch (esPhase) {
+      case 'opening_meta':
+        return {
+          title: 'Ouverture Meta…',
+          detail: 'Une fenêtre Meta va s’ouvrir. Choisissez le compte WhatsApp Business de ce restaurant.',
+        };
+      case 'connecting':
+        return {
+          title: 'Connexion en cours…',
+          detail: 'Autorisation reçue. Loyala sécurise le compte de ce restaurant.',
+        };
+      case 'verifying':
+        return {
+          title: 'Vérification Loyala…',
+          detail: 'Contrôle que le numéro et le compte WhatsApp sont bien associés à ce restaurant.',
+        };
+      case 'error':
+        return {
+          title: 'Connexion interrompue',
+          detail: esError ?? 'Une erreur est survenue. Vous pouvez réessayer.',
+        };
+      default:
+        return null;
+    }
+  };
+
+  const runEmbeddedSignup = () => {
+    if (launchLock.current || esBusy || !guidedSignup.canLaunch) return;
+    launchLock.current = true;
+    setEsError(null);
+    setFlash({});
+    setEsPhase('opening_meta');
+
+    start(async () => {
+      try {
+        const begin = await beginWhatsAppEmbeddedSignupAction();
+        if (begin.error || !begin.launch) {
+          setEsPhase('error');
+          setEsError(begin.error ?? 'Impossible de démarrer la connexion guidée.');
+          return;
+        }
+
+        const launched = await launchWhatsAppEmbeddedSignup({
+          appId: begin.launch.appId,
+          configId: begin.launch.configId,
+          apiVersion: begin.launch.apiVersion,
+        });
+
+        if (!launched.ok) {
+          setEsPhase('error');
+          setEsError(launched.message);
+          return;
+        }
+
+        setEsPhase('connecting');
+        const completed = await completeWhatsAppEmbeddedSignupAction({
+          state: begin.launch.state,
+          code: launched.code,
+          phoneNumberId: launched.assets.phoneNumberId,
+          wabaId: launched.assets.wabaId,
+          displayPhone: launched.assets.displayPhone,
+        });
+
+        if (completed.error) {
+          setEsPhase('error');
+          setEsError(completed.error);
+          return;
+        }
+
+        setEsPhase('verifying');
+        if (completed.connection) setConnection(completed.connection);
+        setFlash({ success: completed.success });
+        setEsPhase('idle');
+        setShowGuide(false);
+        setShowForm(false);
+      } catch {
+        setEsPhase('error');
+        setEsError('Impossible de finaliser la connexion. Réessayez ou utilisez la configuration avancée.');
+      } finally {
+        launchLock.current = false;
+      }
+    });
+  };
+
+  const phase = esPhaseCopy();
 
   return (
     <Card>
@@ -68,23 +171,65 @@ export function WhatsAppBusinessSettings({
               <p className="text-xs text-destructive">{connection.lastError}</p>
             )}
             {canManage && (
-              <Button type="button" onClick={() => setShowGuide(true)}>
+              <Button
+                type="button"
+                disabled={esBusy}
+                onClick={() => {
+                  setShowGuide(true);
+                  setEsError(null);
+                  if (esPhase === 'error') setEsPhase('idle');
+                }}
+              >
                 Connecter mon WhatsApp
               </Button>
             )}
             {showGuide && canManage && (
               <div className="space-y-3 rounded-xl border border-primary/20 bg-primary/5 p-4">
-                <p className="text-sm font-medium">Connexion guidée</p>
+                <p className="text-sm font-medium">
+                  {guidedSignup.canLaunch ? 'Prêt à connecter' : 'Connexion guidée'}
+                </p>
                 <p className="text-sm text-muted-foreground">{guidedSignup.message}</p>
-                {!guidedSignup.canLaunch && (
-                  <p className="text-xs text-muted-foreground">
-                    En attendant, un responsable peut enregistrer les identifiants Meta déjà
-                    obtenus pour ce restaurant via la configuration avancée.
-                  </p>
+
+                {phase && (
+                  <div className="flex items-start gap-2 text-sm">
+                    {esBusy ? <Loader2 className="mt-0.5 h-4 w-4 shrink-0 animate-spin" /> : null}
+                    <div>
+                      <p className="font-medium">{phase.title}</p>
+                      <p className="text-muted-foreground">{phase.detail}</p>
+                    </div>
+                  </div>
                 )}
-                <Button type="button" variant="outline" onClick={() => setShowForm(true)}>
-                  Configuration avancée
-                </Button>
+
+                {guidedSignup.canLaunch ? (
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      disabled={esBusy}
+                      onClick={runEmbeddedSignup}
+                    >
+                      {esBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                      {esPhase === 'error' ? 'Réessayer' : 'Continuer avec Meta'}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={esBusy}
+                      onClick={() => setShowForm(true)}
+                    >
+                      Configuration avancée
+                    </Button>
+                  </div>
+                ) : (
+                  <>
+                    <p className="text-xs text-muted-foreground">
+                      En attendant, un responsable peut enregistrer les identifiants Meta déjà
+                      obtenus pour ce restaurant via la configuration avancée.
+                    </p>
+                    <Button type="button" variant="outline" onClick={() => setShowForm(true)}>
+                      Configuration avancée
+                    </Button>
+                  </>
+                )}
               </div>
             )}
           </>
@@ -246,13 +391,13 @@ export function WhatsAppBusinessSettings({
           </form>
         )}
 
-        {(state.error || state.success || flash.error || flash.success) && (
+        {(state.error || state.success || flash.error || flash.success || esError) && !esBusy && (
           <p
             className={`text-sm ${
-              state.error || flash.error ? 'text-destructive' : 'text-emerald-400'
+              state.error || flash.error || esError ? 'text-destructive' : 'text-emerald-400'
             }`}
           >
-            {state.error || flash.error || state.success || flash.success}
+            {state.error || flash.error || esError || state.success || flash.success}
           </p>
         )}
 

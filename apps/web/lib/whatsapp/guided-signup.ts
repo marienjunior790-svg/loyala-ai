@@ -1,49 +1,36 @@
 import type { WhatsAppConnectionPublic } from '@loyala/domain-crm';
+import {
+  describeEmbeddedSignupCapability,
+  type EmbeddedSignupCapability,
+  type EmbeddedSignupReadiness,
+} from './embedded-signup-config';
+
+export type { EmbeddedSignupReadiness, EmbeddedSignupCapability };
 
 export type GuidedWhatsAppSignup = {
-  /** Toujours faux tant qu’un échange de code Meta n’est pas implémenté et testé. */
-  canLaunch: false;
+  readiness: EmbeddedSignupReadiness;
+  canLaunch: boolean;
   message: string;
+  publicConfig: EmbeddedSignupCapability['publicConfig'];
 };
 
-type SignupEnv = {
-  NEXT_PUBLIC_META_APP_ID?: string;
-  NEXT_PUBLIC_META_EMBEDDED_SIGNUP_CONFIG_ID?: string;
-  WHATSAPP_APP_SECRET?: string;
-  META_APP_SECRET?: string;
-};
-
-/** Indique si le parcours guidé peut être proposé. Ne renvoie jamais de secret. */
-export function describeGuidedWhatsAppSignup(env: SignupEnv): GuidedWhatsAppSignup {
-  const appIdPresent = Boolean(env.NEXT_PUBLIC_META_APP_ID?.trim());
-  const configIdPresent = Boolean(env.NEXT_PUBLIC_META_EMBEDDED_SIGNUP_CONFIG_ID?.trim());
-  const appSecretPresent = Boolean(env.WHATSAPP_APP_SECRET?.trim() || env.META_APP_SECRET?.trim());
-  const configured = appIdPresent && configIdPresent && appSecretPresent;
-
-  if (!configured) {
-    return {
-      canLaunch: false,
-      message:
-        'La connexion guidée n’est pas encore disponible. Loyala n’ouvre pas le parcours Meta tant que l’application n’est pas configurée. Aucune connexion n’est simulée.',
-    };
-  }
-
+/** Capacité ES calculée côté serveur — jamais de secret dans le retour. */
+export function describeGuidedWhatsAppSignup(
+  env?: Parameters<typeof describeEmbeddedSignupCapability>[0]
+): GuidedWhatsAppSignup {
+  const capability = describeEmbeddedSignupCapability(env);
   return {
-    canLaunch: false,
-    message:
-      'La configuration Meta est détectée, mais le parcours guidé n’est pas encore activé dans cette version. Aucune connexion n’est lancée.',
+    readiness: capability.readiness,
+    canLaunch: capability.canLaunch,
+    message: capability.message,
+    publicConfig: capability.publicConfig,
   };
 }
 
-export function readGuidedWhatsAppSignup(env?: SignupEnv): GuidedWhatsAppSignup {
-  return describeGuidedWhatsAppSignup(
-    env ?? {
-      NEXT_PUBLIC_META_APP_ID: process.env.NEXT_PUBLIC_META_APP_ID,
-      NEXT_PUBLIC_META_EMBEDDED_SIGNUP_CONFIG_ID: process.env.NEXT_PUBLIC_META_EMBEDDED_SIGNUP_CONFIG_ID,
-      WHATSAPP_APP_SECRET: process.env.WHATSAPP_APP_SECRET,
-      META_APP_SECRET: process.env.META_APP_SECRET,
-    }
-  );
+export function readGuidedWhatsAppSignup(
+  env?: Parameters<typeof describeEmbeddedSignupCapability>[0]
+): GuidedWhatsAppSignup {
+  return describeGuidedWhatsAppSignup(env);
 }
 
 export type WhatsAppUiState =
@@ -55,7 +42,10 @@ export type WhatsAppUiState =
   | 'number_pending';
 
 export function whatsAppUiState(
-  connection: Pick<WhatsAppConnectionPublic, 'status' | 'isReady' | 'hasToken' | 'phoneNumberId' | 'displayPhone'>
+  connection: Pick<
+    WhatsAppConnectionPublic,
+    'status' | 'isReady' | 'hasToken' | 'phoneNumberId' | 'displayPhone'
+  >
 ): WhatsAppUiState {
   if (connection.isReady) return 'operational';
   if (connection.status === 'token_expired') return 'expired';
@@ -71,7 +61,10 @@ export function whatsAppUiState(
 }
 
 export function whatsAppStatusCopy(
-  connection: Pick<WhatsAppConnectionPublic, 'status' | 'isReady' | 'hasToken' | 'phoneNumberId' | 'displayPhone'>
+  connection: Pick<
+    WhatsAppConnectionPublic,
+    'status' | 'isReady' | 'hasToken' | 'phoneNumberId' | 'displayPhone'
+  >
 ): { title: string; message: string } {
   switch (whatsAppUiState(connection)) {
     case 'operational':
@@ -98,12 +91,14 @@ export function whatsAppStatusCopy(
     case 'number_pending':
       return {
         title: 'Numéro à vérifier',
-        message: 'Un numéro est enregistré, mais le compte WhatsApp Business n’est pas encore confirmé.',
+        message:
+          'Un numéro est enregistré, mais le compte WhatsApp Business n’est pas encore confirmé.',
       };
     default:
       return {
         title: 'WhatsApp non connecté',
-        message: 'Votre WhatsApp Business n’est pas encore connecté. Vous pouvez déjà gérer vos clients.',
+        message:
+          'Votre WhatsApp Business n’est pas encore connecté. Vous pouvez déjà gérer vos clients.',
       };
   }
 }
@@ -131,6 +126,7 @@ export function whatsAppDialogClaim(input: { apiReady: boolean; savedPhone: stri
   return {
     connected: false,
     title: 'WhatsApp non connecté',
-    detail: 'Vous pouvez créer vos clients maintenant et connecter WhatsApp plus tard, dans les paramètres.',
+    detail:
+      'Vous pouvez créer vos clients maintenant et connecter WhatsApp plus tard, dans les paramètres.',
   };
 }

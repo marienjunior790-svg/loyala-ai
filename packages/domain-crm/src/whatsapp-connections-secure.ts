@@ -91,16 +91,120 @@ export async function getMetaWhatsAppConfigForOrganization(
   };
 }
 
-export async function upsertWhatsAppConnectionForOrganization(
+function digits(value: string): string {
+  return value.replace(/\D/g, '');
+}
+
+function phonesMatch(submitted: string, meta: string): boolean {
+  const left = digits(submitted);
+  const right = digits(meta);
+  if (!left || !right) return false;
+  const tail = (value: string) => value.slice(-8);
+  return left.length >= 8 && right.length >= 8 && tail(left) === tail(right);
+}
+
+function safeMetaMessage(message: string, secret?: string): string {
+  let safe = message.replace(/EAA[A-Za-z0-9]+/g, '[token]');
+  if (secret && secret.length >= 8) safe = safe.split(secret).join('[token]');
+  return safe.slice(0, 300);
+}
+
+/** Échec exploitable, sans jeton et sans passer le statut à connected. */
+async function rememberVerificationFailure(
   supabase: SupabaseClient,
-  input: UpsertWhatsAppConnectionInput
-): Promise<WhatsAppConnectionPublic> {
-  if (!isSecretEncryptionConfigured()) {
-    throw new Error(
-      'Chiffrement non configuré (LOYALA_SECRETS_ENCRYPTION_KEY). Impossible de stocker le token.'
+  organizationId: string,
+  message: string
+): Promise<void> {
+  const safe = safeMetaMessage(message);
+  try {
+    const { data: existing } = await supabase
+      .from('whatsapp_connections')
+      .select('status')
+      .eq('organization_id', organizationId)
+      .maybeSingle();
+    if (existing?.status === 'connected') return;
+
+    await supabase.from('whatsapp_connections').upsert(
+      {
+        organization_id: organizationId,
+        status: 'error',
+        last_error: safe,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'organization_id' }
     );
+  } catch {
+    // La réponse au client reste le message assaini.
+  }
+}
+
+export type MetaCredentialProbe =
+  | { ok: true; displayPhone: string | null; verifiedName: string | null; accountName: string | null }
+  | { ok: false; message: string };
+
+/** Interroge Graph sans envoyer de message. Un échec ne doit jamais être traité comme une connexion. */
+export async function verifyMetaWhatsAppCredentials(input: {
+  accessToken: string;
+  phoneNumberId: string;
+  wabaId: string;
+  displayPhone: string;
+  apiVersion?: string;
+  fetchImpl?: typeof fetch;
+}): Promise<MetaCredentialProbe> {
+  const fetchImpl = input.fetchImpl ?? fetch;
+  const version = (input.apiVersion || process.env.WHATSAPP_API_VERSION || 'v21.0').replace(/^v?/, 'v');
+  const headers = { Authorization: `Bearer ${input.accessToken}` };
+
+  let phoneRaw: unknown;
+  try {
+    const phoneRes = await fetchImpl(
+      `https://graph.facebook.com/${version}/${input.phoneNumberId}?fields=display_phone_number,verified_name`,
+      { headers }
+    );
+    phoneRaw = await phoneRes.json().catch(() => ({}));
+    if (!phoneRes.ok) {
+      const message =
+        (phoneRaw as { error?: { message?: string } })?.error?.message ?? 'Phone number ID refusé par Meta';
+      return { ok: false, message: safeMetaMessage(message, input.accessToken) };
+    }
+  } catch {
+    return { ok: false, message: 'Impossible de joindre Meta pour vérifier le Phone number ID' };
   }
 
+  const displayPhone = String((phoneRaw as { display_phone_number?: string }).display_phone_number ?? '');
+  const verifiedName = String((phoneRaw as { verified_name?: string }).verified_name ?? '') || null;
+  if (!displayPhone || !phonesMatch(input.displayPhone, displayPhone)) {
+    return {
+      ok: false,
+      message: displayPhone
+        ? `Le numéro affiché ne correspond pas à celui de Meta (${displayPhone}).`
+        : 'Meta n’a pas confirmé le numéro de ce Phone number ID.',
+    };
+  }
+
+  try {
+    const wabaRes = await fetchImpl(
+      `https://graph.facebook.com/${version}/${input.wabaId}?fields=id,name`,
+      { headers }
+    );
+    const wabaRaw = await wabaRes.json().catch(() => ({}));
+    if (!wabaRes.ok) {
+      const message =
+        (wabaRaw as { error?: { message?: string } })?.error?.message ??
+        'WhatsApp Business Account ID refusé par Meta';
+      return { ok: false, message: safeMetaMessage(message, input.accessToken) };
+    }
+    const accountName = String((wabaRaw as { name?: string }).name ?? '') || null;
+    return { ok: true, displayPhone, verifiedName, accountName };
+  } catch {
+    return { ok: false, message: 'Impossible de joindre Meta pour vérifier le compte WhatsApp Business' };
+  }
+}
+
+export async function upsertWhatsAppConnectionForOrganization(
+  supabase: SupabaseClient,
+  input: UpsertWhatsAppConnectionInput & { fetchImpl?: typeof fetch }
+): Promise<WhatsAppConnectionPublic> {
   const phoneNumberId = input.phoneNumberId.trim();
   const displayPhone = input.displayPhone.trim();
   const wabaId = input.wabaId.trim();
@@ -112,6 +216,24 @@ export async function upsertWhatsAppConnectionForOrganization(
   if (displayPhone.length < 6) throw new Error('Numéro WhatsApp invalide');
   if (!/^\d{5,30}$/.test(wabaId)) throw new Error('WhatsApp Business Account ID invalide');
   if (accessToken.length < 20) throw new Error('Access token Meta invalide');
+
+  const probe = await verifyMetaWhatsAppCredentials({
+    accessToken,
+    phoneNumberId,
+    wabaId,
+    displayPhone,
+    fetchImpl: input.fetchImpl,
+  });
+  if (!probe.ok) {
+    await rememberVerificationFailure(supabase, input.organizationId, probe.message);
+    throw new Error(probe.message);
+  }
+
+  if (!isSecretEncryptionConfigured()) {
+    throw new Error(
+      'Chiffrement non configuré (LOYALA_SECRETS_ENCRYPTION_KEY). Impossible de stocker le token.'
+    );
+  }
 
   const { data: taken } = await supabase
     .from('whatsapp_phone_numbers')
@@ -163,7 +285,7 @@ export async function upsertWhatsAppConnectionForOrganization(
       connection_id: conn.id,
       organization_id: input.organizationId,
       waba_id: wabaId,
-      name: input.accountName?.trim() || null,
+      name: input.accountName?.trim() || probe.accountName,
       updated_at: now,
     },
     { onConflict: 'connection_id' }
@@ -180,8 +302,8 @@ export async function upsertWhatsAppConnectionForOrganization(
     connection_id: conn.id,
     organization_id: input.organizationId,
     phone_number_id: phoneNumberId,
-    display_phone_number: displayPhone,
-    verified_name: input.accountName?.trim() || null,
+    display_phone_number: probe.displayPhone ?? displayPhone,
+    verified_name: input.accountName?.trim() || probe.verifiedName,
     is_primary: true,
   });
   if (phoneErr) throw new Error(phoneErr.message);
@@ -194,7 +316,7 @@ export async function upsertWhatsAppConnectionForOrganization(
 
   const settings = {
     ...((org?.settings as Record<string, unknown>) ?? {}),
-    whatsapp_phone: displayPhone,
+    whatsapp_phone: probe.displayPhone ?? displayPhone,
     whatsapp_phone_number_id: phoneNumberId,
   };
 
@@ -206,7 +328,8 @@ export async function upsertWhatsAppConnectionForOrganization(
 /** Probe Graph API with the org's own credentials — no shared env token. */
 export async function testWhatsAppConnectionForOrganization(
   supabase: SupabaseClient,
-  organizationId: string
+  organizationId: string,
+  fetchImpl: typeof fetch = fetch
 ): Promise<{ ok: boolean; message: string }> {
   const config = await getMetaWhatsAppConfigForOrganization(supabase, organizationId);
   if (!config) {
@@ -217,14 +340,16 @@ export async function testWhatsAppConnectionForOrganization(
   }
 
   const version = (config.apiVersion || 'v21.0').replace(/^v/, 'v');
-  const res = await fetch(`https://graph.facebook.com/${version}/${config.phoneNumberId}`, {
+  const res = await fetchImpl(`https://graph.facebook.com/${version}/${config.phoneNumberId}`, {
     headers: { Authorization: `Bearer ${config.accessToken}` },
   });
   const raw = await res.json().catch(() => ({}));
 
   if (!res.ok) {
-    const err =
-      (raw as { error?: { message?: string } })?.error?.message ?? res.statusText;
+    const err = safeMetaMessage(
+      (raw as { error?: { message?: string } })?.error?.message ?? res.statusText,
+      config.accessToken
+    );
     await markWhatsAppConnectionError(supabase, organizationId, err);
     return { ok: false, message: err };
   }

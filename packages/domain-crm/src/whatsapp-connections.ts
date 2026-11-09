@@ -94,13 +94,17 @@ function emptyPublic(): WhatsAppConnectionPublic {
   };
 }
 
+/** Colonnes lisibles par un membre. Le jeton chiffré n’en fait pas partie. */
+export const WHATSAPP_CONNECTION_PUBLIC_COLUMNS =
+  'id, organization_id, status, token_expires_at, last_synced_at, last_error, connected_at, disconnected_at, connected_by_user_id, created_at, updated_at';
+
 export async function getWhatsAppConnectionPublic(
   supabase: SupabaseClient,
   organizationId: string
 ): Promise<WhatsAppConnectionPublic> {
   const { data: conn, error } = await supabase
     .from('whatsapp_connections')
-    .select('*')
+    .select(WHATSAPP_CONNECTION_PUBLIC_COLUMNS)
     .eq('organization_id', organizationId)
     .maybeSingle();
 
@@ -130,7 +134,7 @@ export async function getWhatsAppConnectionPublic(
   ]);
 
   const status = conn.status as WhatsAppConnectionStatus;
-  const hasToken = Boolean(conn.access_token_encrypted);
+  const hasToken = status === 'connected' || status === 'token_expired';
   const phoneNumberId = phone?.phone_number_id?.startsWith('pending:')
     ? null
     : phone?.phone_number_id ?? null;
