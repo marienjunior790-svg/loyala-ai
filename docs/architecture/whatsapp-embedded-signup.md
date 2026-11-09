@@ -1,6 +1,26 @@
 # WhatsApp Embedded Signup — architecture Loyala
 
-## Flux
+## Flux restaurant (automatisé)
+
+```
+Connecter WhatsApp (1 clic)
+  → begin (session, permissions, already-connected?, capability)
+  → Meta SDK FB.login (response_type=code) — seul temps humain Meta
+  → postMessage FINISH (phone + waba temporaires)
+  → complete serveur : CSRF → exchange → Graph → encrypt → upsert → health
+  → UI « WhatsApp est connecté ✓ » uniquement si health OK
+```
+
+Le restaurant ne saisit jamais Phone Number ID, WABA ID ni access token.
+La configuration avancée reste un secours admin hors parcours nominal.
+
+## Machine d’état UX
+
+`unconfigured → ready → launching_meta → meta_authenticating → server_processing → verifying → connected`
+
+Branches : `cancelled`, `failed`, `already_connected`.
+
+## Flux technique
 
 ```
 Browser (public App ID + Config ID)

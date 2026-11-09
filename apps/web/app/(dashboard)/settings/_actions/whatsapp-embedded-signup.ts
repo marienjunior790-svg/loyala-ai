@@ -16,6 +16,7 @@ import {
   describeEmbeddedSignupCapability,
   resolveMetaAppSecret,
 } from '@/lib/whatsapp/embedded-signup-config';
+import { finalizeEmbeddedSignupClientResult } from '@/lib/whatsapp/embedded-signup-flow';
 import {
   canManageWhatsAppEmbeddedSignup,
   resolveEmbeddedSignupOrganizationId,
@@ -30,6 +31,10 @@ export type EmbeddedSignupActionState = {
   error?: string;
   success?: string;
   connection?: WhatsAppConnectionPublic;
+  /** Connexion déjà opérationnelle — pas de relance Meta. */
+  alreadyConnected?: boolean;
+  /** true uniquement après upsert + health OK — jamais de faux succès. */
+  connected?: boolean;
   /** Pour lancer le SDK — jamais de secret. */
   launch?: {
     state: string;
@@ -61,6 +66,17 @@ export async function beginWhatsAppEmbeddedSignupAction(): Promise<EmbeddedSignu
     const ctx = await requireAuth();
     const denied = assertCanManage(ctx);
     if (denied) return denied;
+
+    const supabase = await createClient();
+    const existing = await getWhatsAppConnectionPublic(supabase, ctx.organizationId);
+    if (existing.isReady) {
+      return {
+        success: 'WhatsApp est déjà connecté pour ce restaurant.',
+        connection: existing,
+        alreadyConnected: true,
+        connected: true,
+      };
+    }
 
     const capability = describeEmbeddedSignupCapability();
     if (!capability.canLaunch || !capability.publicConfig) {
@@ -201,12 +217,16 @@ export async function completeWhatsAppEmbeddedSignupAction(input: {
 
     const supabase = await createClient();
     const publicView = await getWhatsAppConnectionPublic(supabase, organizationId);
+    const resolved = publicView.isReady ? publicView : connection;
+    const finalized = finalizeEmbeddedSignupClientResult({
+      isReady: resolved.isReady,
+      healthOk: health.ok,
+      healthMessage: health.message,
+    });
 
     return {
-      success: health.ok
-        ? 'WhatsApp Business connecté et vérifié pour ce restaurant.'
-        : `WhatsApp enregistré. Vérification : ${health.message}`,
-      connection: publicView.isReady ? publicView : connection,
+      ...finalized,
+      connection: resolved,
     };
   } catch (e) {
     clearCookie();
